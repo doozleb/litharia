@@ -4,6 +4,7 @@
 #include <string>
 
 #include "../Core/Constants.h"
+#include "../Core/Noise.h"
 
 namespace
 {
@@ -20,17 +21,15 @@ constexpr float FIXED_STEP = 1.0f / 60.0f;
 // dropping the rest, rather than spiralling into an ever-growing catch-up.
 constexpr float MAX_FRAME_TIME = 0.25f;
 
-PlayerInput readInput()
+sf::Color toColor(BlockColor c)
 {
-    using Key = sf::Keyboard::Key;
+    return sf::Color(c.r, c.g, c.b);
+}
 
-    PlayerInput input;
-
-    input.left = sf::Keyboard::isKeyPressed(Key::A) || sf::Keyboard::isKeyPressed(Key::Left);
-    input.right = sf::Keyboard::isKeyPressed(Key::D) || sf::Keyboard::isKeyPressed(Key::Right);
-    input.jump = sf::Keyboard::isKeyPressed(Key::Space);
-
-    return input;
+// The block an item would place, which is also what it looks like on the ground.
+sf::Color itemColor(ItemType type)
+{
+    return toColor(blockInfo(itemInfo(type).placeBlock).color);
 }
 
 } // namespace
@@ -61,6 +60,48 @@ sf::Vector2f Game::findSpawn() const
     const float y = surface * TILE_SIZE - Player::HEIGHT;
 
     return {x, y};
+}
+
+sf::Vector2f Game::cursorWorldPosition() const
+{
+    // The mouse is in pixels; the world is in world units under the camera's view.
+    return window.mapPixelToCoords(sf::Mouse::getPosition(window), camera.view());
+}
+
+PlayerInput Game::readInput() const
+{
+    using Key = sf::Keyboard::Key;
+
+    PlayerInput input;
+
+    input.left = sf::Keyboard::isKeyPressed(Key::A) || sf::Keyboard::isKeyPressed(Key::Left);
+    input.right = sf::Keyboard::isKeyPressed(Key::D) || sf::Keyboard::isKeyPressed(Key::Right);
+    input.jump = sf::Keyboard::isKeyPressed(Key::Space);
+
+    input.mine = window.hasFocus() && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+    input.cursor = cursorWorldPosition();
+
+    return input;
+}
+
+void Game::spawnDrop(const MineResult& result)
+{
+    const ItemType type = itemForBlock(result.block);
+
+    if (type == ItemType::None)
+        return;
+
+    // Pop out of the ground with a small hashed kick, so a row of drops does not
+    // land in a perfectly straight line.
+    const float roll = noise::hashFloat(result.tileX, result.tileY, WORLD_SEED);
+
+    const sf::Vector2f velocity{(roll - 0.5f) * 90.0f, -140.0f};
+
+    // Centred in the tile it came from.
+    const sf::Vector2f position{result.tileX * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f,
+                                result.tileY * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f};
+
+    drops.emplace_back(ItemStack{type, 1}, position, velocity);
 }
 
 void Game::run()
@@ -111,13 +152,51 @@ void Game::handleEvents()
 
 void Game::fixedUpdate(float dt)
 {
-    player.update(readInput(), world, dt);
+    const MineResult result = player.update(readInput(), world, dt);
+
+    if (result.broke)
+    {
+        // The player set the tile to air; the renderer has to be told about it.
+        chunks.markDirty(result.tileX, result.tileY);
+
+        spawnDrop(result);
+    }
+
+    for (ItemEntity& drop : drops)
+        drop.update(world, dt);
 
     camera.follow(player.center(), dt);
 
-    window.setTitle("Litharia  -  chunks: " + std::to_string(chunks.lastDrawnChunks()) + "/" +
-                    std::to_string(chunks.chunkCount()) +
-                    (player.isGrounded() ? "  -  grounded" : "  -  airborne"));
+    window.setTitle("Litharia  -  drops: " + std::to_string(drops.size()));
+}
+
+void Game::drawMiningHighlight()
+{
+    if (!player.isMining())
+        return;
+
+    const sf::Vector2i target = player.miningTarget();
+
+    const sf::Vector2f corner{static_cast<float>(target.x * TILE_SIZE),
+                              static_cast<float>(target.y * TILE_SIZE)};
+
+    // The tile being worked on.
+    sf::RectangleShape outline({TILE_SIZE, TILE_SIZE});
+    outline.setPosition(corner);
+    outline.setFillColor(sf::Color::Transparent);
+    outline.setOutlineThickness(-2.0f);
+    outline.setOutlineColor(sf::Color(255, 255, 255, 200));
+
+    window.draw(outline);
+
+    // How far through breaking it we are: the tile whitens as it cracks.
+    const float progress = player.miningProgress();
+
+    sf::RectangleShape crack({TILE_SIZE, TILE_SIZE});
+    crack.setPosition(corner);
+    crack.setFillColor(sf::Color(255, 255, 255, static_cast<std::uint8_t>(progress * 140.0f)));
+
+    window.draw(crack);
 }
 
 void Game::render()
@@ -127,6 +206,21 @@ void Game::render()
     window.setView(camera.view());
 
     chunks.draw(window, camera.view());
+
+    drawMiningHighlight();
+
+    // Dropped stacks.
+    sf::RectangleShape item({ItemEntity::SIZE, ItemEntity::SIZE});
+    item.setOutlineThickness(-1.0f);
+    item.setOutlineColor(sf::Color(30, 25, 20));
+
+    for (const ItemEntity& drop : drops)
+    {
+        item.setPosition(drop.position());
+        item.setFillColor(itemColor(drop.stack().type));
+
+        window.draw(item);
+    }
 
     // The player, until there is a sprite for one.
     sf::RectangleShape body({Player::WIDTH, Player::HEIGHT});

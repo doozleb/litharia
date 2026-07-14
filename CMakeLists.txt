@@ -23,6 +23,9 @@ add_library(Litharia_core STATIC
 
     src/Physics/Physics.cpp
     src/Player/Player.cpp
+
+    src/Items/Items.cpp
+    src/Items/ItemEntity.cpp
 )
 
 target_include_directories(Litharia_core PUBLIC src)
@@ -65,6 +68,7 @@ add_executable(Litharia_tests
     tests/test_physics.cpp
     tests/test_player.cpp
     tests/test_spawn.cpp
+    tests/test_mining.cpp
 )
 
 target_include_directories(Litharia_tests PRIVATE libs/doctest)

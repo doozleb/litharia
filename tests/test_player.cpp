@@ -17,7 +17,7 @@ void buildFloor(World& world, int rowY)
 }
 
 // Drops the player onto the floor and settles them.
-Player standing(const World& world, float tileX, float floorRow)
+Player standing(World& world, float tileX, float floorRow)
 {
     Player player({tileX * TILE_SIZE, (floorRow - 4.0f) * TILE_SIZE});
 
