@@ -1,29 +1,28 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
-#include "../World/World.h"
 
+#include "../Camera/Camera.h"
+#include "../World/Chunks.h"
+#include "../World/TerrainGenerator.h"
+#include "../World/World.h"
 
 class Game
 {
 public:
-
     Game();
 
     void run();
 
-
 private:
-
-    void update();
+    void handleEvents();
+    void update(float dt);
     void render();
-
 
     sf::RenderWindow window;
 
-
     World world;
-
-
-    sf::Vector2f cameraPosition;
+    TerrainGenerator generator;
+    ChunkRenderer chunks;
+    Camera camera;
 };

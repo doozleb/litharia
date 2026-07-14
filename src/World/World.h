@@ -1,26 +1,30 @@
 #pragma once
 
-#include <SFML/Graphics.hpp>
+#include <vector>
+
+#include "../Core/Constants.h"
 #include "../Tile/Tile.h"
 
-
+// Tile storage and nothing else. No SFML, no drawing, no generation: those are
+// Chunks' and TerrainGenerator's jobs. That split is what makes this testable.
 class World
 {
 public:
-
     World();
 
+    bool inBounds(int x, int y) const;
 
-    void generate();
+    // Out of bounds reads return Air; out of bounds writes are ignored. The world
+    // therefore has no undefined behavior at its edges, only open sky.
+    BlockType get(int x, int y) const;
+    void set(int x, int y, BlockType type);
 
+    bool isSolid(int x, int y) const;
 
-    void draw(
-        sf::RenderWindow& window,
-        sf::Vector2f camera
-    );
-
+    void fill(BlockType type);
 
 private:
+    std::size_t index(int x, int y) const;
 
-    Tile tiles[50][37];
+    std::vector<Tile> tiles;
 };
