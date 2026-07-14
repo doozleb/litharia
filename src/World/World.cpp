@@ -1,52 +1,43 @@
 #include "World.h"
 
-
 World::World()
+    : tiles(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT)
 {
 }
 
-
-void World::generate()
+std::size_t World::index(int x, int y) const
 {
-    for(int x = 0; x < 50; x++)
-    {
-        for(int y = 0; y < 37; y++)
-        {
-            if(y == 15)
-            {
-                tiles[x][y].setBlock(BlockType::Grass);
-            }
-
-            else if(y > 15 && y < 25)
-            {
-                tiles[x][y].setBlock(BlockType::Dirt);
-            }
-
-            else if(y >= 25)
-            {
-                tiles[x][y].setBlock(BlockType::Stone);
-            }
-        }
-    }
+    return static_cast<std::size_t>(y) * WORLD_WIDTH + static_cast<std::size_t>(x);
 }
 
-
-
-void World::draw(
-    sf::RenderWindow& window,
-    sf::Vector2f camera
-)
+bool World::inBounds(int x, int y) const
 {
-    for(int x = 0; x < 50; x++)
-    {
-        for(int y = 0; y < 37; y++)
-        {
-            tiles[x][y].draw(
-                window,
-                x,
-                y,
-                camera
-            );
-        }
-    }
+    return x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT;
+}
+
+BlockType World::get(int x, int y) const
+{
+    if (!inBounds(x, y))
+        return BlockType::Air;
+
+    return tiles[index(x, y)].type;
+}
+
+void World::set(int x, int y, BlockType type)
+{
+    if (!inBounds(x, y))
+        return;
+
+    tiles[index(x, y)].type = type;
+}
+
+bool World::isSolid(int x, int y) const
+{
+    return isSolidBlock(get(x, y));
+}
+
+void World::fill(BlockType type)
+{
+    for (Tile& tile : tiles)
+        tile.type = type;
 }

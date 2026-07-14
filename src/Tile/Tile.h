@@ -1,29 +1,11 @@
 #pragma once
 
-#include <SFML/Graphics.hpp>
 #include "../Blocks/Blocks.h"
 
-class Tile
+// One byte. A tile is data; drawing it is the chunk renderer's job.
+struct Tile
 {
-public:
-
-    Tile();
-
-    void setBlock(BlockType block);
-
-    BlockType getBlock();
-
-    void draw(
-        sf::RenderWindow& window,
-        int x,
-        int y,
-        sf::Vector2f camera
-    );
-
-
-private:
-
-    BlockType type;
-
-    sf::RectangleShape shape;
+    BlockType type = BlockType::Air;
 };
+
+static_assert(sizeof(Tile) == 1, "A tile must stay one byte: a 1000x500 world is 500 KB.");
