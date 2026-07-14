@@ -33,6 +33,12 @@ int tileOf(float pixels)
     return static_cast<int>(std::floor(pixels / TILE_SIZE));
 }
 
+AABB tileBox(int tileX, int tileY)
+{
+    return AABB{{static_cast<float>(tileX * TILE_SIZE), static_cast<float>(tileY * TILE_SIZE)},
+                {TILE_SIZE, TILE_SIZE}};
+}
+
 } // namespace
 
 Player::Player(sf::Vector2f topLeft)
@@ -40,11 +46,31 @@ Player::Player(sf::Vector2f topLeft)
 {
 }
 
-MineResult Player::update(const PlayerInput& input, World& world, float dt)
+void Player::setSelectedSlot(int slot)
 {
+    if (slot >= 0 && slot < Inventory::HOTBAR_SIZE)
+        selected = slot;
+}
+
+void Player::cycleSelectedSlot(int delta)
+{
+    constexpr int size = Inventory::HOTBAR_SIZE;
+
+    // Wraps in both directions: scrolling off either end of the hotbar comes back
+    // round rather than sticking.
+    selected = ((selected + delta) % size + size) % size;
+}
+
+ActionResult Player::update(const PlayerInput& input, World& world, float dt)
+{
+    ActionResult result;
+
     move(input, world, dt);
 
-    return mine(input, world, dt);
+    mine(input, world, result, dt);
+    place(input, world, result);
+
+    return result;
 }
 
 void Player::move(const PlayerInput& input, const World& world, float dt)
@@ -94,10 +120,8 @@ float Player::miningProgress() const
     return std::clamp(progress / targetHardness, 0.0f, 1.0f);
 }
 
-MineResult Player::mine(const PlayerInput& input, World& world, float dt)
+void Player::mine(const PlayerInput& input, World& world, ActionResult& result, float dt)
 {
-    MineResult result;
-
     const int tileX = tileOf(input.cursor.x);
     const int tileY = tileOf(input.cursor.y);
 
@@ -109,7 +133,7 @@ MineResult Player::mine(const PlayerInput& input, World& world, float dt)
     {
         mining = false;
         progress = 0.0f;
-        return result;
+        return;
     }
 
     // Targeting a different tile than last tick also resets: progress is per-block,
@@ -125,7 +149,7 @@ MineResult Player::mine(const PlayerInput& input, World& world, float dt)
     progress += dt;
 
     if (progress < targetHardness)
-        return result;
+        return;
 
     // Broken.
     world.set(tileX, tileY, BlockType::Air);
@@ -134,9 +158,44 @@ MineResult Player::mine(const PlayerInput& input, World& world, float dt)
     progress = 0.0f;
 
     result.broke = true;
-    result.block = block;
-    result.tileX = tileX;
-    result.tileY = tileY;
+    result.brokenBlock = block;
+    result.brokenX = tileX;
+    result.brokenY = tileY;
+}
 
-    return result;
+void Player::place(const PlayerInput& input, World& world, ActionResult& result)
+{
+    if (!input.place)
+        return;
+
+    const ItemStack& held = bag.slot(selected);
+
+    if (held.empty())
+        return;
+
+    const BlockType block = itemInfo(held.type).placeBlock;
+
+    if (block == BlockType::Air)
+        return;
+
+    const int tileX = tileOf(input.cursor.x);
+    const int tileY = tileOf(input.cursor.y);
+
+    // Only into empty space, and only within reach.
+    if (world.get(tileX, tileY) != BlockType::Air || !inReach(tileX, tileY))
+        return;
+
+    // A block may not be placed inside the player: it would trap them in a solid
+    // tile, which the physics has no correct way to push out of.
+    if (physics::overlaps(tileBox(tileX, tileY), body))
+        return;
+
+    world.set(tileX, tileY, block);
+
+    // Placing is the only thing that removes from the inventory.
+    bag.removeOne(selected);
+
+    result.placed = true;
+    result.placedX = tileX;
+    result.placedY = tileY;
 }

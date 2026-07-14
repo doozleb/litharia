@@ -3,6 +3,7 @@
 #include <SFML/System/Vector2.hpp>
 
 #include "../Blocks/Blocks.h"
+#include "../Items/Inventory.h"
 #include "../Physics/Physics.h"
 
 class World;
@@ -19,20 +20,26 @@ struct PlayerInput
     // Hold to break the block under the cursor.
     bool mine = false;
 
+    // Place the selected hotbar block at the cursor.
+    bool place = false;
+
     // Cursor position in world pixels.
     sf::Vector2f cursor{0.0f, 0.0f};
 };
 
-// What mining did this tick. The player breaks the block, but spawning the drop is
-// Game's business, so the broken block is handed back rather than acted on here.
-struct MineResult
+// What the player's actions did to the world this tick. The player mutates the
+// world, but spawning drops and rebuilding chunks is Game's business, so what
+// happened is handed back rather than acted on here.
+struct ActionResult
 {
     bool broke = false;
+    BlockType brokenBlock = BlockType::Air;
+    int brokenX = 0;
+    int brokenY = 0;
 
-    BlockType block = BlockType::Air;
-
-    int tileX = 0;
-    int tileY = 0;
+    bool placed = false;
+    int placedX = 0;
+    int placedY = 0;
 };
 
 class Player
@@ -45,12 +52,12 @@ public:
     static constexpr float WIDTH = 30.0f;
     static constexpr float HEIGHT = 46.0f;
 
-    // How far the player can reach to mine, in tiles.
+    // How far the player can reach to mine or place, in tiles.
     static constexpr float REACH_TILES = 5.0f;
 
     explicit Player(sf::Vector2f topLeft);
 
-    MineResult update(const PlayerInput& input, World& world, float dt);
+    ActionResult update(const PlayerInput& input, World& world, float dt);
 
     const AABB& box() const { return body; }
     sf::Vector2f position() const { return body.position; }
@@ -66,12 +73,22 @@ public:
     // 0 to 1, how far through breaking the target block we are.
     float miningProgress() const;
 
-    // True if that tile is close enough to mine.
+    // True if that tile is close enough to mine or place in.
     bool inReach(int tileX, int tileY) const;
+
+    Inventory& inventory() { return bag; }
+    const Inventory& inventory() const { return bag; }
+
+    int selectedSlot() const { return selected; }
+    void setSelectedSlot(int slot);
+
+    // Steps the hotbar selection by +1 / -1, wrapping round.
+    void cycleSelectedSlot(int delta);
 
 private:
     void move(const PlayerInput& input, const World& world, float dt);
-    MineResult mine(const PlayerInput& input, World& world, float dt);
+    void mine(const PlayerInput& input, World& world, ActionResult& result, float dt);
+    void place(const PlayerInput& input, World& world, ActionResult& result);
 
     AABB body;
     sf::Vector2f speed{0.0f, 0.0f};
@@ -82,4 +99,7 @@ private:
     sf::Vector2i target{0, 0};
     float progress = 0.0f;
     float targetHardness = 0.0f;
+
+    Inventory bag;
+    int selected = 0;
 };

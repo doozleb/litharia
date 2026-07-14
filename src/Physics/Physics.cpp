@@ -116,6 +116,12 @@ bool overlapsSolid(const AABB& box, const World& world)
     return false;
 }
 
+bool overlaps(const AABB& a, const AABB& b)
+{
+    return a.left() < b.right() && a.right() > b.left() && a.top() < b.bottom() &&
+           a.bottom() > b.top();
+}
+
 CollisionResult moveAndCollide(AABB& box, sf::Vector2f& velocity, const World& world, float dt)
 {
     CollisionResult result;

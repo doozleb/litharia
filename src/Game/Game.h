@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "../Camera/Camera.h"
+#include "../Hud/Hud.h"
 #include "../Items/ItemEntity.h"
 #include "../Player/Player.h"
 #include "../World/Chunks.h"
@@ -25,6 +26,8 @@ private:
     // player through the floor.
     void fixedUpdate(float dt);
 
+    void updateDrops(float dt);
+
     void render();
     void drawMiningHighlight();
 
@@ -34,7 +37,7 @@ private:
     sf::Vector2f findSpawn() const;
 
     // A mined block becomes a stack on the ground.
-    void spawnDrop(const MineResult& result);
+    void spawnDrop(const ActionResult& result);
 
     sf::RenderWindow window;
 
@@ -43,6 +46,7 @@ private:
     ChunkRenderer chunks;
     Camera camera;
     Player player;
+    Hud hud;
 
     std::vector<ItemEntity> drops;
 };

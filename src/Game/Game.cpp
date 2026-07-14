@@ -78,30 +78,56 @@ PlayerInput Game::readInput() const
     input.right = sf::Keyboard::isKeyPressed(Key::D) || sf::Keyboard::isKeyPressed(Key::Right);
     input.jump = sf::Keyboard::isKeyPressed(Key::Space);
 
-    input.mine = window.hasFocus() && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+    const bool focused = window.hasFocus();
+
+    input.mine = focused && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+    input.place = focused && sf::Mouse::isButtonPressed(sf::Mouse::Button::Right);
+
     input.cursor = cursorWorldPosition();
 
     return input;
 }
 
-void Game::spawnDrop(const MineResult& result)
+void Game::spawnDrop(const ActionResult& result)
 {
-    const ItemType type = itemForBlock(result.block);
+    const ItemType type = itemForBlock(result.brokenBlock);
 
     if (type == ItemType::None)
         return;
 
     // Pop out of the ground with a small hashed kick, so a row of drops does not
     // land in a perfectly straight line.
-    const float roll = noise::hashFloat(result.tileX, result.tileY, WORLD_SEED);
+    const float roll = noise::hashFloat(result.brokenX, result.brokenY, WORLD_SEED);
 
     const sf::Vector2f velocity{(roll - 0.5f) * 90.0f, -140.0f};
 
     // Centred in the tile it came from.
-    const sf::Vector2f position{result.tileX * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f,
-                                result.tileY * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f};
+    const sf::Vector2f position{result.brokenX * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f,
+                                result.brokenY * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f};
 
     drops.emplace_back(ItemStack{type, 1}, position, velocity);
+}
+
+void Game::updateDrops(float dt)
+{
+    for (ItemEntity& drop : drops)
+        drop.update(world, dt, player.center());
+
+    // Absorb anything touching the player. A full bag returns leftovers, and those
+    // entities stay on the ground and keep trying rather than being destroyed.
+    for (ItemEntity& drop : drops)
+    {
+        if (!physics::overlaps(drop.box(), player.box()))
+            continue;
+
+        const int leftover = player.inventory().add(drop.stack());
+
+        drop.stack().count = leftover;
+    }
+
+    // A stack absorbed in full is gone; one that only partly fitted stays on the
+    // ground holding its leftovers.
+    std::erase_if(drops, [](const ItemEntity& drop) { return drop.stack().empty(); });
 }
 
 void Game::run()
@@ -131,6 +157,8 @@ void Game::run()
 
 void Game::handleEvents()
 {
+    using Key = sf::Keyboard::Key;
+
     while (const auto event = window.pollEvent())
     {
         if (event->is<sf::Event::Closed>())
@@ -142,32 +170,51 @@ void Game::handleEvents()
             camera.setViewSize({static_cast<float>(resized->size.x),
                                 static_cast<float>(resized->size.y)});
         }
+        else if (const auto* scroll = event->getIf<sf::Event::MouseWheelScrolled>())
+        {
+            // Scroll up moves toward slot 1, scroll down toward slot 0.
+            player.cycleSelectedSlot(scroll->delta > 0.0f ? -1 : 1);
+        }
         else if (const auto* key = event->getIf<sf::Event::KeyPressed>())
         {
-            if (key->code == sf::Keyboard::Key::Escape)
+            if (key->code == Key::Escape)
                 window.close();
+
+            // Number keys 1-9 select slots 0-8, and 0 selects slot 9.
+            if (key->code >= Key::Num1 && key->code <= Key::Num9)
+                player.setSelectedSlot(static_cast<int>(key->code) - static_cast<int>(Key::Num1));
+
+            if (key->code == Key::Num0)
+                player.setSelectedSlot(9);
         }
     }
 }
 
 void Game::fixedUpdate(float dt)
 {
-    const MineResult result = player.update(readInput(), world, dt);
+    const ActionResult result = player.update(readInput(), world, dt);
 
     if (result.broke)
     {
-        // The player set the tile to air; the renderer has to be told about it.
-        chunks.markDirty(result.tileX, result.tileY);
+        // The player mutated the tile; the renderer has to be told about it.
+        chunks.markDirty(result.brokenX, result.brokenY);
 
         spawnDrop(result);
     }
 
-    for (ItemEntity& drop : drops)
-        drop.update(world, dt);
+    if (result.placed)
+        chunks.markDirty(result.placedX, result.placedY);
+
+    updateDrops(dt);
 
     camera.follow(player.center(), dt);
 
-    window.setTitle("Litharia  -  drops: " + std::to_string(drops.size()));
+    const ItemStack& held = player.inventory().slot(player.selectedSlot());
+
+    window.setTitle("Litharia  -  drops: " + std::to_string(drops.size()) + "  -  holding: " +
+                    std::string(held.empty() ? "nothing"
+                                             : std::string(itemInfo(held.type).name) + " x" +
+                                                   std::to_string(held.count)));
 }
 
 void Game::drawMiningHighlight()
@@ -230,6 +277,8 @@ void Game::render()
     body.setOutlineColor(sf::Color(40, 20, 20));
 
     window.draw(body);
+
+    hud.draw(window, player.inventory(), player.selectedSlot());
 
     window.display();
 }

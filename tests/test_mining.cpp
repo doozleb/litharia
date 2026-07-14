@@ -70,7 +70,7 @@ TEST_CASE("holding mine breaks a block after its hardness, and it drops itself")
 
     const float hardness = blockInfo(BlockType::Stone).hardness;
 
-    MineResult result;
+    ActionResult result;
     float elapsed = 0.0f;
 
     // Not broken before its hardness is paid.
@@ -85,15 +85,15 @@ TEST_CASE("holding mine breaks a block after its hardness, and it drops itself")
     CHECK(elapsed >= hardness);
     CHECK(elapsed < hardness + 0.05f);
 
-    CHECK(result.block == BlockType::Stone);
-    CHECK(result.tileX == 12);
-    CHECK(result.tileY == 29);
+    CHECK(result.brokenBlock == BlockType::Stone);
+    CHECK(result.brokenX == 12);
+    CHECK(result.brokenY == 29);
 
     // The tile really is gone.
     CHECK(world.get(12, 29) == BlockType::Air);
 
     // And it yields the right item.
-    CHECK(itemForBlock(result.block) == ItemType::Stone);
+    CHECK(itemForBlock(result.brokenBlock) == ItemType::Stone);
 }
 
 TEST_CASE("harder blocks take longer")
@@ -113,7 +113,7 @@ TEST_CASE("harder blocks take longer")
 
         for (int i = 0; i < 600; ++i)
         {
-            const MineResult result = player.update(input, world, STEP);
+            const ActionResult result = player.update(input, world, STEP);
             elapsed += STEP;
 
             if (result.broke)
@@ -161,7 +161,7 @@ TEST_CASE("releasing the button resets progress")
     CHECK(player.miningProgress() == doctest::Approx(0.0f));
 
     // Resuming starts from scratch: the block does not break instantly.
-    const MineResult result = player.update(mining, world, STEP);
+    const ActionResult result = player.update(mining, world, STEP);
 
     CHECK_FALSE(result.broke);
     CHECK(world.get(12, 29) == BlockType::Stone);
@@ -216,7 +216,7 @@ TEST_CASE("a block out of reach cannot be mined")
 
     for (int i = 0; i < 300; ++i)
     {
-        const MineResult result = player.update(input, world, STEP);
+        const ActionResult result = player.update(input, world, STEP);
         REQUIRE_FALSE(result.broke);
     }
 
@@ -237,7 +237,7 @@ TEST_CASE("mining air does nothing")
 
     for (int i = 0; i < 120; ++i)
     {
-        const MineResult result = player.update(input, world, STEP);
+        const ActionResult result = player.update(input, world, STEP);
         REQUIRE_FALSE(result.broke);
     }
 
