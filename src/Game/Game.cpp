@@ -1,5 +1,6 @@
 #include "Game.h"
 
+#include <algorithm>
 #include <string>
 
 #include "../Core/Constants.h"
@@ -12,12 +13,24 @@ constexpr unsigned WINDOW_HEIGHT = 720;
 
 constexpr std::uint32_t WORLD_SEED = 1337;
 
-// Temporary until step 3, when the camera starts following the player.
-constexpr float PAN_SPEED = 900.0f;
+// Physics runs at exactly this rate no matter what the display does.
+constexpr float FIXED_STEP = 1.0f / 60.0f;
 
-sf::Vector2f viewSize(const sf::RenderWindow& window)
+// If the game stalls, simulate at most this much time before giving up and
+// dropping the rest, rather than spiralling into an ever-growing catch-up.
+constexpr float MAX_FRAME_TIME = 0.25f;
+
+PlayerInput readInput()
 {
-    return {static_cast<float>(window.getSize().x), static_cast<float>(window.getSize().y)};
+    using Key = sf::Keyboard::Key;
+
+    PlayerInput input;
+
+    input.left = sf::Keyboard::isKeyPressed(Key::A) || sf::Keyboard::isKeyPressed(Key::Left);
+    input.right = sf::Keyboard::isKeyPressed(Key::D) || sf::Keyboard::isKeyPressed(Key::Right);
+    input.jump = sf::Keyboard::isKeyPressed(Key::Space);
+
+    return input;
 }
 
 } // namespace
@@ -27,26 +40,50 @@ Game::Game()
     , generator(WORLD_SEED)
     , chunks(world)
     , camera({static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT)})
+    , player({0.0f, 0.0f})
 {
     window.setFramerateLimit(60);
 
     generator.generate(world);
     chunks.markAllDirty();
 
-    // Start at the middle of the world, at the surface.
-    camera.snapTo({WORLD_WIDTH * TILE_SIZE * 0.5f, 200.0f * TILE_SIZE});
+    player = Player(findSpawn());
+    camera.snapTo(player.center());
+}
+
+sf::Vector2f Game::findSpawn() const
+{
+    const int spawnTileX = WORLD_WIDTH / 2;
+    const int surface = generator.surfaceHeight(spawnTileX);
+
+    // Standing on the grass: bottom of the box flush with the top of the surface tile.
+    const float x = spawnTileX * TILE_SIZE + (TILE_SIZE - Player::WIDTH) * 0.5f;
+    const float y = surface * TILE_SIZE - Player::HEIGHT;
+
+    return {x, y};
 }
 
 void Game::run()
 {
     sf::Clock clock;
+    float accumulator = 0.0f;
 
     while (window.isOpen())
     {
-        const float dt = clock.restart().asSeconds();
+        const float frameTime = std::min(clock.restart().asSeconds(), MAX_FRAME_TIME);
 
         handleEvents();
-        update(dt);
+
+        // Fixed timestep: consume the frame's time in whole 1/60 s steps and carry
+        // the remainder into the next frame.
+        accumulator += frameTime;
+
+        while (accumulator >= FIXED_STEP)
+        {
+            fixedUpdate(FIXED_STEP);
+            accumulator -= FIXED_STEP;
+        }
+
         render();
     }
 }
@@ -72,26 +109,15 @@ void Game::handleEvents()
     }
 }
 
-void Game::update(float dt)
+void Game::fixedUpdate(float dt)
 {
-    // Temporary free camera so the world can be inspected before the player exists.
-    sf::Vector2f pan{0.0f, 0.0f};
+    player.update(readInput(), world, dt);
 
-    using Key = sf::Keyboard::Key;
+    camera.follow(player.center(), dt);
 
-    if (sf::Keyboard::isKeyPressed(Key::A) || sf::Keyboard::isKeyPressed(Key::Left))
-        pan.x -= 1.0f;
-    if (sf::Keyboard::isKeyPressed(Key::D) || sf::Keyboard::isKeyPressed(Key::Right))
-        pan.x += 1.0f;
-    if (sf::Keyboard::isKeyPressed(Key::W) || sf::Keyboard::isKeyPressed(Key::Up))
-        pan.y -= 1.0f;
-    if (sf::Keyboard::isKeyPressed(Key::S) || sf::Keyboard::isKeyPressed(Key::Down))
-        pan.y += 1.0f;
-
-    camera.pan(pan * PAN_SPEED * dt);
-
-    window.setTitle("Litharia  -  chunks drawn: " + std::to_string(chunks.lastDrawnChunks()) +
-                    " / " + std::to_string(chunks.chunkCount()));
+    window.setTitle("Litharia  -  chunks: " + std::to_string(chunks.lastDrawnChunks()) + "/" +
+                    std::to_string(chunks.chunkCount()) +
+                    (player.isGrounded() ? "  -  grounded" : "  -  airborne"));
 }
 
 void Game::render()
@@ -99,7 +125,17 @@ void Game::render()
     window.clear(sf::Color(122, 184, 240));
 
     window.setView(camera.view());
+
     chunks.draw(window, camera.view());
+
+    // The player, until there is a sprite for one.
+    sf::RectangleShape body({Player::WIDTH, Player::HEIGHT});
+    body.setPosition(player.position());
+    body.setFillColor(sf::Color(232, 90, 80));
+    body.setOutlineThickness(-2.0f);
+    body.setOutlineColor(sf::Color(40, 20, 20));
+
+    window.draw(body);
 
     window.display();
 }

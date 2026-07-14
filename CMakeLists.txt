@@ -16,8 +16,13 @@ find_package(SFML 3 REQUIRED COMPONENTS Graphics Window System)
 add_library(Litharia_core STATIC
     src/Blocks/Blocks.cpp
 
+    src/Core/Noise.cpp
+
     src/World/World.cpp
     src/World/TerrainGenerator.cpp
+
+    src/Physics/Physics.cpp
+    src/Player/Player.cpp
 )
 
 target_include_directories(Litharia_core PUBLIC src)
@@ -56,6 +61,10 @@ add_custom_command(TARGET Litharia POST_BUILD
 add_executable(Litharia_tests
     tests/test_main.cpp
     tests/test_world.cpp
+    tests/test_terrain.cpp
+    tests/test_physics.cpp
+    tests/test_player.cpp
+    tests/test_spawn.cpp
 )
 
 target_include_directories(Litharia_tests PRIVATE libs/doctest)
