@@ -1,15 +1,21 @@
 #pragma once
 
-#include <array>
+#include <vector>
 
 #include "Items.h"
 
-// A fixed bag of slots. The first HOTBAR_SIZE of them are the hotbar.
+// A bag of item-stack slots. A player's bag treats the first HOTBAR_SIZE slots
+// as the hotbar; a chest uses every slot the same way, with no hotbar concept
+// at all.
 class Inventory
 {
 public:
     static constexpr int SIZE = 40;
     static constexpr int HOTBAR_SIZE = 10;
+
+    // slotCount defaults to a player-sized bag. A chest constructs a smaller one
+    // explicitly, e.g. Inventory(20).
+    explicit Inventory(int slotCount = SIZE);
 
     // Tops up existing matching stacks before opening a fresh slot, and respects
     // each item's max stack size.
@@ -23,6 +29,17 @@ public:
     // was already empty.
     bool removeOne(int slot);
 
+    // Empties a slot outright and returns whatever was in it (an empty stack if
+    // the slot already was). Used to lift a stack off the grid, e.g. dragging.
+    ItemStack take(int index);
+
+    // Puts `incoming` into `index`: merges onto a matching stack as far as it
+    // fits, or swaps wholesale if the slot holds something else. Returns
+    // whatever doesn't end up in the slot - a merge remainder, or the stack
+    // that got swapped out - so nothing dragged is ever destroyed. An
+    // out-of-range index bounces `incoming` straight back unchanged.
+    ItemStack exchange(int index, ItemStack incoming);
+
     const ItemStack& slot(int index) const;
 
     bool isEmpty() const;
@@ -30,8 +47,13 @@ public:
     // How many of an item type the bag holds in total.
     int count(ItemType type) const;
 
-private:
-    static bool validSlot(int index) { return index >= 0 && index < SIZE; }
+    int slotCount() const { return static_cast<int>(slots.size()); }
 
-    std::array<ItemStack, SIZE> slots{};
+private:
+    bool validSlot(int index) const
+    {
+        return index >= 0 && index < static_cast<int>(slots.size());
+    }
+
+    std::vector<ItemStack> slots;
 };

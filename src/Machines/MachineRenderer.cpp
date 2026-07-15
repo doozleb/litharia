@@ -28,6 +28,35 @@ sf::Color itemColor(ItemType type)
     return toColor(blockInfo(block).color);
 }
 
+// Every side of every machine is either an input (light blue) or an output
+// (light red) side - which one depends on the machine type:
+//  - Drill/Smelter: facing is input (an ore vein, a feeder belt); the other 3
+//    sides round-robin output (Machines::insertOutput).
+//  - Belt: facing is where it carries its item to; the other 3 sides can feed
+//    it (tryInsert doesn't care which side a push comes from).
+//  - Chute: always drops straight down regardless of facing, so Down is
+//    always its output side.
+//  - BurnerGenerator/Chest: never push an item out on their own - every side
+//    is an input side.
+bool isOutputSide(const Machine& m, Direction side)
+{
+    switch (m.type)
+    {
+        case MachineType::Drill:
+        case MachineType::Smelter:
+            return side != m.facing;
+
+        case MachineType::Belt:
+            return side == m.facing;
+
+        case MachineType::Chute:
+            return side == Direction::Down;
+
+        default:
+            return false;
+    }
+}
+
 } // namespace
 
 void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) const
@@ -36,12 +65,9 @@ void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) c
     body.setOutlineThickness(-1.0f);
     body.setOutlineColor(sf::Color(20, 20, 24));
 
-    sf::RectangleShape facing({4.0f, 4.0f});
-    facing.setFillColor(sf::Color(250, 250, 210));
-
-    // Drill/Smelter split their 4 sides into one input side (facing) and 3
-    // output candidates - shown as a light blue tick and light red ticks so
-    // the split is visible without opening the tooltip.
+    // Every machine's 4 sides are shown split into input (light blue) and
+    // output (light red) ticks - see isOutputSide() for what that split means
+    // per machine type.
     sf::RectangleShape inputTick({4.0f, 4.0f});
     inputTick.setFillColor(sf::Color(140, 200, 255));
 
@@ -92,26 +118,13 @@ void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) c
         const float cx = px + TILE_SIZE * 0.5f - 2.0f;
         const float cy = py + TILE_SIZE * 0.5f - 2.0f;
 
-        // Drill and Smelter round-robin their output across the 3 sides other
-        // than facing (reserved for input: an ore vein, a feeder belt) - show
-        // that split directly. Every other machine type just shows its single
-        // facing tick (a belt's facing is its direction of travel, not an
-        // input/output split).
-        if (m.type == MachineType::Drill || m.type == MachineType::Smelter)
+        static constexpr std::array<Direction, 4> ALL_SIDES = {Direction::Up, Direction::Down,
+                                                                 Direction::Left, Direction::Right};
+        for (Direction side : ALL_SIDES)
         {
-            static constexpr std::array<Direction, 4> ALL_SIDES = {Direction::Up, Direction::Down,
-                                                                     Direction::Left, Direction::Right};
-            for (Direction side : ALL_SIDES)
-            {
-                sf::RectangleShape& tick = (side == m.facing) ? inputTick : outputTick;
-                tick.setPosition({cx + dirDX(side) * 5.0f, cy + dirDY(side) * 5.0f});
-                target.draw(tick);
-            }
-        }
-        else
-        {
-            facing.setPosition({cx + dirDX(m.facing) * 5.0f, cy + dirDY(m.facing) * 5.0f});
-            target.draw(facing);
+            sf::RectangleShape& tick = isOutputSide(m, side) ? outputTick : inputTick;
+            tick.setPosition({cx + dirDX(side) * 5.0f, cy + dirDY(side) * 5.0f});
+            target.draw(tick);
         }
 
         // The carried transport item, or the output buffer's item.

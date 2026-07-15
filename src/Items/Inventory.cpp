@@ -9,6 +9,11 @@ const ItemStack emptyStack{};
 
 } // namespace
 
+Inventory::Inventory(int slotCount)
+    : slots(static_cast<std::size_t>(std::max(0, slotCount)))
+{
+}
+
 int Inventory::add(ItemStack stack)
 {
     if (stack.empty())
@@ -71,6 +76,51 @@ bool Inventory::removeOne(int slot)
         existing = ItemStack{};
 
     return true;
+}
+
+ItemStack Inventory::take(int index)
+{
+    if (!validSlot(index))
+        return {};
+
+    ItemStack& existing = slots[static_cast<std::size_t>(index)];
+    const ItemStack taken = existing;
+    existing = ItemStack{};
+    return taken;
+}
+
+ItemStack Inventory::exchange(int index, ItemStack incoming)
+{
+    if (!validSlot(index))
+        return incoming;
+
+    if (incoming.empty())
+        return {};
+
+    ItemStack& existing = slots[static_cast<std::size_t>(index)];
+
+    if (existing.empty())
+    {
+        existing = incoming;
+        return {};
+    }
+
+    if (existing.type != incoming.type)
+    {
+        const ItemStack displaced = existing;
+        existing = incoming;
+        return displaced;
+    }
+
+    // Same item: merge as far as it fits, hand back the remainder.
+    const int max = itemInfo(existing.type).maxStack;
+    const int room = max - existing.count;
+    const int moved = std::min(room, incoming.count);
+
+    existing.count += moved;
+    const int remaining = incoming.count - moved;
+
+    return remaining > 0 ? ItemStack{incoming.type, remaining} : ItemStack{};
 }
 
 const ItemStack& Inventory::slot(int index) const
