@@ -4,6 +4,7 @@
 #include "../Core/Direction.h"
 #include "../Items/Items.h"
 #include "Machines.h"
+#include "MachineStatus.h"
 
 namespace
 {
@@ -52,6 +53,30 @@ void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) c
         body.setPosition({px, py});
         body.setFillColor(toColor(info.color, alpha));
         target.draw(body);
+
+        const MachineStatus status = barStatus(m);
+
+        if (status.bar != MachineBar::None)
+        {
+            constexpr float BAR_WIDTH = 4.0f;
+            constexpr float BAR_MARGIN = 2.0f;
+
+            const float barAreaHeight = static_cast<float>(TILE_SIZE) - BAR_MARGIN * 2.0f;
+            const float barFillHeight = barAreaHeight * status.fraction;
+
+            sf::RectangleShape barBackground({BAR_WIDTH, barAreaHeight});
+            barBackground.setPosition({px + BAR_MARGIN, py + BAR_MARGIN});
+            barBackground.setFillColor(sf::Color(20, 20, 24, 200));
+            target.draw(barBackground);
+
+            // Fills from the bottom up, like a fuel gauge. Fuel is amber, progress
+            // is cyan, so the two are never visually confused.
+            sf::RectangleShape barFill({BAR_WIDTH, barFillHeight});
+            barFill.setPosition({px + BAR_MARGIN, py + BAR_MARGIN + (barAreaHeight - barFillHeight)});
+            barFill.setFillColor(status.bar == MachineBar::Fuel ? sf::Color(230, 140, 40)
+                                                                 : sf::Color(90, 200, 230));
+            target.draw(barFill);
+        }
 
         // A small tick showing which way it faces / outputs.
         const float cx = px + TILE_SIZE * 0.5f - 2.0f;
