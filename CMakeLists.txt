@@ -30,6 +30,7 @@ add_library(Litharia_core STATIC
     src/Items/Inventory.cpp
 
     src/Machines/Recipes.cpp
+    src/Machines/MachineRegistry.cpp
 )
 
 target_include_directories(Litharia_core PUBLIC src)
