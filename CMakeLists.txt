@@ -17,6 +17,7 @@ add_library(Litharia_core STATIC
     src/Blocks/Blocks.cpp
 
     src/Core/Noise.cpp
+    src/Core/Direction.cpp
 
     src/World/World.cpp
     src/World/TerrainGenerator.cpp
@@ -65,6 +66,7 @@ add_custom_command(TARGET Litharia POST_BUILD
 # ---------------------------------------------------------------------------
 add_executable(Litharia_tests
     tests/test_main.cpp
+    tests/test_machines.cpp
     tests/test_world.cpp
     tests/test_terrain.cpp
     tests/test_physics.cpp
