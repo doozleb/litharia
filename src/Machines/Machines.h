@@ -1,0 +1,67 @@
+#pragma once
+
+#include <cstdint>
+#include <unordered_map>
+#include <vector>
+
+#include <SFML/System/Vector2.hpp>
+
+#include "Machine.h"
+
+class World;
+
+// Owns every placed machine, indexes them by tile, and drives the whole factory
+// one fixed step at a time. Pure logic: no SFML Graphics, so it lives in the core
+// library and the test binary.
+class Machines
+{
+public:
+    bool canPlace(int x, int y) const;
+
+    // Places a machine, or returns nullptr if the tile is taken. The pointer is
+    // valid only until the next remove(): removal may relocate storage.
+    Machine* place(MachineType type, int x, int y, Direction facing);
+
+    bool remove(int x, int y);
+
+    Machine* at(int x, int y);
+    const Machine* at(int x, int y) const;
+
+    // Hands one item into the machine at (x, y). Returns true if it was accepted.
+    // Added behaviour in Task 8.
+    bool tryInsert(int x, int y, ItemType item);
+
+    // Rebuilds power networks and sets each machine's powered flag. Task 7.
+    void updatePower();
+
+    // One fixed simulation step of the whole factory. Fills minedTiles with any
+    // world tiles a drill turned to air, so the caller can flag them for redraw.
+    // Task 13 assembles the full body; earlier tasks build the helpers it calls.
+    void tick(World& world, float dt, std::vector<sf::Vector2i>& minedTiles);
+
+    std::size_t count() const { return machines.size(); }
+    const std::vector<Machine>& all() const { return machines; }
+
+private:
+    static long long key(int x, int y)
+    {
+        return (static_cast<long long>(x) << 32) ^ static_cast<unsigned>(y);
+    }
+
+    int indexAt(int x, int y) const; // -1 if no machine there
+
+    // Task 7 helpers.
+    void assignNetworks();
+
+    // Task 8-13 helpers.
+    void insertOutputAhead(Machine& m);
+    void tickTransport(float dt);
+    void tickGenerators(float dt);
+    void tickDrills(World& world, float dt, std::vector<sf::Vector2i>& minedTiles);
+    void tickSmelters(float dt);
+
+    std::vector<Machine> machines;
+    std::unordered_map<long long, int> byTile;
+
+    std::vector<float> networkDemand; // demand per network id, filled by updatePower
+};
