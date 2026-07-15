@@ -210,6 +210,38 @@ void Machines::insertOutputAhead(Machine&)
 {
 }
 
-void Machines::tick(World&, float, std::vector<sf::Vector2i>&)
+void Machines::tickTransport(float dt)
 {
+    for (Machine& m : machines)
+    {
+        const MachineInfo& info = machineInfo(m.type);
+
+        if (!info.transport || m.carried == ItemType::None)
+            continue;
+
+        m.carryTimer -= dt;
+        if (m.carryTimer > 0.0f)
+            continue;
+
+        m.carryTimer = 0.0f;
+
+        // Chutes always drop down; belts move toward their facing.
+        const Direction dir = (m.type == MachineType::Chute) ? Direction::Down : m.facing;
+        const int tx = m.x + dirDX(dir);
+        const int ty = m.y + dirDY(dir);
+
+        // tryInsert may relocate storage on nothing here (it does not place), so it
+        // is safe. On success the item leaves this belt.
+        if (tryInsert(tx, ty, m.carried))
+            m.carried = ItemType::None;
+    }
+}
+
+void Machines::tick(World& world, float dt, std::vector<sf::Vector2i>& minedTiles)
+{
+    (void)world;
+    (void)minedTiles;
+
+    updatePower();
+    tickTransport(dt);
 }
