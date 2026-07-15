@@ -13,6 +13,9 @@ constexpr std::array<ItemInfo, static_cast<std::size_t>(ItemType::Count)> regist
     {"Stone",       99,  BlockType::Stone},
     {"Copper Ore",  99,  BlockType::CopperOre},
     {"Iron Ore",    99,  BlockType::IronOre},
+    {"Coal",        99,  BlockType::Coal},
+    {"Copper Plate", 99,  BlockType::Air},
+    {"Iron Plate",   99,  BlockType::Air},
 }};
 
 } // namespace
@@ -39,6 +42,7 @@ ItemType itemForBlock(BlockType block)
         case BlockType::Stone:     return ItemType::Stone;
         case BlockType::CopperOre: return ItemType::CopperOre;
         case BlockType::IronOre:   return ItemType::IronOre;
+        case BlockType::Coal:      return ItemType::Coal;
 
         default: return ItemType::None;
     }

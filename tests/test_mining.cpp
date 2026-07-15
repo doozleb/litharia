@@ -38,6 +38,7 @@ TEST_CASE("the item registry maps mined blocks to items")
     CHECK(itemForBlock(BlockType::Dirt) == ItemType::Dirt);
     CHECK(itemForBlock(BlockType::CopperOre) == ItemType::CopperOre);
     CHECK(itemForBlock(BlockType::IronOre) == ItemType::IronOre);
+    CHECK(itemForBlock(BlockType::Coal) == ItemType::Coal);
 
     // Grass drops dirt, not grass.
     CHECK(itemForBlock(BlockType::Grass) == ItemType::Dirt);
@@ -51,7 +52,7 @@ TEST_CASE("the item registry maps mined blocks to items")
 
         CHECK_FALSE(info.name.empty());
         CHECK(info.maxStack > 0);
-        CHECK(info.placeBlock != BlockType::Air);
+        // Plates are refined goods, not placeable terrain: placeBlock may be Air.
     }
 }
 

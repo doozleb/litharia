@@ -15,6 +15,9 @@ enum class ItemType : std::uint8_t
     Stone,
     CopperOre,
     IronOre,
+    Coal,
+    CopperPlate,
+    IronPlate,
 
     Count
 };
