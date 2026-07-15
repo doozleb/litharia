@@ -237,11 +237,39 @@ void Machines::tickTransport(float dt)
     }
 }
 
+void Machines::tickGenerators(float dt)
+{
+    for (Machine& m : machines)
+    {
+        if (m.type != MachineType::BurnerGenerator)
+            continue;
+
+        // Light a fresh coal only when the last one is spent.
+        if (m.fuel <= 0.0f && m.input.type == ItemType::Coal && m.input.count > 0)
+        {
+            --m.input.count;
+            if (m.input.count == 0)
+                m.input.type = ItemType::None;
+
+            m.fuel += COAL_BURN_SECONDS;
+        }
+
+        // Burn only under load, so an idle base does not drain its fuel.
+        const bool hasLoad = m.network >= 0
+            && m.network < static_cast<int>(networkDemand.size())
+            && networkDemand[m.network] > 0.0f;
+
+        if (m.fuel > 0.0f && hasLoad)
+            m.fuel = std::max(0.0f, m.fuel - dt);
+    }
+}
+
 void Machines::tick(World& world, float dt, std::vector<sf::Vector2i>& minedTiles)
 {
     (void)world;
     (void)minedTiles;
 
     updatePower();
+    tickGenerators(dt);
     tickTransport(dt);
 }

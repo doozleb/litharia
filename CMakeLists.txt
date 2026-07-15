@@ -83,6 +83,7 @@ add_executable(Litharia_tests
     tests/test_recipes.cpp
     tests/test_power.cpp
     tests/test_transport.cpp
+    tests/test_processing.cpp
 )
 
 target_include_directories(Litharia_tests PRIVATE libs/doctest)
