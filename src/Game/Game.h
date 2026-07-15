@@ -44,7 +44,7 @@ private:
     void tickMachines(float dt);
     void placeMachineAtCursor();
     void removeMachineAtCursor();
-    void loadFuelAtCursor();
+    void interactAtCursor();
     sf::Vector2i cursorTile() const;
     void drawMachineTooltip();
 

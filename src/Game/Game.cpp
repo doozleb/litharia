@@ -156,27 +156,30 @@ void Game::removeMachineAtCursor()
     machines.remove(tile.x, tile.y);
 }
 
-void Game::loadFuelAtCursor()
+void Game::interactAtCursor()
 {
     const sf::Vector2i tile = cursorTile();
-
-    // Only spend a coal if the machine actually accepts it.
     Inventory& bag = player.inventory();
-    if (bag.count(ItemType::Coal) <= 0)
+    const int slot = player.selectedSlot();
+    const ItemStack& held = bag.slot(slot);
+
+    if (!held.empty())
+    {
+        // Holding something: offer it to whatever's under the cursor.
+        if (machines.tryInsert(tile.x, tile.y, held.type))
+            bag.removeOne(slot);
+
+        return;
+    }
+
+    // Empty-handed: try to take from whatever's under the cursor instead.
+    const ItemStack extracted = machines.tryExtract(tile.x, tile.y);
+    if (extracted.empty())
         return;
 
-    if (machines.tryInsert(tile.x, tile.y, ItemType::Coal))
-    {
-        // Remove one coal from wherever it sits in the bag.
-        for (int i = 0; i < Inventory::SIZE; ++i)
-        {
-            if (bag.slot(i).type == ItemType::Coal)
-            {
-                bag.removeOne(i);
-                break;
-            }
-        }
-    }
+    const int leftover = bag.add(extracted);
+    if (leftover > 0)
+        machines.putBack(tile.x, tile.y, {extracted.type, leftover});
 }
 
 void Game::tickMachines(float dt)
@@ -267,7 +270,7 @@ void Game::handleEvents()
                 buildFacing = rotateCW(buildFacing);
 
             if (key->code == Key::F)
-                loadFuelAtCursor();
+                interactAtCursor();
 
             if (key->code == Key::F1) buildType = MachineType::BurnerGenerator;
             if (key->code == Key::F2) buildType = MachineType::Drill;
