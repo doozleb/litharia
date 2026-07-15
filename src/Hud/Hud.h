@@ -23,6 +23,10 @@ public:
 
     void draw(sf::RenderWindow& window, const Inventory& inventory, int selectedSlot);
 
+    // The 3 rows of the bag beyond the hotbar (slots HOTBAR_SIZE..slotCount()-1),
+    // shown only while the player has the inventory open.
+    void drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventory);
+
     // A small info panel anchored near the cursor, describing one machine's
     // current state: name, input/output, power/fuel state, bar percentage, and
     // (when idle/unpowered) a plain-English reason. Degrades like draw() does:

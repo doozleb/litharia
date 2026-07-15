@@ -28,6 +28,59 @@ sf::Color itemColor(ItemType type)
     return toColor(blockInfo(itemInfo(type).placeBlock).color);
 }
 
+// Draws one slot's background, item icon, and stack count - shared by the
+// hotbar and the bag/chest panels so they render identically.
+void drawSlot(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf::Vector2f pos,
+              const ItemStack& stack, bool highlighted)
+{
+    sf::RectangleShape slot({Hud::SLOT_SIZE, Hud::SLOT_SIZE});
+    slot.setPosition(pos);
+    slot.setFillColor(sf::Color(20, 20, 28, 170));
+    slot.setOutlineThickness(highlighted ? -3.0f : -1.0f);
+    slot.setOutlineColor(highlighted ? sf::Color(255, 236, 140) : sf::Color(90, 90, 105));
+    window.draw(slot);
+
+    if (stack.empty())
+        return;
+
+    sf::RectangleShape icon({Hud::SLOT_SIZE - ICON_INSET * 2.0f, Hud::SLOT_SIZE - ICON_INSET * 2.0f});
+    icon.setPosition({pos.x + ICON_INSET, pos.y + ICON_INSET});
+    icon.setFillColor(itemColor(stack.type));
+    icon.setOutlineThickness(-1.0f);
+    icon.setOutlineColor(sf::Color(20, 16, 14));
+    window.draw(icon);
+
+    if (!font)
+        return;
+
+    sf::Text count(*font, std::to_string(stack.count), 14);
+    count.setFillColor(sf::Color::White);
+    count.setOutlineThickness(2.0f);
+    count.setOutlineColor(sf::Color(10, 10, 12));
+
+    const sf::FloatRect bounds = count.getLocalBounds();
+    count.setPosition({pos.x + Hud::SLOT_SIZE - bounds.size.x - 5.0f,
+                       pos.y + Hud::SLOT_SIZE - bounds.size.y - 10.0f});
+    window.draw(count);
+}
+
+// Where the bag panel's first slot sits: directly above the hotbar, sharing
+// its horizontal centering.
+sf::Vector2f bagPanelOrigin(sf::Vector2f windowSize)
+{
+    constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
+    constexpr int BAG_ROWS = 3;
+
+    const float totalWidth = COLUMNS * Hud::SLOT_SIZE + (COLUMNS - 1) * Hud::SLOT_GAP;
+    const float startX = (windowSize.x - totalWidth) * 0.5f;
+
+    const float hotbarY = windowSize.y - Hud::SLOT_SIZE - Hud::MARGIN;
+    const float bagY =
+        hotbarY - Hud::MARGIN - BAG_ROWS * Hud::SLOT_SIZE - (BAG_ROWS - 1) * Hud::SLOT_GAP;
+
+    return {startX, bagY};
+}
+
 struct TooltipLine
 {
     std::string text;
@@ -87,45 +140,26 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
     for (int i = 0; i < Inventory::HOTBAR_SIZE; ++i)
     {
         const float x = startX + i * (SLOT_SIZE + SLOT_GAP);
+        drawSlot(window, font, {x, y}, inventory.slot(i), i == selectedSlot);
+    }
 
-        const bool isSelected = (i == selectedSlot);
+    window.setView(previous);
+}
 
-        sf::RectangleShape slot({SLOT_SIZE, SLOT_SIZE});
-        slot.setPosition({x, y});
-        slot.setFillColor(sf::Color(20, 20, 28, 170));
-        slot.setOutlineThickness(isSelected ? -3.0f : -1.0f);
-        slot.setOutlineColor(isSelected ? sf::Color(255, 236, 140) : sf::Color(90, 90, 105));
+void Hud::drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventory)
+{
+    const sf::View previous = window.getView();
+    window.setView(window.getDefaultView());
 
-        window.draw(slot);
+    const sf::Vector2f origin = bagPanelOrigin(window.getDefaultView().getSize());
+    constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
 
-        const ItemStack& stack = inventory.slot(i);
-
-        if (stack.empty())
-            continue;
-
-        // The item itself, as a coloured tile.
-        sf::RectangleShape icon({SLOT_SIZE - ICON_INSET * 2.0f, SLOT_SIZE - ICON_INSET * 2.0f});
-        icon.setPosition({x + ICON_INSET, y + ICON_INSET});
-        icon.setFillColor(itemColor(stack.type));
-        icon.setOutlineThickness(-1.0f);
-        icon.setOutlineColor(sf::Color(20, 16, 14));
-
-        window.draw(icon);
-
-        if (!font)
-            continue;
-
-        sf::Text count(*font, std::to_string(stack.count), 14);
-        count.setFillColor(sf::Color::White);
-        count.setOutlineThickness(2.0f);
-        count.setOutlineColor(sf::Color(10, 10, 12));
-
-        const sf::FloatRect bounds = count.getLocalBounds();
-
-        count.setPosition({x + SLOT_SIZE - bounds.size.x - 5.0f,
-                           y + SLOT_SIZE - bounds.size.y - 10.0f});
-
-        window.draw(count);
+    for (int i = Inventory::HOTBAR_SIZE; i < inventory.slotCount(); ++i)
+    {
+        const int gridIndex = i - Inventory::HOTBAR_SIZE;
+        const sf::Vector2f pos =
+            hudLayout::gridSlotPosition(origin, gridIndex, COLUMNS, SLOT_SIZE, SLOT_GAP);
+        drawSlot(window, font, pos, inventory.slot(i), false);
     }
 
     window.setView(previous);

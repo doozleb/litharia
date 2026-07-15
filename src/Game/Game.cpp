@@ -82,8 +82,10 @@ PlayerInput Game::readInput() const
 
     const bool focused = window.hasFocus();
 
-    input.mine = !buildMode && focused && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
-    input.place = !buildMode && focused && sf::Mouse::isButtonPressed(sf::Mouse::Button::Right);
+    input.mine = !buildMode && !inventoryOpen && focused
+        && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+    input.place = !buildMode && !inventoryOpen && focused
+        && sf::Mouse::isButtonPressed(sf::Mouse::Button::Right);
 
     input.cursor = cursorWorldPosition();
 
@@ -193,6 +195,27 @@ void Game::interactAtCursor()
         machines.putBack(tile.x, tile.y, {extracted.type, leftover});
 }
 
+void Game::toggleInventory()
+{
+    if (inventoryOpen)
+    {
+        inventoryOpen = false;
+        openChestTile.reset();
+        return;
+    }
+
+    const sf::Vector2i tile = cursorTile();
+    const Machine* machine = machines.at(tile.x, tile.y);
+
+    if (machine != nullptr && machine->type == MachineType::Chest)
+        openChestTile = tile;
+    else
+        openChestTile.reset();
+
+    inventoryOpen = true;
+    buildMode = false;
+}
+
 void Game::tickMachines(float dt)
 {
     std::vector<sf::Vector2i> mined;
@@ -285,7 +308,14 @@ void Game::handleEvents()
                 player.setSelectedSlot(9);
 
             if (key->code == Key::B)
+            {
                 buildMode = !buildMode;
+                if (buildMode)
+                {
+                    inventoryOpen = false;
+                    openChestTile.reset();
+                }
+            }
 
             if (key->code == Key::R)
                 buildFacing = rotateCW(buildFacing);
@@ -293,11 +323,15 @@ void Game::handleEvents()
             if (key->code == Key::F)
                 interactAtCursor();
 
+            if (key->code == Key::E)
+                toggleInventory();
+
             if (key->code == Key::F1) buildType = MachineType::BurnerGenerator;
             if (key->code == Key::F2) buildType = MachineType::Drill;
             if (key->code == Key::F3) buildType = MachineType::Belt;
             if (key->code == Key::F4) buildType = MachineType::Chute;
             if (key->code == Key::F5) buildType = MachineType::Smelter;
+            if (key->code == Key::F6) buildType = MachineType::Chest;
         }
         else if (const auto* mouse = event->getIf<sf::Event::MouseButtonPressed>())
         {
@@ -409,6 +443,9 @@ void Game::render()
 
     if (buildMode)
         hud.drawBuildPalette(window, buildType);
+
+    if (inventoryOpen)
+        hud.drawInventoryPanel(window, player.inventory());
 
     drawMachineTooltip();
 

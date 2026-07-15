@@ -2,6 +2,7 @@
 
 #include <SFML/Graphics.hpp>
 
+#include <optional>
 #include <vector>
 
 #include "../Camera/Camera.h"
@@ -46,6 +47,7 @@ private:
     void removeMachineAtCursor();
     void cycleBuildType(int delta);
     void interactAtCursor();
+    void toggleInventory();
     sf::Vector2i cursorTile() const;
     void drawMachineTooltip();
 
@@ -66,4 +68,7 @@ private:
     bool buildMode = false;
     MachineType buildType = MachineType::Belt;
     Direction buildFacing = Direction::Right;
+
+    bool inventoryOpen = false;
+    std::optional<sf::Vector2i> openChestTile;
 };
