@@ -115,3 +115,84 @@ TEST_CASE("a belt backs up when the tile ahead is full")
     CHECK(m.at(0, 0)->carried == ItemType::Stone);
     CHECK(m.at(1, 0)->carried == ItemType::Stone);
 }
+
+TEST_CASE("a machine never outputs onto its own facing side, which is reserved for input")
+{
+    World world;
+    Machines m;
+
+    // Facing Down: that side is reserved for input (an ore vein, a feeder
+    // belt) and must never receive output, even though a belt sits right there.
+    m.place(MachineType::Smelter, 5, 5, Direction::Down);
+    m.place(MachineType::Belt, 5, 6, Direction::Right); // directly below: the facing side
+
+    m.at(5, 5)->output = {ItemType::CopperPlate, 1};
+
+    std::vector<sf::Vector2i> mined;
+    m.tick(world, 1.0f / 60.0f, mined);
+
+    // Nowhere else to go, and the facing side is off-limits: the output waits.
+    CHECK(m.at(5, 5)->output.type == ItemType::CopperPlate);
+    CHECK(m.at(5, 6)->carried == ItemType::None);
+}
+
+TEST_CASE("a smelter alternates its output between two belts on non-facing sides")
+{
+    World world;
+    Machines m;
+
+    m.place(MachineType::Smelter, 5, 5, Direction::Down); // input side: nothing placed there
+    m.place(MachineType::Belt, 6, 5, Direction::Right);   // right: a valid output side
+    m.place(MachineType::Belt, 4, 5, Direction::Right);   // left: a valid output side
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+
+    m.at(5, 5)->output = {ItemType::CopperPlate, 1};
+    m.tick(world, step, mined);
+
+    const bool firstWentRight = m.at(6, 5)->carried == ItemType::CopperPlate;
+    const bool firstWentLeft = m.at(4, 5)->carried == ItemType::CopperPlate;
+    REQUIRE((firstWentRight || firstWentLeft));
+
+    // Clear whichever belt got it, then send again: it must go to the OTHER
+    // one, not pile back onto the same belt.
+    if (firstWentRight)
+        m.at(6, 5)->carried = ItemType::None;
+    else
+        m.at(4, 5)->carried = ItemType::None;
+
+    m.at(5, 5)->output = {ItemType::CopperPlate, 1};
+    m.tick(world, step, mined);
+
+    if (firstWentRight)
+        CHECK(m.at(4, 5)->carried == ItemType::CopperPlate);
+    else
+        CHECK(m.at(6, 5)->carried == ItemType::CopperPlate);
+}
+
+TEST_CASE("output waits when every non-facing side is already occupied")
+{
+    World world;
+    Machines m;
+
+    m.place(MachineType::Smelter, 5, 5, Direction::Down);
+    m.place(MachineType::Belt, 6, 5, Direction::Right);
+    m.place(MachineType::Belt, 4, 5, Direction::Right);
+    m.place(MachineType::Belt, 5, 4, Direction::Right);
+
+    // Fill all three non-facing belts so none of them can take anything more.
+    REQUIRE(m.tryInsert(6, 5, ItemType::Stone));
+    REQUIRE(m.tryInsert(4, 5, ItemType::Stone));
+    REQUIRE(m.tryInsert(5, 4, ItemType::Stone));
+
+    m.at(5, 5)->output = {ItemType::CopperPlate, 1};
+
+    std::vector<sf::Vector2i> mined;
+    m.tick(world, 1.0f / 60.0f, mined);
+
+    // Nowhere to put it: the plate stays right where it was, and production
+    // stalls behind it (mirrors the existing output-full backpressure).
+    CHECK(m.at(5, 5)->output.type == ItemType::CopperPlate);
+    CHECK(m.at(5, 5)->output.count == 1);
+}

@@ -1,6 +1,7 @@
 #include "Machines.h"
 
 #include <algorithm>
+#include <array>
 #include <queue>
 
 #include "Recipes.h"
@@ -58,6 +59,9 @@ Machine* Machines::place(MachineType type, int x, int y, Direction facing)
     m.x = x;
     m.y = y;
     m.facing = facing;
+    // facing itself is excluded from output (it's reserved for input); start the
+    // rotation just past it.
+    m.outputCursor = rotateCW(facing);
 
     machines.push_back(m);
     const int index = static_cast<int>(machines.size()) - 1;
@@ -314,19 +318,45 @@ void Machines::updatePower()
     networkSupply = supply;
 }
 
-void Machines::insertOutputAhead(Machine& m)
+void Machines::insertOutput(Machine& m)
 {
     if (m.output.empty())
         return;
 
-    const int tx = m.x + dirDX(m.facing);
-    const int ty = m.y + dirDY(m.facing);
+    // facing is reserved for input (it should face an ore vein or a feeder
+    // belt) and is never tried here - only the other 3 sides are output
+    // candidates, in Direction's declared order (Up, Down, Left, Right).
+    constexpr std::array<Direction, 4> ALL = {Direction::Up, Direction::Down, Direction::Left,
+                                               Direction::Right};
 
-    if (tryInsert(tx, ty, m.output.type))
+    std::array<Direction, 3> candidates{};
+    int candidateCount = 0;
+    for (Direction d : ALL)
+        if (d != m.facing)
+            candidates[candidateCount++] = d;
+
+    int startIndex = 0;
+    for (int i = 0; i < candidateCount; ++i)
+        if (candidates[i] == m.outputCursor)
+            startIndex = i;
+
+    for (int i = 0; i < candidateCount; ++i)
     {
+        const Direction dir = candidates[(startIndex + i) % candidateCount];
+        const int tx = m.x + dirDX(dir);
+        const int ty = m.y + dirDY(dir);
+
+        if (!tryInsert(tx, ty, m.output.type))
+            continue;
+
         --m.output.count;
         if (m.output.count == 0)
             m.output.type = ItemType::None;
+
+        // Next attempt starts one past the side that just worked, so several
+        // belts around the machine take turns instead of one hogging delivery.
+        m.outputCursor = candidates[(startIndex + i + 1) % candidateCount];
+        return;
     }
 }
 
@@ -392,7 +422,7 @@ void Machines::tickDrills(World& world, float dt, std::vector<sf::Vector2i>& min
             continue;
 
         // Always try to push any held output onto the machine ahead.
-        insertOutputAhead(m);
+        insertOutput(m);
 
         if (!m.powered || !m.output.empty())
         {
@@ -436,7 +466,7 @@ void Machines::tickSmelters(float dt)
         if (m.type != MachineType::Smelter)
             continue;
 
-        insertOutputAhead(m);
+        insertOutput(m);
 
         const SmeltRecipe* recipe = m.input.empty() ? nullptr : smeltRecipeFor(m.input.type);
 

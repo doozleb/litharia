@@ -14,6 +14,14 @@ struct Machine
     int y = 0;
     Direction facing = Direction::Right;
 
+    // `facing` is reserved for input (the side that should face an ore vein or
+    // a feeder belt) and is never an output target. outputCursor tracks which of
+    // the OTHER 3 sides delivery tries next: seeded just past `facing` when
+    // placed, then advanced past whichever side a send last succeeded on, so
+    // several belts around a machine take turns rather than one starving the
+    // rest.
+    Direction outputCursor = Direction::Right;
+
     // Processing machines (drill, smelter, generator).
     ItemStack input;
     ItemStack output;

@@ -1,5 +1,7 @@
 #include "MachineRenderer.h"
 
+#include <array>
+
 #include "../Core/Constants.h"
 #include "../Core/Direction.h"
 #include "../Items/Items.h"
@@ -36,6 +38,15 @@ void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) c
 
     sf::RectangleShape facing({4.0f, 4.0f});
     facing.setFillColor(sf::Color(250, 250, 210));
+
+    // Drill/Smelter split their 4 sides into one input side (facing) and 3
+    // output candidates - shown as a light blue tick and light red ticks so
+    // the split is visible without opening the tooltip.
+    sf::RectangleShape inputTick({4.0f, 4.0f});
+    inputTick.setFillColor(sf::Color(140, 200, 255));
+
+    sf::RectangleShape outputTick({4.0f, 4.0f});
+    outputTick.setFillColor(sf::Color(255, 120, 120));
 
     sf::CircleShape item(3.0f);
     item.setOrigin({3.0f, 3.0f});
@@ -78,11 +89,30 @@ void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) c
             target.draw(barFill);
         }
 
-        // A small tick showing which way it faces / outputs.
         const float cx = px + TILE_SIZE * 0.5f - 2.0f;
         const float cy = py + TILE_SIZE * 0.5f - 2.0f;
-        facing.setPosition({cx + dirDX(m.facing) * 5.0f, cy + dirDY(m.facing) * 5.0f});
-        target.draw(facing);
+
+        // Drill and Smelter round-robin their output across the 3 sides other
+        // than facing (reserved for input: an ore vein, a feeder belt) - show
+        // that split directly. Every other machine type just shows its single
+        // facing tick (a belt's facing is its direction of travel, not an
+        // input/output split).
+        if (m.type == MachineType::Drill || m.type == MachineType::Smelter)
+        {
+            static constexpr std::array<Direction, 4> ALL_SIDES = {Direction::Up, Direction::Down,
+                                                                     Direction::Left, Direction::Right};
+            for (Direction side : ALL_SIDES)
+            {
+                sf::RectangleShape& tick = (side == m.facing) ? inputTick : outputTick;
+                tick.setPosition({cx + dirDX(side) * 5.0f, cy + dirDY(side) * 5.0f});
+                target.draw(tick);
+            }
+        }
+        else
+        {
+            facing.setPosition({cx + dirDX(m.facing) * 5.0f, cy + dirDY(m.facing) * 5.0f});
+            target.draw(facing);
+        }
 
         // The carried transport item, or the output buffer's item.
         ItemType shown = m.carried;

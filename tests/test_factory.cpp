@@ -18,10 +18,17 @@ TEST_CASE("a coal-fed drill-belt-smelter line produces plates on its own")
 
     // Layout (all on row 0 except the ore below the drill):
     //   (9,0) generator  (10,0) drill  (11,0) belt  (12,0) smelter
+    //
+    // A machine's facing is reserved for input and is never an output target
+    // (the other 3 sides round-robin instead), so the drill and smelter both
+    // face away from the belt that carries ore between them - Down here is
+    // arbitrary for the drill (its ore search is always straight down
+    // regardless of facing), and Left for the smelter mirrors the belt
+    // actually feeding it from the west.
     m.place(MachineType::BurnerGenerator, 9, 0, Direction::Right);
-    m.place(MachineType::Drill,           10, 0, Direction::Right);
+    m.place(MachineType::Drill,           10, 0, Direction::Down);
     m.place(MachineType::Belt,            11, 0, Direction::Right);
-    m.place(MachineType::Smelter,         12, 0, Direction::Right);
+    m.place(MachineType::Smelter,         12, 0, Direction::Left);
 
     // Prime the generator with plenty of coal.
     for (int i = 0; i < 10; ++i)

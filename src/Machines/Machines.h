@@ -76,7 +76,7 @@ private:
     void assignNetworks();
 
     // Task 8-13 helpers.
-    void insertOutputAhead(Machine& m);
+    void insertOutput(Machine& m);
     void tickTransport(float dt);
     void tickGenerators(float dt);
     void tickDrills(World& world, float dt, std::vector<sf::Vector2i>& minedTiles);
