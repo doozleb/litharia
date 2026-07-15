@@ -32,6 +32,18 @@ public:
     // Added behaviour in Task 8.
     bool tryInsert(int x, int y, ItemType item);
 
+    // Takes whatever a machine is holding to give away: a Drill/Smelter's whole
+    // output stack, or a Belt/Chute's carried item (only once carryTimer <= 0.0f -
+    // mid-transfer refuses). Empty stack if there is nothing to take. The
+    // counterpart to tryInsert.
+    ItemStack tryExtract(int x, int y);
+
+    // Gives a stack back to the machine at (x, y), into whichever buffer
+    // tryExtract() would have taken it from. No-op for an empty stack or an
+    // empty tile. Used when the taker (the player's bag) could not hold
+    // everything tryExtract() handed over, so nothing is ever destroyed.
+    void putBack(int x, int y, ItemStack stack);
+
     // Read-only: bar + fraction from barStatus(), plus a reason string that
     // explains why the machine is idle/unpowered (empty when it is running fine,
     // or the tile is empty/not a processing machine).

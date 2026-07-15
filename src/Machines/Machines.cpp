@@ -142,6 +142,49 @@ bool Machines::tryInsert(int x, int y, ItemType item)
     return false;
 }
 
+ItemStack Machines::tryExtract(int x, int y)
+{
+    Machine* m = at(x, y);
+    if (m == nullptr)
+        return {};
+
+    const MachineInfo& info = machineInfo(m->type);
+
+    if (info.transport)
+    {
+        if (m->carried == ItemType::None || m->carryTimer > 0.0f)
+            return {};
+
+        const ItemStack taken{m->carried, 1};
+        m->carried = ItemType::None;
+        return taken;
+    }
+
+    if (m->output.empty())
+        return {};
+
+    const ItemStack taken = m->output;
+    m->output = {};
+    return taken;
+}
+
+void Machines::putBack(int x, int y, ItemStack stack)
+{
+    if (stack.empty())
+        return;
+
+    Machine* m = at(x, y);
+    if (m == nullptr)
+        return;
+
+    const MachineInfo& info = machineInfo(m->type);
+
+    if (info.transport)
+        m->carried = stack.type; // transport holds exactly one item; count is always 1
+    else
+        m->output = stack;
+}
+
 MachineStatus Machines::inspect(int x, int y, const World& world) const
 {
     const Machine* m = at(x, y);
