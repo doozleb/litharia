@@ -291,7 +291,7 @@ void Game::handleEvents()
 
 void Game::fixedUpdate(float dt)
 {
-    const ActionResult result = player.update(readInput(), world, dt);
+    const ActionResult result = player.update(readInput(), world, dt, &machines);
 
     if (result.broke)
     {

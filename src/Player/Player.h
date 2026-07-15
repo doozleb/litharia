@@ -7,6 +7,7 @@
 #include "../Physics/Physics.h"
 
 class World;
+class Machines;
 
 // What the player is being told to do this tick. Reading the keyboard and mouse is
 // Game's job; the player takes the result as data, which keeps it out of SFML
@@ -57,7 +58,8 @@ public:
 
     explicit Player(sf::Vector2f topLeft);
 
-    ActionResult update(const PlayerInput& input, World& world, float dt);
+    ActionResult update(const PlayerInput& input, World& world, float dt,
+                         const Machines* machines = nullptr);
 
     const AABB& box() const { return body; }
     sf::Vector2f position() const { return body.position; }
@@ -88,7 +90,8 @@ public:
 private:
     void move(const PlayerInput& input, const World& world, float dt);
     void mine(const PlayerInput& input, World& world, ActionResult& result, float dt);
-    void place(const PlayerInput& input, World& world, ActionResult& result);
+    void place(const PlayerInput& input, World& world, const Machines* machines,
+               ActionResult& result);
 
     AABB body;
     sf::Vector2f speed{0.0f, 0.0f};

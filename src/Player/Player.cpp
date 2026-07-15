@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "../Core/Constants.h"
+#include "../Machines/Machines.h"
 #include "../World/World.h"
 
 namespace
@@ -61,14 +62,15 @@ void Player::cycleSelectedSlot(int delta)
     selected = ((selected + delta) % size + size) % size;
 }
 
-ActionResult Player::update(const PlayerInput& input, World& world, float dt)
+ActionResult Player::update(const PlayerInput& input, World& world, float dt,
+                             const Machines* machines)
 {
     ActionResult result;
 
     move(input, world, dt);
 
     mine(input, world, result, dt);
-    place(input, world, result);
+    place(input, world, machines, result);
 
     return result;
 }
@@ -163,7 +165,8 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
     result.brokenY = tileY;
 }
 
-void Player::place(const PlayerInput& input, World& world, ActionResult& result)
+void Player::place(const PlayerInput& input, World& world, const Machines* machines,
+                    ActionResult& result)
 {
     if (!input.place)
         return;
@@ -183,6 +186,10 @@ void Player::place(const PlayerInput& input, World& world, ActionResult& result)
 
     // Only into empty space, and only within reach.
     if (world.get(tileX, tileY) != BlockType::Air || !inReach(tileX, tileY))
+        return;
+
+    // Never onto a tile a piece of factory equipment already occupies.
+    if (machines != nullptr && !machines->canPlace(tileX, tileY))
         return;
 
     // A block may not be placed inside the player: it would trap them in a solid

@@ -3,6 +3,7 @@
 #include "Blocks/Blocks.h"
 #include "Core/Constants.h"
 #include "Items/Inventory.h"
+#include "Machines/Machines.h"
 #include "Player/Player.h"
 #include "World/World.h"
 
@@ -128,6 +129,37 @@ TEST_CASE("a block cannot be placed into an occupied tile")
     // The stone was not overwritten with dirt, and nothing was spent.
     CHECK(world.get(12, 30) == BlockType::Stone);
     CHECK(player.inventory().count(ItemType::Dirt) == 5);
+}
+
+TEST_CASE("a block cannot be placed onto a tile a machine occupies")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.inventory().add({ItemType::Stone, 5});
+
+    Machines machines;
+    machines.place(MachineType::Belt, 13, 29, Direction::Right);
+
+    const ActionResult result = player.update(placingAt(13, 29), world, STEP, &machines);
+
+    CHECK_FALSE(result.placed);
+    CHECK(world.get(13, 29) == BlockType::Air); // the tile itself was already empty
+    CHECK(player.inventory().count(ItemType::Stone) == 5);
+}
+
+TEST_CASE("placing still works normally when no machines are passed in")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.inventory().add({ItemType::Stone, 1});
+
+    const ActionResult result = player.update(placingAt(13, 29), world, STEP);
+
+    CHECK(result.placed);
 }
 
 TEST_CASE("a block cannot be placed out of reach")
