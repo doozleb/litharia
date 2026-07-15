@@ -1,10 +1,12 @@
 #include "Game.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 #include "../Core/Constants.h"
 #include "../Core/Noise.h"
+#include "../Machines/MachineType.h"
 
 namespace
 {
@@ -80,8 +82,8 @@ PlayerInput Game::readInput() const
 
     const bool focused = window.hasFocus();
 
-    input.mine = focused && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
-    input.place = focused && sf::Mouse::isButtonPressed(sf::Mouse::Button::Right);
+    input.mine = !buildMode && focused && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+    input.place = !buildMode && focused && sf::Mouse::isButtonPressed(sf::Mouse::Button::Right);
 
     input.cursor = cursorWorldPosition();
 
@@ -128,6 +130,63 @@ void Game::updateDrops(float dt)
     // A stack absorbed in full is gone; one that only partly fitted stays on the
     // ground holding its leftovers.
     std::erase_if(drops, [](const ItemEntity& drop) { return drop.stack().empty(); });
+}
+
+sf::Vector2i Game::cursorTile() const
+{
+    const sf::Vector2f world = cursorWorldPosition();
+    return {static_cast<int>(std::floor(world.x / TILE_SIZE)),
+            static_cast<int>(std::floor(world.y / TILE_SIZE))};
+}
+
+void Game::placeMachineAtCursor()
+{
+    const sf::Vector2i tile = cursorTile();
+
+    // Do not place inside solid rock or where a machine already sits.
+    if (world.isSolid(tile.x, tile.y) || !machines.canPlace(tile.x, tile.y))
+        return;
+
+    machines.place(buildType, tile.x, tile.y, buildFacing);
+}
+
+void Game::removeMachineAtCursor()
+{
+    const sf::Vector2i tile = cursorTile();
+    machines.remove(tile.x, tile.y);
+}
+
+void Game::loadFuelAtCursor()
+{
+    const sf::Vector2i tile = cursorTile();
+
+    // Only spend a coal if the machine actually accepts it.
+    Inventory& bag = player.inventory();
+    if (bag.count(ItemType::Coal) <= 0)
+        return;
+
+    if (machines.tryInsert(tile.x, tile.y, ItemType::Coal))
+    {
+        // Remove one coal from wherever it sits in the bag.
+        for (int i = 0; i < Inventory::SIZE; ++i)
+        {
+            if (bag.slot(i).type == ItemType::Coal)
+            {
+                bag.removeOne(i);
+                break;
+            }
+        }
+    }
+}
+
+void Game::tickMachines(float dt)
+{
+    std::vector<sf::Vector2i> mined;
+    machines.tick(world, dt, mined);
+
+    // Any tile a drill ate must be rebuilt in the chunk mesh.
+    for (const sf::Vector2i& t : mined)
+        chunks.markDirty(t.x, t.y);
 }
 
 void Game::run()
@@ -186,6 +245,28 @@ void Game::handleEvents()
 
             if (key->code == Key::Num0)
                 player.setSelectedSlot(9);
+
+            if (key->code == Key::B)
+                buildMode = !buildMode;
+
+            if (key->code == Key::R)
+                buildFacing = rotateCW(buildFacing);
+
+            if (key->code == Key::F)
+                loadFuelAtCursor();
+
+            if (key->code == Key::F1) buildType = MachineType::BurnerGenerator;
+            if (key->code == Key::F2) buildType = MachineType::Drill;
+            if (key->code == Key::F3) buildType = MachineType::Belt;
+            if (key->code == Key::F4) buildType = MachineType::Chute;
+            if (key->code == Key::F5) buildType = MachineType::Smelter;
+        }
+        else if (const auto* mouse = event->getIf<sf::Event::MouseButtonPressed>())
+        {
+            if (buildMode && mouse->button == sf::Mouse::Button::Left)
+                placeMachineAtCursor();
+            else if (buildMode && mouse->button == sf::Mouse::Button::Right)
+                removeMachineAtCursor();
         }
     }
 }
@@ -206,12 +287,18 @@ void Game::fixedUpdate(float dt)
         chunks.markDirty(result.placedX, result.placedY);
 
     updateDrops(dt);
+    tickMachines(dt);
 
     camera.follow(player.center(), dt);
 
     const ItemStack& held = player.inventory().slot(player.selectedSlot());
 
-    window.setTitle("Litharia  -  drops: " + std::to_string(drops.size()) + "  -  holding: " +
+    const std::string mode = buildMode
+        ? "  -  BUILD: " + std::string(machineInfo(buildType).name)
+        : "";
+
+    window.setTitle("Litharia" + mode + "  -  machines: " + std::to_string(machines.count()) +
+                    "  -  drops: " + std::to_string(drops.size()) + "  -  holding: " +
                     std::string(held.empty() ? "nothing"
                                              : std::string(itemInfo(held.type).name) + " x" +
                                                    std::to_string(held.count)));
@@ -253,6 +340,8 @@ void Game::render()
     window.setView(camera.view());
 
     chunks.draw(window, camera.view());
+
+    machineRenderer.draw(window, machines);
 
     drawMiningHighlight();
 

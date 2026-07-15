@@ -7,6 +7,8 @@
 #include "../Camera/Camera.h"
 #include "../Hud/Hud.h"
 #include "../Items/ItemEntity.h"
+#include "../Machines/Machines.h"
+#include "../Machines/MachineRenderer.h"
 #include "../Player/Player.h"
 #include "../World/Chunks.h"
 #include "../World/TerrainGenerator.h"
@@ -39,6 +41,12 @@ private:
     // A mined block becomes a stack on the ground.
     void spawnDrop(const ActionResult& result);
 
+    void tickMachines(float dt);
+    void placeMachineAtCursor();
+    void removeMachineAtCursor();
+    void loadFuelAtCursor();
+    sf::Vector2i cursorTile() const;
+
     sf::RenderWindow window;
 
     World world;
@@ -49,4 +57,11 @@ private:
     Hud hud;
 
     std::vector<ItemEntity> drops;
+
+    Machines machines;
+    MachineRenderer machineRenderer;
+
+    bool buildMode = false;
+    MachineType buildType = MachineType::Belt;
+    Direction buildFacing = Direction::Right;
 };
