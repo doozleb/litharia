@@ -17,6 +17,11 @@ namespace
 
 constexpr float ICON_INSET = 10.0f;
 
+// The bag/hotbar slot backdrop. The chest panel uses a lighter grey instead,
+// so its slots read as a distinct container at a glance.
+constexpr sf::Color BAG_SLOT_BACKGROUND(20, 20, 28, 170);
+constexpr sf::Color CHEST_SLOT_BACKGROUND(140, 140, 145, 170);
+
 sf::Color toColor(BlockColor c)
 {
     return sf::Color(c.r, c.g, c.b);
@@ -38,13 +43,14 @@ sf::Color itemColor(ItemType type)
 }
 
 // Draws one slot's background, item icon, and stack count - shared by the
-// hotbar and the bag/chest panels so they render identically.
+// hotbar and the bag/chest panels so they render identically (aside from
+// their own slot size and background color).
 void drawSlot(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf::Vector2f pos,
-              const ItemStack& stack, bool highlighted)
+              const ItemStack& stack, bool highlighted, float slotSize, sf::Color backgroundColor)
 {
-    sf::RectangleShape slot({Hud::SLOT_SIZE, Hud::SLOT_SIZE});
+    sf::RectangleShape slot({slotSize, slotSize});
     slot.setPosition(pos);
-    slot.setFillColor(sf::Color(20, 20, 28, 170));
+    slot.setFillColor(backgroundColor);
     slot.setOutlineThickness(highlighted ? -3.0f : -1.0f);
     slot.setOutlineColor(highlighted ? sf::Color(255, 236, 140) : sf::Color(90, 90, 105));
     window.draw(slot);
@@ -52,7 +58,7 @@ void drawSlot(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf:
     if (stack.empty())
         return;
 
-    sf::RectangleShape icon({Hud::SLOT_SIZE - ICON_INSET * 2.0f, Hud::SLOT_SIZE - ICON_INSET * 2.0f});
+    sf::RectangleShape icon({slotSize - ICON_INSET * 2.0f, slotSize - ICON_INSET * 2.0f});
     icon.setPosition({pos.x + ICON_INSET, pos.y + ICON_INSET});
     icon.setFillColor(itemColor(stack.type));
     icon.setOutlineThickness(-1.0f);
@@ -68,48 +74,52 @@ void drawSlot(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf:
     count.setOutlineColor(sf::Color(10, 10, 12));
 
     const sf::FloatRect bounds = count.getLocalBounds();
-    count.setPosition({pos.x + Hud::SLOT_SIZE - bounds.size.x - 5.0f,
-                       pos.y + Hud::SLOT_SIZE - bounds.size.y - 10.0f});
+    count.setPosition({pos.x + slotSize - bounds.size.x - 5.0f,
+                       pos.y + slotSize - bounds.size.y - 10.0f});
     window.draw(count);
 }
 
-// Where the hotbar's first slot sits. Shared by drawing and hit-testing so
-// the two can never drift apart - the bag panel anchors above this same
-// origin.
+// Where the hotbar's first slot sits: hugging the top-right corner. Shared by
+// drawing and hit-testing so the two can never drift apart - the bag panel
+// anchors below this same origin.
 sf::Vector2f hotbarOrigin(sf::Vector2f windowSize)
 {
     constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
 
     const float totalWidth = COLUMNS * Hud::SLOT_SIZE + (COLUMNS - 1) * Hud::SLOT_GAP;
-    const float startX = (windowSize.x - totalWidth) * 0.5f;
-    const float y = windowSize.y - Hud::SLOT_SIZE - Hud::MARGIN;
+    const float startX = windowSize.x - totalWidth - Hud::MARGIN;
+    const float y = Hud::MARGIN;
 
     return {startX, y};
 }
 
-// Where the bag panel's first slot sits: directly above the hotbar, sharing
-// its horizontal centering.
+// Where the bag panel's first slot sits: directly below the hotbar, sharing
+// its right edge (same slot size and column count, so same width).
 sf::Vector2f bagPanelOrigin(sf::Vector2f windowSize)
 {
-    constexpr int BAG_ROWS = 3;
-
     const sf::Vector2f hotbar = hotbarOrigin(windowSize);
-    const float bagY =
-        hotbar.y - Hud::MARGIN - BAG_ROWS * Hud::SLOT_SIZE - (BAG_ROWS - 1) * Hud::SLOT_GAP;
+    const float bagY = hotbar.y + Hud::SLOT_SIZE + Hud::MARGIN;
 
     return {hotbar.x, bagY};
 }
 
-// Where the chest panel's first slot sits: directly above the bag panel.
+// Where the chest panel's first slot sits: directly below the bag panel. The
+// chest's slots are smaller, so its own width is anchored to the right edge
+// independently - narrower than the column above it, but still flush against
+// the same right border.
 sf::Vector2f chestPanelOrigin(sf::Vector2f windowSize)
 {
-    constexpr int CHEST_ROWS = 2;
+    constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
+    constexpr int BAG_ROWS = 3;
 
     const sf::Vector2f bagOrigin = bagPanelOrigin(windowSize);
     const float chestY =
-        bagOrigin.y - Hud::MARGIN - CHEST_ROWS * Hud::SLOT_SIZE - (CHEST_ROWS - 1) * Hud::SLOT_GAP;
+        bagOrigin.y + BAG_ROWS * Hud::SLOT_SIZE + (BAG_ROWS - 1) * Hud::SLOT_GAP + Hud::MARGIN;
 
-    return {bagOrigin.x, chestY};
+    const float chestWidth = COLUMNS * Hud::CHEST_SLOT_SIZE + (COLUMNS - 1) * Hud::SLOT_GAP;
+    const float chestX = windowSize.x - chestWidth - Hud::MARGIN;
+
+    return {chestX, chestY};
 }
 
 struct TooltipLine
@@ -168,7 +178,7 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
     for (int i = 0; i < Inventory::HOTBAR_SIZE; ++i)
     {
         const sf::Vector2f pos = hudLayout::gridSlotPosition(origin, i, COLUMNS, SLOT_SIZE, SLOT_GAP);
-        drawSlot(window, font, pos, inventory.slot(i), i == selectedSlot);
+        drawSlot(window, font, pos, inventory.slot(i), i == selectedSlot, SLOT_SIZE, BAG_SLOT_BACKGROUND);
     }
 
     window.setView(previous);
@@ -187,7 +197,7 @@ void Hud::drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventor
         const int gridIndex = i - Inventory::HOTBAR_SIZE;
         const sf::Vector2f pos =
             hudLayout::gridSlotPosition(origin, gridIndex, COLUMNS, SLOT_SIZE, SLOT_GAP);
-        drawSlot(window, font, pos, inventory.slot(i), false);
+        drawSlot(window, font, pos, inventory.slot(i), false, SLOT_SIZE, BAG_SLOT_BACKGROUND);
     }
 
     window.setView(previous);
@@ -203,8 +213,9 @@ void Hud::drawChestPanel(sf::RenderWindow& window, const Inventory& chestStorage
 
     for (int i = 0; i < chestStorage.slotCount(); ++i)
     {
-        const sf::Vector2f pos = hudLayout::gridSlotPosition(origin, i, COLUMNS, SLOT_SIZE, SLOT_GAP);
-        drawSlot(window, font, pos, chestStorage.slot(i), false);
+        const sf::Vector2f pos =
+            hudLayout::gridSlotPosition(origin, i, COLUMNS, CHEST_SLOT_SIZE, SLOT_GAP);
+        drawSlot(window, font, pos, chestStorage.slot(i), false, CHEST_SLOT_SIZE, CHEST_SLOT_BACKGROUND);
     }
 
     window.setView(previous);
@@ -249,8 +260,8 @@ std::optional<Hud::SlotHit> Hud::hitTestPanels(sf::Vector2f screenPos, sf::Vecto
 
     if (chestOpen)
     {
-        const int chestIndex = hudLayout::hitTestGrid(screenPos, chestPanelOrigin(windowSize),
-                                                        COLUMNS, CHEST_ROWS, SLOT_SIZE, SLOT_GAP);
+        const int chestIndex = hudLayout::hitTestGrid(screenPos, chestPanelOrigin(windowSize), COLUMNS,
+                                                        CHEST_ROWS, CHEST_SLOT_SIZE, SLOT_GAP);
         if (chestIndex >= 0)
             return SlotHit{true, chestIndex};
     }

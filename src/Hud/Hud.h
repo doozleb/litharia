@@ -19,6 +19,10 @@ public:
     static constexpr float SLOT_GAP = 4.0f;
     static constexpr float MARGIN = 12.0f;
 
+    // The chest panel renders smaller than the hotbar/bag slots, so it reads
+    // as a visually distinct grid.
+    static constexpr float CHEST_SLOT_SIZE = 36.0f;
+
     Hud();
 
     void draw(sf::RenderWindow& window, const Inventory& inventory, int selectedSlot);
