@@ -6,6 +6,31 @@
 #include "Recipes.h"
 #include "../World/World.h"
 
+namespace
+{
+
+// Adds one item to a single-stack buffer if it fits (empty, or same type below
+// max). Returns false if the buffer is occupied by something else or full.
+bool addToBuffer(ItemStack& buffer, ItemType item)
+{
+    if (buffer.empty())
+    {
+        buffer.type = item;
+        buffer.count = 1;
+        return true;
+    }
+
+    if (buffer.type == item && buffer.count < itemInfo(item).maxStack)
+    {
+        ++buffer.count;
+        return true;
+    }
+
+    return false;
+}
+
+} // namespace
+
 int Machines::indexAt(int x, int y) const
 {
     const auto it = byTile.find(key(x, y));
@@ -71,8 +96,43 @@ const Machine* Machines::at(int x, int y) const
 
 // --- Stubs filled in by later tasks. They must compile now. -------------------
 
-bool Machines::tryInsert(int, int, ItemType)
+bool Machines::tryInsert(int x, int y, ItemType item)
 {
+    if (item == ItemType::None)
+        return false;
+
+    Machine* m = at(x, y);
+    if (m == nullptr)
+        return false;
+
+    const MachineInfo& info = machineInfo(m->type);
+
+    if (info.transport)
+    {
+        if (m->carried != ItemType::None)
+            return false;
+
+        m->carried = item;
+        m->carryTimer = info.actionTime;
+        return true;
+    }
+
+    if (m->type == MachineType::Smelter)
+    {
+        if (smeltRecipeFor(item) == nullptr)
+            return false;
+
+        return addToBuffer(m->input, item);
+    }
+
+    if (m->type == MachineType::BurnerGenerator)
+    {
+        if (item != ItemType::Coal)
+            return false;
+
+        return addToBuffer(m->input, item);
+    }
+
     return false;
 }
 
