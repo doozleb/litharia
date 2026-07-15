@@ -53,6 +53,8 @@ private:
     void drawInventoryPanels();
     void beginDrag();
     void endDrag();
+    void depositAllToChest();
+    void collectAllFromChest();
     sf::Vector2i cursorTile() const;
     void drawMachineTooltip();
 

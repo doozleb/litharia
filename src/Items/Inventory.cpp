@@ -14,20 +14,23 @@ Inventory::Inventory(int slotCount)
 {
 }
 
-int Inventory::add(ItemStack stack)
+int Inventory::add(ItemStack stack, int firstSlot)
 {
     if (stack.empty())
         return 0;
 
     int remaining = stack.count;
     const int max = itemInfo(stack.type).maxStack;
+    const std::size_t start = static_cast<std::size_t>(std::clamp(firstSlot, 0, slotCount()));
 
     // Top up matching stacks first, so the bag fills densely rather than opening a
     // new slot for every pickup.
-    for (ItemStack& existing : slots)
+    for (std::size_t i = start; i < slots.size(); ++i)
     {
         if (remaining <= 0)
             break;
+
+        ItemStack& existing = slots[i];
 
         if (existing.type != stack.type || existing.count >= max)
             continue;
@@ -40,10 +43,12 @@ int Inventory::add(ItemStack stack)
     }
 
     // Only then open empty slots.
-    for (ItemStack& existing : slots)
+    for (std::size_t i = start; i < slots.size(); ++i)
     {
         if (remaining <= 0)
             break;
+
+        ItemStack& existing = slots[i];
 
         if (!existing.empty())
             continue;

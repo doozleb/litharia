@@ -246,7 +246,10 @@ void Game::drawInventoryPanels()
     hud.drawInventoryPanel(window, player.inventory());
 
     if (openChestTile.has_value())
+    {
         hud.drawChestPanel(window, machines.at(openChestTile->x, openChestTile->y)->storage);
+        hud.drawChestButtons(window);
+    }
 }
 
 void Game::beginDrag()
@@ -299,6 +302,53 @@ void Game::endDrag()
         sourceInventory.exchange(dragSourceSlot, leftover);
 
     dragging = false;
+}
+
+void Game::depositAllToChest()
+{
+    if (!openChestTile.has_value())
+        return;
+
+    Inventory& chest = machines.at(openChestTile->x, openChestTile->y)->storage;
+    Inventory& bag = player.inventory();
+
+    // Bag-panel slots only (HOTBAR_SIZE..slotCount()-1) - the hotbar is left
+    // alone, same as the hotbar being excluded from what Deposit All sweeps.
+    for (int i = Inventory::HOTBAR_SIZE; i < bag.slotCount(); ++i)
+    {
+        const ItemStack taken = bag.take(i);
+        if (taken.empty())
+            continue;
+
+        // Whatever doesn't fit in the chest goes right back into the slot it
+        // came from - take() already emptied it, so this can only refill it,
+        // never swap with something else.
+        const int leftover = chest.add(taken);
+        if (leftover > 0)
+            bag.exchange(i, {taken.type, leftover});
+    }
+}
+
+void Game::collectAllFromChest()
+{
+    if (!openChestTile.has_value())
+        return;
+
+    Inventory& chest = machines.at(openChestTile->x, openChestTile->y)->storage;
+    Inventory& bag = player.inventory();
+
+    for (int i = 0; i < chest.slotCount(); ++i)
+    {
+        const ItemStack taken = chest.take(i);
+        if (taken.empty())
+            continue;
+
+        // Bag panel only, same as Deposit All - the hotbar is never a
+        // Collect All destination.
+        const int leftover = bag.add(taken, Inventory::HOTBAR_SIZE);
+        if (leftover > 0)
+            chest.exchange(i, {taken.type, leftover});
+    }
 }
 
 void Game::tickMachines(float dt)
@@ -434,7 +484,19 @@ void Game::handleEvents()
             else if (buildMode && mouse->button == sf::Mouse::Button::Right)
                 removeMachineAtCursor();
             else if (inventoryOpen && mouse->button == sf::Mouse::Button::Left)
-                beginDrag();
+            {
+                const auto chestButton = openChestTile.has_value()
+                    ? hud.hitTestChestButton(sf::Vector2f(sf::Mouse::getPosition(window)),
+                                              sf::Vector2f(window.getSize()))
+                    : std::nullopt;
+
+                if (chestButton == Hud::ChestButton::DepositAll)
+                    depositAllToChest();
+                else if (chestButton == Hud::ChestButton::CollectAll)
+                    collectAllFromChest();
+                else
+                    beginDrag();
+            }
         }
         else if (const auto* release = event->getIf<sf::Event::MouseButtonReleased>())
         {
