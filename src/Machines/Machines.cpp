@@ -29,6 +29,12 @@ bool addToBuffer(ItemStack& buffer, ItemType item)
     return false;
 }
 
+// True for blocks a drill should mine (they drop themselves as an ore/fuel item).
+bool isOre(BlockType b)
+{
+    return b == BlockType::CopperOre || b == BlockType::IronOre || b == BlockType::Coal;
+}
+
 } // namespace
 
 int Machines::indexAt(int x, int y) const
@@ -206,8 +212,20 @@ void Machines::updatePower()
     networkDemand = demand;
 }
 
-void Machines::insertOutputAhead(Machine&)
+void Machines::insertOutputAhead(Machine& m)
 {
+    if (m.output.empty())
+        return;
+
+    const int tx = m.x + dirDX(m.facing);
+    const int ty = m.y + dirDY(m.facing);
+
+    if (tryInsert(tx, ty, m.output.type))
+    {
+        --m.output.count;
+        if (m.output.count == 0)
+            m.output.type = ItemType::None;
+    }
 }
 
 void Machines::tickTransport(float dt)
@@ -264,12 +282,59 @@ void Machines::tickGenerators(float dt)
     }
 }
 
+void Machines::tickDrills(World& world, float dt, std::vector<sf::Vector2i>& minedTiles)
+{
+    for (Machine& m : machines)
+    {
+        if (m.type != MachineType::Drill)
+            continue;
+
+        // Always try to push any held output onto the machine ahead.
+        insertOutputAhead(m);
+
+        if (!m.powered || !m.output.empty())
+        {
+            m.progress = 0.0f;
+            continue;
+        }
+
+        // Find the nearest ore straight below, within reach.
+        int oreY = -1;
+        for (int dy = 1; dy <= DRILL_REACH; ++dy)
+        {
+            if (isOre(world.get(m.x, m.y + dy)))
+            {
+                oreY = m.y + dy;
+                break;
+            }
+        }
+
+        if (oreY < 0)
+        {
+            m.progress = 0.0f; // nothing to mine: idle
+            continue;
+        }
+
+        m.progress += dt;
+
+        if (m.progress >= machineInfo(m.type).actionTime)
+        {
+            const BlockType ore = world.get(m.x, oreY);
+            const ItemType drop = itemForBlock(ore);
+
+            world.set(m.x, oreY, BlockType::Air);
+            minedTiles.push_back({m.x, oreY});
+
+            m.output = {drop, 1};
+            m.progress = 0.0f;
+        }
+    }
+}
+
 void Machines::tick(World& world, float dt, std::vector<sf::Vector2i>& minedTiles)
 {
-    (void)world;
-    (void)minedTiles;
-
     updatePower();
     tickGenerators(dt);
+    tickDrills(world, dt, minedTiles);
     tickTransport(dt);
 }
