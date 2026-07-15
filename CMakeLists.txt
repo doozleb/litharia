@@ -28,6 +28,8 @@ add_library(Litharia_core STATIC
     src/Items/Items.cpp
     src/Items/ItemEntity.cpp
     src/Items/Inventory.cpp
+
+    src/Machines/Recipes.cpp
 )
 
 target_include_directories(Litharia_core PUBLIC src)
@@ -76,6 +78,7 @@ add_executable(Litharia_tests
     tests/test_inventory.cpp
     tests/test_pickup.cpp
     tests/test_placing.cpp
+    tests/test_recipes.cpp
 )
 
 target_include_directories(Litharia_tests PRIVATE libs/doctest)
