@@ -1,12 +1,15 @@
 #include "Hud.h"
 
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "../Blocks/Blocks.h"
 #include "../Items/Inventory.h"
+#include "../Machines/MachineType.h"
 
 namespace
 {
@@ -27,6 +30,12 @@ sf::Color itemColor(ItemType type)
 {
     return toColor(blockInfo(itemInfo(type).placeBlock).color);
 }
+
+struct TooltipLine
+{
+    std::string text;
+    sf::Color color;
+};
 
 std::optional<sf::Font> loadFont()
 {
@@ -120,6 +129,78 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
                            y + SLOT_SIZE - bounds.size.y - 10.0f});
 
         window.draw(count);
+    }
+
+    window.setView(previous);
+}
+
+void Hud::drawMachineTooltip(sf::RenderWindow& window,
+                              const Machine& machine,
+                              const MachineStatus& status,
+                              sf::Vector2f screenPos)
+{
+    const sf::View previous = window.getView();
+    window.setView(window.getDefaultView());
+
+    const MachineInfo& info = machineInfo(machine.type);
+
+    std::vector<TooltipLine> lines;
+    lines.push_back({std::string(info.name), sf::Color::White});
+
+    if (info.generator)
+        lines.push_back({"Fuel: " + std::to_string(static_cast<int>(machine.fuel)) + "s remaining",
+                          sf::Color::White});
+    else if (info.consumer)
+        lines.push_back({machine.powered ? "Powered: yes" : "Powered: no", sf::Color::White});
+
+    if (!machine.input.empty())
+        lines.push_back({"Input: " + std::to_string(machine.input.count) + "x " +
+                              std::string(itemInfo(machine.input.type).name),
+                          sf::Color::White});
+
+    if (!machine.output.empty())
+        lines.push_back({"Output: " + std::to_string(machine.output.count) + "x " +
+                              std::string(itemInfo(machine.output.type).name),
+                          sf::Color::White});
+
+    if (status.bar != MachineBar::None)
+        lines.push_back({(status.bar == MachineBar::Fuel ? std::string("Fuel: ")
+                                                           : std::string("Progress: ")) +
+                              std::to_string(static_cast<int>(status.fraction * 100.0f)) + "%",
+                          sf::Color::White});
+
+    if (!status.reason.empty())
+        lines.push_back({status.reason, sf::Color(255, 200, 120)});
+
+    constexpr float PADDING = 8.0f;
+    constexpr float LINE_HEIGHT = 18.0f;
+    constexpr float CHAR_WIDTH = 7.0f; // rough estimate; only sizes the background panel
+
+    std::size_t longest = 0;
+    for (const TooltipLine& line : lines)
+        longest = std::max(longest, line.text.size());
+
+    const float width = static_cast<float>(longest) * CHAR_WIDTH + PADDING * 2.0f;
+    const float height = static_cast<float>(lines.size()) * LINE_HEIGHT + PADDING * 2.0f;
+
+    const sf::Vector2f pos = screenPos + sf::Vector2f(16.0f, 16.0f);
+
+    sf::RectangleShape panel({width, height});
+    panel.setPosition(pos);
+    panel.setFillColor(sf::Color(20, 20, 28, 220));
+    panel.setOutlineThickness(-1.0f);
+    panel.setOutlineColor(sf::Color(90, 90, 105));
+    window.draw(panel);
+
+    if (font)
+    {
+        for (std::size_t i = 0; i < lines.size(); ++i)
+        {
+            sf::Text text(*font, lines[i].text, 14);
+            text.setFillColor(lines[i].color);
+            text.setPosition({pos.x + PADDING, pos.y + PADDING + static_cast<float>(i) * LINE_HEIGHT});
+            window.draw(text);
+        }
     }
 
     window.setView(previous);
