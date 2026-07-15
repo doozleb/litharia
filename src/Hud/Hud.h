@@ -23,6 +23,12 @@ public:
     // as a visually distinct grid.
     static constexpr float CHEST_SLOT_SIZE = 36.0f;
 
+    // The "Deposit All"/"Collect All" buttons sit to the chest panel's left,
+    // stacked so together they span the same height as its 2 rows
+    // (2 * CHEST_SLOT_SIZE + SLOT_GAP = 76px).
+    static constexpr float CHEST_BUTTON_WIDTH = 76.0f;
+    static constexpr float CHEST_BUTTON_HEIGHT = 36.0f;
+
     Hud();
 
     void draw(sf::RenderWindow& window, const Inventory& inventory, int selectedSlot);
@@ -48,6 +54,15 @@ public:
     // called this frame, so hit-testing and drawing never disagree.
     std::optional<SlotHit> hitTestPanels(sf::Vector2f screenPos, sf::Vector2f windowSize,
                                           bool chestOpen) const;
+
+    enum class ChestButton { DepositAll, CollectAll };
+
+    // Draws the two chest action buttons to the left of the chest panel.
+    // Only meaningful to call while the chest panel itself is being drawn.
+    void drawChestButtons(sf::RenderWindow& window);
+
+    // Screen position -> which chest button it lands on, or nullopt.
+    std::optional<ChestButton> hitTestChestButton(sf::Vector2f screenPos, sf::Vector2f windowSize) const;
 
     // A small info panel anchored near the cursor, describing one machine's
     // current state: name, input/output, power/fuel state, bar percentage, and

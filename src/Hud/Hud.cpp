@@ -122,6 +122,40 @@ sf::Vector2f chestPanelOrigin(sf::Vector2f windowSize)
     return {chestX, chestY};
 }
 
+// Where the chest action buttons sit: directly left of the chest panel,
+// top-aligned with it and spanning its same height.
+sf::Vector2f chestButtonsOrigin(sf::Vector2f windowSize)
+{
+    const sf::Vector2f chest = chestPanelOrigin(windowSize);
+    const float x = chest.x - Hud::MARGIN - Hud::CHEST_BUTTON_WIDTH;
+
+    return {x, chest.y};
+}
+
+// Draws one chest action button: a labeled rectangle, sharing the bag/
+// hotbar slot's dark background so it reads as part of the same UI family.
+void drawChestButton(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf::Vector2f pos,
+                      const std::string& label)
+{
+    sf::RectangleShape button({Hud::CHEST_BUTTON_WIDTH, Hud::CHEST_BUTTON_HEIGHT});
+    button.setPosition(pos);
+    button.setFillColor(BAG_SLOT_BACKGROUND);
+    button.setOutlineThickness(-1.0f);
+    button.setOutlineColor(sf::Color(90, 90, 105));
+    window.draw(button);
+
+    if (!font)
+        return;
+
+    sf::Text text(*font, label, 13);
+    text.setFillColor(sf::Color::White);
+
+    const sf::FloatRect bounds = text.getLocalBounds();
+    text.setPosition({pos.x + (Hud::CHEST_BUTTON_WIDTH - bounds.size.x) * 0.5f,
+                      pos.y + (Hud::CHEST_BUTTON_HEIGHT - bounds.size.y) * 0.5f});
+    window.draw(text);
+}
+
 struct TooltipLine
 {
     std::string text;
@@ -221,6 +255,19 @@ void Hud::drawChestPanel(sf::RenderWindow& window, const Inventory& chestStorage
     window.setView(previous);
 }
 
+void Hud::drawChestButtons(sf::RenderWindow& window)
+{
+    const sf::View previous = window.getView();
+    window.setView(currentWindowView(window));
+
+    const sf::Vector2f origin = chestButtonsOrigin(sf::Vector2f(window.getSize()));
+
+    drawChestButton(window, font, origin, "Deposit All");
+    drawChestButton(window, font, {origin.x, origin.y + CHEST_BUTTON_HEIGHT + SLOT_GAP}, "Collect All");
+
+    window.setView(previous);
+}
+
 void Hud::drawDragGhost(sf::RenderWindow& window, const ItemStack& stack, sf::Vector2f screenPos)
 {
     if (stack.empty())
@@ -278,6 +325,22 @@ std::optional<Hud::SlotHit> Hud::hitTestPanels(sf::Vector2f screenPos, sf::Vecto
         hudLayout::hitTestGrid(screenPos, hotbarOrigin(windowSize), COLUMNS, 1, SLOT_SIZE, SLOT_GAP);
     if (hotbarIndex >= 0)
         return SlotHit{false, hotbarIndex};
+
+    return std::nullopt;
+}
+
+std::optional<Hud::ChestButton> Hud::hitTestChestButton(sf::Vector2f screenPos, sf::Vector2f windowSize) const
+{
+    const sf::Vector2f origin = chestButtonsOrigin(windowSize);
+
+    const sf::FloatRect depositRect({origin.x, origin.y}, {CHEST_BUTTON_WIDTH, CHEST_BUTTON_HEIGHT});
+    if (depositRect.contains(screenPos))
+        return ChestButton::DepositAll;
+
+    const sf::FloatRect collectRect({origin.x, origin.y + CHEST_BUTTON_HEIGHT + SLOT_GAP},
+                                     {CHEST_BUTTON_WIDTH, CHEST_BUTTON_HEIGHT});
+    if (collectRect.contains(screenPos))
+        return ChestButton::CollectAll;
 
     return std::nullopt;
 }
