@@ -109,7 +109,7 @@ const Machine* Machines::at(int x, int y) const
 
 // --- Stubs filled in by later tasks. They must compile now. -------------------
 
-bool Machines::tryInsert(int x, int y, ItemType item)
+bool Machines::tryInsert(int x, int y, ItemType item, std::optional<Direction> fromSide)
 {
     if (item == ItemType::None)
         return false;
@@ -135,6 +135,12 @@ bool Machines::tryInsert(int x, int y, ItemType item)
 
     if (m->type == MachineType::Smelter)
     {
+        // Like a drill, a smelter has exactly one input side: its facing. A
+        // caller with no directional context (fromSide unset - the player's F
+        // key, direct calls) stays unrestricted.
+        if (fromSide.has_value() && fromSide.value() != m->facing)
+            return false;
+
         if (smeltRecipeFor(item) == nullptr)
             return false;
 
@@ -368,7 +374,7 @@ void Machines::insertOutput(Machine& m)
         const int tx = m.x + dirDX(dir);
         const int ty = m.y + dirDY(dir);
 
-        if (!tryInsert(tx, ty, m.output.type))
+        if (!tryInsert(tx, ty, m.output.type, oppositeDirection(dir)))
             continue;
 
         --m.output.count;
@@ -404,7 +410,7 @@ void Machines::tickTransport(float dt)
 
         // tryInsert may relocate storage on nothing here (it does not place), so it
         // is safe. On success the item leaves this belt.
-        if (tryInsert(tx, ty, m.carried))
+        if (tryInsert(tx, ty, m.carried, oppositeDirection(dir)))
             m.carried = ItemType::None;
     }
 }

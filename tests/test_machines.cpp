@@ -25,6 +25,14 @@ TEST_CASE("rotateCW cycles through all four and wraps")
     CHECK(rotateCW(Direction::Left)  == Direction::Up);
 }
 
+TEST_CASE("oppositeDirection reverses each direction")
+{
+    CHECK(oppositeDirection(Direction::Up)    == Direction::Down);
+    CHECK(oppositeDirection(Direction::Down)  == Direction::Up);
+    CHECK(oppositeDirection(Direction::Left)  == Direction::Right);
+    CHECK(oppositeDirection(Direction::Right) == Direction::Left);
+}
+
 TEST_CASE("the machine registry has a valid row per type")
 {
     for (int i = 1; i < static_cast<int>(MachineType::Count); ++i)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -29,8 +30,12 @@ public:
     const Machine* at(int x, int y) const;
 
     // Hands one item into the machine at (x, y). Returns true if it was accepted.
-    // Added behaviour in Task 8.
-    bool tryInsert(int x, int y, ItemType item);
+    // `fromSide` is which side of the TARGET the item arrives at (the reverse of
+    // the sender's travel direction) - a Smelter only accepts when this matches
+    // its own facing, the side reserved for input. Left as nullopt (the default)
+    // for callers with no directional context, e.g. the player's F key, which
+    // stays unrestricted; insertOutput() and tickTransport() always pass one.
+    bool tryInsert(int x, int y, ItemType item, std::optional<Direction> fromSide = std::nullopt);
 
     // Takes whatever a machine is holding to give away: a Drill/Smelter's whole
     // output stack, or a Belt/Chute's carried item (only once carryTimer <= 0.0f -

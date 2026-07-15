@@ -82,6 +82,54 @@ TEST_CASE("a smelter accepts smeltable ore but not plates or stone")
     CHECK_FALSE(m2.tryInsert(0, 0, ItemType::CopperPlate));
 }
 
+TEST_CASE("a smelter's automatic insert only accepts ore arriving from its facing side")
+{
+    Machines m;
+    m.place(MachineType::Smelter, 0, 0, Direction::Left);
+
+    // Arriving from the left (the facing/input side): accepted.
+    CHECK(m.tryInsert(0, 0, ItemType::CopperOre, Direction::Left));
+
+    // Arriving from any other side: refused, like a drill facing the wrong way.
+    CHECK_FALSE(m.tryInsert(0, 0, ItemType::CopperOre, Direction::Right));
+    CHECK_FALSE(m.tryInsert(0, 0, ItemType::CopperOre, Direction::Up));
+    CHECK_FALSE(m.tryInsert(0, 0, ItemType::CopperOre, Direction::Down));
+}
+
+TEST_CASE("tryInsert without a direction is unrestricted, e.g. the player's F key")
+{
+    Machines m;
+    m.place(MachineType::Smelter, 0, 0, Direction::Left);
+
+    // No fromSide given: works regardless of facing, same as before this change.
+    CHECK(m.tryInsert(0, 0, ItemType::CopperOre));
+}
+
+TEST_CASE("a smelter only accepts belt-fed ore from its facing side")
+{
+    World world;
+    Machines m;
+
+    // Facing Left: only a belt pushing in from the left may feed it.
+    m.place(MachineType::Smelter, 5, 5, Direction::Left);
+    m.place(MachineType::Belt, 4, 5, Direction::Right); // feeds from the left: should work
+    m.place(MachineType::Belt, 5, 4, Direction::Down);  // feeds from above: should be refused
+
+    REQUIRE(m.tryInsert(4, 5, ItemType::CopperOre));
+    REQUIRE(m.tryInsert(5, 4, ItemType::CopperOre));
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+    for (int i = 0; i < 40; ++i)
+        m.tick(world, step, mined);
+
+    // The left belt's ore made it in; the belt from above is still stuck holding
+    // its item, refused because that side isn't the smelter's facing.
+    CHECK(m.at(5, 5)->input.type == ItemType::CopperOre);
+    CHECK(m.at(5, 5)->input.count == 1);
+    CHECK(m.at(5, 4)->carried == ItemType::CopperOre);
+}
+
 TEST_CASE("a generator accepts coal as fuel but nothing else")
 {
     Machines m;
