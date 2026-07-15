@@ -46,6 +46,7 @@ private:
     void removeMachineAtCursor();
     void loadFuelAtCursor();
     sf::Vector2i cursorTile() const;
+    void drawMachineTooltip();
 
     sf::RenderWindow window;
 

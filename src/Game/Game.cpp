@@ -189,6 +189,20 @@ void Game::tickMachines(float dt)
         chunks.markDirty(t.x, t.y);
 }
 
+void Game::drawMachineTooltip()
+{
+    const sf::Vector2i tile = cursorTile();
+    const Machine* machine = machines.at(tile.x, tile.y);
+
+    if (machine == nullptr)
+        return;
+
+    const MachineStatus status = machines.inspect(tile.x, tile.y, world);
+    const sf::Vector2f screenPos(sf::Mouse::getPosition(window));
+
+    hud.drawMachineTooltip(window, *machine, status, screenPos);
+}
+
 void Game::run()
 {
     sf::Clock clock;
@@ -368,6 +382,7 @@ void Game::render()
     window.draw(body);
 
     hud.draw(window, player.inventory(), player.selectedSlot());
+    drawMachineTooltip();
 
     window.display();
 }
