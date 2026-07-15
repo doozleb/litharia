@@ -12,7 +12,7 @@ namespace
 
 bool isOre(BlockType type)
 {
-    return type == BlockType::CopperOre || type == BlockType::IronOre;
+    return type == BlockType::CopperOre || type == BlockType::IronOre || type == BlockType::Coal;
 }
 
 bool sameWorld(const World& a, const World& b)
