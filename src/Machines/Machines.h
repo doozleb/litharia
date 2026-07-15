@@ -7,6 +7,7 @@
 #include <SFML/System/Vector2.hpp>
 
 #include "Machine.h"
+#include "MachineStatus.h"
 
 class World;
 
@@ -30,6 +31,11 @@ public:
     // Hands one item into the machine at (x, y). Returns true if it was accepted.
     // Added behaviour in Task 8.
     bool tryInsert(int x, int y, ItemType item);
+
+    // Read-only: bar + fraction from barStatus(), plus a reason string that
+    // explains why the machine is idle/unpowered (empty when it is running fine,
+    // or the tile is empty/not a processing machine).
+    MachineStatus inspect(int x, int y, const World& world) const;
 
     // Rebuilds power networks and sets each machine's powered flag. Task 7.
     void updatePower();
@@ -60,8 +66,11 @@ private:
     void tickDrills(World& world, float dt, std::vector<sf::Vector2i>& minedTiles);
     void tickSmelters(float dt);
 
+    std::string idleReason(const Machine& m, const World& world) const;
+
     std::vector<Machine> machines;
     std::unordered_map<long long, int> byTile;
 
     std::vector<float> networkDemand; // demand per network id, filled by updatePower
+    std::vector<float> networkSupply; // per-network supply, alongside networkDemand
 };

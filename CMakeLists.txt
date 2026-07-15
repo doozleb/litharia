@@ -88,6 +88,7 @@ add_executable(Litharia_tests
     tests/test_processing.cpp
     tests/test_factory.cpp
     tests/test_machine_status.cpp
+    tests/test_machine_inspect.cpp
 )
 
 target_include_directories(Litharia_tests PRIVATE libs/doctest)

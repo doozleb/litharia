@@ -142,6 +142,64 @@ bool Machines::tryInsert(int x, int y, ItemType item)
     return false;
 }
 
+MachineStatus Machines::inspect(int x, int y, const World& world) const
+{
+    const Machine* m = at(x, y);
+    if (m == nullptr)
+        return {};
+
+    MachineStatus status = barStatus(*m);
+    status.reason = idleReason(*m, world);
+    return status;
+}
+
+std::string Machines::idleReason(const Machine& m, const World& world) const
+{
+    const MachineInfo& info = machineInfo(m.type);
+
+    if (info.consumer && !m.powered)
+    {
+        const bool hasSupply = m.network >= 0
+            && m.network < static_cast<int>(networkSupply.size())
+            && networkSupply[m.network] > 0.0f;
+
+        return hasSupply ? "No power: network demand exceeds supply."
+                          : "No power: no fuel in this network.";
+    }
+
+    if (m.type == MachineType::Drill)
+    {
+        if (!m.output.empty())
+            return "Output is full.";
+
+        for (int dy = 1; dy <= DRILL_REACH; ++dy)
+            if (isOre(world.get(m.x, m.y + dy)))
+                return "";
+
+        return "No ore within " + std::to_string(DRILL_REACH) + " tiles below.";
+    }
+
+    if (m.type == MachineType::Smelter)
+    {
+        if (m.input.empty())
+            return "Waiting for ore.";
+
+        // tryInsert only ever accepts items with a recipe, so a non-empty input
+        // is always smeltable: no null check needed here.
+        const SmeltRecipe* recipe = smeltRecipeFor(m.input.type);
+
+        const bool outputReady = m.output.empty()
+            || (m.output.type == recipe->out && m.output.count < itemInfo(recipe->out).maxStack);
+
+        return outputReady ? "" : "Output is full.";
+    }
+
+    if (m.type == MachineType::BurnerGenerator)
+        return (m.fuel <= 0.0f && m.input.empty()) ? "Out of fuel: needs coal." : "";
+
+    return "";
+}
+
 void Machines::assignNetworks()
 {
     for (Machine& m : machines)
@@ -210,6 +268,7 @@ void Machines::updatePower()
     }
 
     networkDemand = demand;
+    networkSupply = supply;
 }
 
 void Machines::insertOutputAhead(Machine& m)
