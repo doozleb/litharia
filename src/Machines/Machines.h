@@ -42,6 +42,8 @@ public:
     // tryExtract() would have taken it from. No-op for an empty stack or an
     // empty tile. Used when the taker (the player's bag) could not hold
     // everything tryExtract() handed over, so nothing is ever destroyed.
+    // Assumes that buffer is the one tryExtract() just emptied: it overwrites
+    // rather than merges, so calling it on an already-occupied buffer clobbers it.
     void putBack(int x, int y, ItemStack stack);
 
     // Read-only: bar + fraction from barStatus(), plus a reason string that
@@ -53,7 +55,9 @@ public:
     void updatePower();
 
     // One fixed simulation step of the whole factory. Fills minedTiles with any
-    // world tiles a drill turned to air, so the caller can flag them for redraw.
+    // world tiles a machine destroyed this step, so the caller can flag them for
+    // redraw. Currently always empty: drilling no longer destroys the block it
+    // mines. Kept for whatever future machine does turn a tile to air.
     // Task 13 assembles the full body; earlier tasks build the helpers it calls.
     void tick(World& world, float dt, std::vector<sf::Vector2i>& minedTiles);
 

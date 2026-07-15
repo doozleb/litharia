@@ -187,7 +187,8 @@ void Game::tickMachines(float dt)
     std::vector<sf::Vector2i> mined;
     machines.tick(world, dt, mined);
 
-    // Any tile a drill ate must be rebuilt in the chunk mesh.
+    // Any tile a machine destroyed must be rebuilt in the chunk mesh. Currently
+    // always empty - drilling no longer destroys the block it mines.
     for (const sf::Vector2i& t : mined)
         chunks.markDirty(t.x, t.y);
 }
