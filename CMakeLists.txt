@@ -32,6 +32,7 @@ add_library(Litharia_core STATIC
     src/Machines/Recipes.cpp
     src/Machines/MachineRegistry.cpp
     src/Machines/Machines.cpp
+    src/Machines/MachineStatus.cpp
 )
 
 target_include_directories(Litharia_core PUBLIC src)
@@ -86,6 +87,7 @@ add_executable(Litharia_tests
     tests/test_transport.cpp
     tests/test_processing.cpp
     tests/test_factory.cpp
+    tests/test_machine_status.cpp
 )
 
 target_include_directories(Litharia_tests PRIVATE libs/doctest)

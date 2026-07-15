@@ -1,0 +1,83 @@
+#include "doctest.h"
+
+#include "Machines/Machine.h"
+#include "Machines/MachineStatus.h"
+#include "Machines/MachineType.h"
+#include "Machines/Recipes.h"
+
+TEST_CASE("an unfuelled generator shows an empty fuel bar")
+{
+    Machine m;
+    m.type = MachineType::BurnerGenerator;
+    m.fuel = 0.0f;
+
+    const MachineStatus status = barStatus(m);
+
+    CHECK(status.bar == MachineBar::Fuel);
+    CHECK(status.fraction == doctest::Approx(0.0f));
+}
+
+TEST_CASE("a generator mid-burn shows a proportional fuel bar")
+{
+    Machine m;
+    m.type = MachineType::BurnerGenerator;
+    m.fuel = COAL_BURN_SECONDS * 0.5f;
+
+    const MachineStatus status = barStatus(m);
+
+    CHECK(status.bar == MachineBar::Fuel);
+    CHECK(status.fraction == doctest::Approx(0.5f));
+}
+
+TEST_CASE("fuel fraction never exceeds 1 even if fuel overshoots capacity")
+{
+    Machine m;
+    m.type = MachineType::BurnerGenerator;
+    m.fuel = COAL_BURN_SECONDS * 2.0f; // should not happen in practice
+
+    CHECK(barStatus(m).fraction == doctest::Approx(1.0f));
+}
+
+TEST_CASE("a drill mid-mining shows proportional progress")
+{
+    Machine m;
+    m.type = MachineType::Drill;
+    m.progress = machineInfo(MachineType::Drill).actionTime * 0.25f;
+
+    const MachineStatus status = barStatus(m);
+
+    CHECK(status.bar == MachineBar::Progress);
+    CHECK(status.fraction == doctest::Approx(0.25f));
+}
+
+TEST_CASE("a smelter with no input shows no bar at all")
+{
+    Machine m;
+    m.type = MachineType::Smelter; // input left empty
+
+    CHECK(barStatus(m).bar == MachineBar::None);
+}
+
+TEST_CASE("a smelter mid-smelt shows progress against its recipe's time")
+{
+    Machine m;
+    m.type = MachineType::Smelter;
+    m.input = {ItemType::CopperOre, 1};
+
+    const SmeltRecipe* recipe = smeltRecipeFor(ItemType::CopperOre);
+    REQUIRE(recipe != nullptr);
+    m.progress = recipe->seconds * 0.5f;
+
+    const MachineStatus status = barStatus(m);
+
+    CHECK(status.bar == MachineBar::Progress);
+    CHECK(status.fraction == doctest::Approx(0.5f));
+}
+
+TEST_CASE("a belt never shows a bar")
+{
+    Machine m;
+    m.type = MachineType::Belt;
+
+    CHECK(barStatus(m).bar == MachineBar::None);
+}
