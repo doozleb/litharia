@@ -331,10 +331,51 @@ void Machines::tickDrills(World& world, float dt, std::vector<sf::Vector2i>& min
     }
 }
 
+void Machines::tickSmelters(float dt)
+{
+    for (Machine& m : machines)
+    {
+        if (m.type != MachineType::Smelter)
+            continue;
+
+        insertOutputAhead(m);
+
+        const SmeltRecipe* recipe = m.input.empty() ? nullptr : smeltRecipeFor(m.input.type);
+
+        const bool outputReady = m.output.empty()
+            || (recipe != nullptr && m.output.type == recipe->out
+                && m.output.count < itemInfo(recipe->out).maxStack);
+
+        if (!m.powered || recipe == nullptr || !outputReady)
+        {
+            if (recipe == nullptr)
+                m.progress = 0.0f;
+            continue;
+        }
+
+        m.progress += dt;
+
+        if (m.progress >= recipe->seconds)
+        {
+            --m.input.count;
+            if (m.input.count == 0)
+                m.input.type = ItemType::None;
+
+            if (m.output.empty())
+                m.output = {recipe->out, 1};
+            else
+                ++m.output.count;
+
+            m.progress = 0.0f;
+        }
+    }
+}
+
 void Machines::tick(World& world, float dt, std::vector<sf::Vector2i>& minedTiles)
 {
     updatePower();
     tickGenerators(dt);
     tickDrills(world, dt, minedTiles);
+    tickSmelters(dt);
     tickTransport(dt);
 }

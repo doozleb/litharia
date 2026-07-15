@@ -101,3 +101,42 @@ TEST_CASE("a drill with no ore in reach stays idle")
     CHECK(m.at(1, 0)->output.empty());
     CHECK(mined.empty());
 }
+
+TEST_CASE("a powered smelter turns copper ore into a copper plate")
+{
+    World world;
+    Machines m;
+    m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    m.place(MachineType::Smelter, 1, 0, Direction::Right);
+    REQUIRE(m.tryInsert(0, 0, ItemType::Coal));   // power
+    REQUIRE(m.tryInsert(1, 0, ItemType::CopperOre)); // work
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+
+    // Copper recipe is 2.0s.
+    for (int i = 0; i < 150; ++i)
+        m.tick(world, step, mined);
+
+    Machine* s = m.at(1, 0);
+    CHECK(s->input.empty());
+    CHECK(s->output.type == ItemType::CopperPlate);
+    CHECK(s->output.count == 1);
+}
+
+TEST_CASE("an unpowered smelter makes no progress")
+{
+    World world;
+    Machines m;
+    m.place(MachineType::Smelter, 1, 0, Direction::Right); // no generator
+    REQUIRE(m.tryInsert(1, 0, ItemType::CopperOre));
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+    for (int i = 0; i < 150; ++i)
+        m.tick(world, step, mined);
+
+    Machine* s = m.at(1, 0);
+    CHECK(s->input.type == ItemType::CopperOre); // untouched
+    CHECK(s->output.empty());
+}
