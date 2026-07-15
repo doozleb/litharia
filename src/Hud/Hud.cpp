@@ -131,6 +131,61 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
     window.setView(previous);
 }
 
+void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected)
+{
+    const sf::View previous = window.getView();
+    window.setView(window.getDefaultView());
+
+    constexpr int VISIBLE = 5;
+    constexpr float SWATCH = 40.0f;
+    constexpr float GAP = 6.0f;
+    constexpr int FIRST = 1; // skip MachineType::None
+
+    const int total = static_cast<int>(MachineType::Count) - FIRST;
+    const int selectedIndex = static_cast<int>(selected) - FIRST;
+    const int half = VISIBLE / 2;
+
+    const float totalWidth = VISIBLE * SWATCH + (VISIBLE - 1) * GAP;
+    const sf::Vector2f windowSize = window.getDefaultView().getSize();
+    const float startX = (windowSize.x - totalWidth) * 0.5f;
+    const float y = windowSize.y - SLOT_SIZE - MARGIN - SWATCH - MARGIN * 2.0f;
+
+    for (int slot = 0; slot < VISIBLE; ++slot)
+    {
+        const int index = ((selectedIndex + slot - half) % total + total) % total;
+        const MachineType type = static_cast<MachineType>(FIRST + index);
+        const MachineInfo& info = machineInfo(type);
+        const bool isSelected = (slot == half);
+
+        sf::RectangleShape swatch({SWATCH, SWATCH});
+        swatch.setPosition({startX + slot * (SWATCH + GAP), y});
+        swatch.setFillColor(toColor(info.color));
+        swatch.setOutlineThickness(isSelected ? -3.0f : -1.0f);
+        swatch.setOutlineColor(isSelected ? sf::Color(255, 236, 140) : sf::Color(90, 90, 105));
+        window.draw(swatch);
+    }
+
+    if (!font)
+    {
+        window.setView(previous);
+        return;
+    }
+
+    sf::Text name(*font, std::string(machineInfo(selected).name), 16);
+    const sf::FloatRect nameBounds = name.getLocalBounds();
+    name.setFillColor(sf::Color::White);
+    name.setPosition({(windowSize.x - nameBounds.size.x) * 0.5f, y - 22.0f});
+    window.draw(name);
+
+    sf::Text hint(*font, "Left click: place    Right click: destroy", 14);
+    const sf::FloatRect hintBounds = hint.getLocalBounds();
+    hint.setFillColor(sf::Color(220, 220, 220));
+    hint.setPosition({(windowSize.x - hintBounds.size.x) * 0.5f, y + SWATCH + 6.0f});
+    window.draw(hint);
+
+    window.setView(previous);
+}
+
 void Hud::drawMachineTooltip(sf::RenderWindow& window,
                               const Machine& machine,
                               const MachineStatus& status,

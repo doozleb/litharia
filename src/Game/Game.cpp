@@ -156,6 +156,17 @@ void Game::removeMachineAtCursor()
     machines.remove(tile.x, tile.y);
 }
 
+void Game::cycleBuildType(int delta)
+{
+    constexpr int first = 1; // skip MachineType::None
+    const int count = static_cast<int>(MachineType::Count) - first;
+
+    int index = static_cast<int>(buildType) - first;
+    index = ((index + delta) % count + count) % count;
+
+    buildType = static_cast<MachineType>(first + index);
+}
+
 void Game::interactAtCursor()
 {
     const sf::Vector2i tile = cursorTile();
@@ -255,8 +266,11 @@ void Game::handleEvents()
         }
         else if (const auto* scroll = event->getIf<sf::Event::MouseWheelScrolled>())
         {
-            // Scroll up moves toward slot 1, scroll down toward slot 0.
-            player.cycleSelectedSlot(scroll->delta > 0.0f ? -1 : 1);
+            if (buildMode)
+                cycleBuildType(scroll->delta > 0.0f ? -1 : 1);
+            else
+                // Scroll up moves toward slot 1, scroll down toward slot 0.
+                player.cycleSelectedSlot(scroll->delta > 0.0f ? -1 : 1);
         }
         else if (const auto* key = event->getIf<sf::Event::KeyPressed>())
         {
@@ -392,6 +406,10 @@ void Game::render()
     window.draw(body);
 
     hud.draw(window, player.inventory(), player.selectedSlot());
+
+    if (buildMode)
+        hud.drawBuildPalette(window, buildType);
+
     drawMachineTooltip();
 
     window.display();

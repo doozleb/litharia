@@ -32,6 +32,10 @@ public:
                             const MachineStatus& status,
                             sf::Vector2f screenPos);
 
+    // The build-mode picker: a strip of machine-type swatches centered on
+    // `selected`, plus a "left click: place / right click: destroy" caption.
+    void drawBuildPalette(sf::RenderWindow& window, MachineType selected);
+
     bool hasFont() const { return font.has_value(); }
 
 private:
