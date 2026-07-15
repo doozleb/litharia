@@ -16,6 +16,52 @@ TEST_CASE("a belt accepts one item and then is full")
     CHECK(m.at(0, 0)->carried == ItemType::CopperOre);
 }
 
+TEST_CASE("a chest accepts items into multiple slots, not just one")
+{
+    Machines m;
+    m.place(MachineType::Chest, 0, 0, Direction::Right);
+
+    const int max = itemInfo(ItemType::Stone).maxStack;
+
+    for (int i = 0; i < max + 3; ++i)
+        CHECK(m.tryInsert(0, 0, ItemType::Stone));
+
+    CHECK(m.at(0, 0)->storage.count(ItemType::Stone) == max + 3);
+    CHECK(m.at(0, 0)->storage.slot(0).count == max);
+    CHECK(m.at(0, 0)->storage.slot(1).count == 3);
+}
+
+TEST_CASE("a chest with every slot full refuses further items")
+{
+    Machines m;
+    m.place(MachineType::Chest, 0, 0, Direction::Right);
+
+    const int max = itemInfo(ItemType::Dirt).maxStack;
+    Machine* chest = m.at(0, 0);
+    for (int i = 0; i < chest->storage.slotCount(); ++i)
+        chest->storage.exchange(i, {ItemType::Dirt, max});
+
+    CHECK_FALSE(m.tryInsert(0, 0, ItemType::Dirt));
+}
+
+TEST_CASE("a belt delivers its carried item into a chest ahead of it")
+{
+    World world;
+    Machines m;
+    m.place(MachineType::Belt, 0, 0, Direction::Right);
+    m.place(MachineType::Chest, 1, 0, Direction::Right);
+
+    REQUIRE(m.tryInsert(0, 0, ItemType::IronOre));
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+    for (int i = 0; i < 40; ++i)
+        m.tick(world, step, mined);
+
+    CHECK(m.at(0, 0)->carried == ItemType::None);
+    CHECK(m.at(1, 0)->storage.count(ItemType::IronOre) == 1);
+}
+
 TEST_CASE("a smelter accepts smeltable ore but not plates or stone")
 {
     Machines m;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Core/Direction.h"
+#include "../Items/Inventory.h"
 #include "../Items/Items.h"
 #include "MachineType.h"
 
@@ -37,6 +38,10 @@ struct Machine
     // Transport machines (belt, chute): one carried item and its move timer.
     ItemType carried = ItemType::None;
     float carryTimer = 0.0f; // counts down; the item advances when it reaches 0
+
+    // Chest: a bank of slots. 0 slots (the default) for every other machine
+    // type - Machines::place() sizes this to CHEST_SLOTS only for a Chest.
+    Inventory storage{0};
 
     bool empty() const { return type == MachineType::None; }
 };

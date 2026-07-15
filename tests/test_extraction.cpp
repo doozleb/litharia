@@ -16,6 +16,39 @@ TEST_CASE("extracting from a drill takes its whole output and empties it")
     CHECK(m.at(0, 0)->output.empty());
 }
 
+TEST_CASE("extracting from a chest takes the first non-empty stack")
+{
+    Machines m;
+    m.place(MachineType::Chest, 0, 0, Direction::Right);
+
+    REQUIRE(m.tryInsert(0, 0, ItemType::IronOre));
+    REQUIRE(m.tryInsert(0, 0, ItemType::IronOre));
+
+    const ItemStack taken = m.tryExtract(0, 0);
+
+    CHECK(taken.type == ItemType::IronOre);
+    CHECK(taken.count == 2);
+    CHECK(m.at(0, 0)->storage.isEmpty());
+}
+
+TEST_CASE("extracting from an empty chest returns nothing")
+{
+    Machines m;
+    m.place(MachineType::Chest, 0, 0, Direction::Right);
+
+    CHECK(m.tryExtract(0, 0).empty());
+}
+
+TEST_CASE("putBack restores a stack into a chest rather than destroying it")
+{
+    Machines m;
+    m.place(MachineType::Chest, 0, 0, Direction::Right);
+
+    m.putBack(0, 0, {ItemType::Coal, 4});
+
+    CHECK(m.at(0, 0)->storage.count(ItemType::Coal) == 4);
+}
+
 TEST_CASE("extracting from a smelter takes the whole stacked output")
 {
     Machines m;

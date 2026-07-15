@@ -51,6 +51,30 @@ TEST_CASE("a default machine is empty")
     CHECK(m.powered == false);
 }
 
+TEST_CASE("a chest is placed with 20 empty storage slots and no power role")
+{
+    Machines machines;
+    Machine* chest = machines.place(MachineType::Chest, 2, 2, Direction::Right);
+
+    REQUIRE(chest != nullptr);
+    CHECK(chest->storage.slotCount() == CHEST_SLOTS);
+    CHECK(chest->storage.isEmpty());
+
+    const MachineInfo& info = machineInfo(MachineType::Chest);
+    CHECK_FALSE(info.generator);
+    CHECK_FALSE(info.consumer);
+    CHECK_FALSE(info.transport);
+}
+
+TEST_CASE("a non-chest machine carries no storage overhead")
+{
+    Machines machines;
+    Machine* belt = machines.place(MachineType::Belt, 0, 0, Direction::Right);
+
+    REQUIRE(belt != nullptr);
+    CHECK(belt->storage.slotCount() == 0);
+}
+
 TEST_CASE("placing a machine puts it on its tile and nowhere else")
 {
     Machines machines;

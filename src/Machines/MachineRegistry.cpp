@@ -14,6 +14,7 @@ constexpr std::array<MachineInfo, static_cast<std::size_t>(MachineType::Count)> 
     {"Belt",              { 90,  90, 100}, false, false, true,  0.0f,  0.5f},
     {"Chute",             { 70,  70,  80}, false, false, true,  0.0f,  0.5f},
     {"Smelter",           {200,  90,  70}, false, true,  false, 5.0f,  0.0f},
+    {"Chest",             {140,  95,  50}, false, false, false, 0.0f,  0.0f},
 }};
 
 } // namespace

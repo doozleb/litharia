@@ -63,6 +63,9 @@ Machine* Machines::place(MachineType type, int x, int y, Direction facing)
     // rotation just past it.
     m.outputCursor = rotateCW(facing);
 
+    if (type == MachineType::Chest)
+        m.storage = Inventory(CHEST_SLOTS);
+
     machines.push_back(m);
     const int index = static_cast<int>(machines.size()) - 1;
     byTile[key(x, y)] = index;
@@ -127,6 +130,9 @@ bool Machines::tryInsert(int x, int y, ItemType item)
         return true;
     }
 
+    if (m->type == MachineType::Chest)
+        return m->storage.add({item, 1}) == 0;
+
     if (m->type == MachineType::Smelter)
     {
         if (smeltRecipeFor(item) == nullptr)
@@ -164,6 +170,16 @@ ItemStack Machines::tryExtract(int x, int y)
         return taken;
     }
 
+    if (m->type == MachineType::Chest)
+    {
+        for (int i = 0; i < m->storage.slotCount(); ++i)
+        {
+            if (!m->storage.slot(i).empty())
+                return m->storage.take(i);
+        }
+        return {};
+    }
+
     if (m->output.empty())
         return {};
 
@@ -180,6 +196,12 @@ void Machines::putBack(int x, int y, ItemStack stack)
     Machine* m = at(x, y);
     if (m == nullptr)
         return;
+
+    if (m->type == MachineType::Chest)
+    {
+        m->storage.add(stack);
+        return;
+    }
 
     const MachineInfo& info = machineInfo(m->type);
 

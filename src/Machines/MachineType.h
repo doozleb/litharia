@@ -11,6 +11,9 @@ inline constexpr float COAL_BURN_SECONDS = 20.0f;
 // How many tiles straight down a drill scans for ore to eat.
 inline constexpr int DRILL_REACH = 4;
 
+// How many item slots a chest holds (2 rows of 10 in the UI).
+inline constexpr int CHEST_SLOTS = 20;
+
 enum class MachineType : std::uint8_t
 {
     None,
@@ -19,6 +22,7 @@ enum class MachineType : std::uint8_t
     Belt,
     Chute,
     Smelter,
+    Chest,
 
     Count
 };
