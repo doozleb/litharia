@@ -21,6 +21,18 @@
 
 ### Task 1: Round-robin multi-side machine output
 
+> **Amended during execution:** trying all 4 sides (as originally written below) let a
+> smelter's output land back on the very belt feeding it ore whenever that belt was
+> momentarily idle, permanently jamming it - this broke the existing
+> `test_factory.cpp` integration test. Resolved with the user: `facing` is now
+> reserved exclusively for input (the side that should face an ore vein or a feeder
+> belt) and is *never* an output target; output round-robins only the other 3 sides.
+> `Machines::insertOutput` builds its candidate list by excluding `m.facing` rather
+> than rotating through all 4, `outputCursor` seeds to `rotateCW(facing)`, and
+> `MachineRenderer` now draws a light-blue tick on the facing/input side and light-red
+> ticks on the 3 output sides for Drill/Smelter. The steps below are the original,
+> superseded plan - see the actual code for the shipped behavior.
+
 **Files:**
 - Modify: `src/Machines/Machine.h`
 - Modify: `src/Machines/Machines.h`
