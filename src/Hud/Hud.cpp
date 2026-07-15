@@ -73,21 +73,31 @@ void drawSlot(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf:
     window.draw(count);
 }
 
+// Where the hotbar's first slot sits. Shared by drawing and hit-testing so
+// the two can never drift apart - the bag panel anchors above this same
+// origin.
+sf::Vector2f hotbarOrigin(sf::Vector2f windowSize)
+{
+    constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
+
+    const float totalWidth = COLUMNS * Hud::SLOT_SIZE + (COLUMNS - 1) * Hud::SLOT_GAP;
+    const float startX = (windowSize.x - totalWidth) * 0.5f;
+    const float y = windowSize.y - Hud::SLOT_SIZE - Hud::MARGIN;
+
+    return {startX, y};
+}
+
 // Where the bag panel's first slot sits: directly above the hotbar, sharing
 // its horizontal centering.
 sf::Vector2f bagPanelOrigin(sf::Vector2f windowSize)
 {
-    constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
     constexpr int BAG_ROWS = 3;
 
-    const float totalWidth = COLUMNS * Hud::SLOT_SIZE + (COLUMNS - 1) * Hud::SLOT_GAP;
-    const float startX = (windowSize.x - totalWidth) * 0.5f;
-
-    const float hotbarY = windowSize.y - Hud::SLOT_SIZE - Hud::MARGIN;
+    const sf::Vector2f hotbar = hotbarOrigin(windowSize);
     const float bagY =
-        hotbarY - Hud::MARGIN - BAG_ROWS * Hud::SLOT_SIZE - (BAG_ROWS - 1) * Hud::SLOT_GAP;
+        hotbar.y - Hud::MARGIN - BAG_ROWS * Hud::SLOT_SIZE - (BAG_ROWS - 1) * Hud::SLOT_GAP;
 
-    return {startX, bagY};
+    return {hotbar.x, bagY};
 }
 
 // Where the chest panel's first slot sits: directly above the bag panel.
@@ -152,17 +162,13 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
     const sf::View previous = window.getView();
     window.setView(currentWindowView(window));
 
-    const float totalWidth =
-        Inventory::HOTBAR_SIZE * SLOT_SIZE + (Inventory::HOTBAR_SIZE - 1) * SLOT_GAP;
-
-    const sf::Vector2f windowSize(window.getSize());
-    const float startX = (windowSize.x - totalWidth) * 0.5f;
-    const float y = windowSize.y - SLOT_SIZE - MARGIN;
+    const sf::Vector2f origin = hotbarOrigin(sf::Vector2f(window.getSize()));
+    constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
 
     for (int i = 0; i < Inventory::HOTBAR_SIZE; ++i)
     {
-        const float x = startX + i * (SLOT_SIZE + SLOT_GAP);
-        drawSlot(window, font, {x, y}, inventory.slot(i), i == selectedSlot);
+        const sf::Vector2f pos = hudLayout::gridSlotPosition(origin, i, COLUMNS, SLOT_SIZE, SLOT_GAP);
+        drawSlot(window, font, pos, inventory.slot(i), i == selectedSlot);
     }
 
     window.setView(previous);
@@ -253,6 +259,14 @@ std::optional<Hud::SlotHit> Hud::hitTestPanels(sf::Vector2f screenPos, sf::Vecto
                                                       BAG_ROWS, SLOT_SIZE, SLOT_GAP);
     if (bagGridIndex >= 0)
         return SlotHit{false, Inventory::HOTBAR_SIZE + bagGridIndex};
+
+    // The hotbar is drawn every frame, not just while a panel is open, but it's
+    // still a bag slot - drag-and-drop must reach it too, or items get stuck
+    // there with no way back into the bag/chest grid.
+    const int hotbarIndex =
+        hudLayout::hitTestGrid(screenPos, hotbarOrigin(windowSize), COLUMNS, 1, SLOT_SIZE, SLOT_GAP);
+    if (hotbarIndex >= 0)
+        return SlotHit{false, hotbarIndex};
 
     return std::nullopt;
 }
