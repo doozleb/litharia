@@ -42,9 +42,9 @@ TEST_CASE("a coal-fed drill-belt-smelter line produces plates on its own")
     const bool platesMade = m.at(12, 0)->output.type == ItemType::CopperPlate
         || m.at(11, 0)->carried == ItemType::CopperPlate;
     CHECK(platesMade);
-    // A one-tile vein could only ever have produced 1 ore total under the old
-    // destroy-on-mine rule (there is only one reachable ore tile here - see the
-    // drill's placement above). Comfortably exceeding that proves the vein is
-    // being mined over and over, not drained.
+    // The vein set up above is 4 tiles (10,1)-(10,4). Under the old destroy-on-mine
+    // rule the drill would drain it tile-by-tile, producing at most 4 ore total
+    // before running dry. Comfortably exceeding that here proves the vein is being
+    // mined over and over, not drained.
     CHECK(m.at(12, 0)->output.count >= 5);
 }
