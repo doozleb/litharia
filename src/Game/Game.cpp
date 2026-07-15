@@ -197,6 +197,9 @@ void Game::interactAtCursor()
 
 void Game::toggleInventory()
 {
+    if (dragging)
+        return;
+
     if (inventoryOpen)
     {
         inventoryOpen = false;
@@ -214,6 +217,76 @@ void Game::toggleInventory()
 
     inventoryOpen = true;
     buildMode = false;
+}
+
+void Game::drawInventoryPanels()
+{
+    if (openChestTile.has_value())
+    {
+        const Machine* chest = machines.at(openChestTile->x, openChestTile->y);
+
+        // The chest might have vanished by other means while the panel was
+        // open; fall back to the bag-only view rather than touch a stale tile.
+        if (chest == nullptr || chest->type != MachineType::Chest)
+            openChestTile.reset();
+    }
+
+    hud.drawInventoryPanel(window, player.inventory());
+
+    if (openChestTile.has_value())
+        hud.drawChestPanel(window, machines.at(openChestTile->x, openChestTile->y)->storage);
+}
+
+void Game::beginDrag()
+{
+    const sf::Vector2f screenPos(sf::Mouse::getPosition(window));
+    const sf::Vector2f windowSize(window.getSize());
+
+    const auto hit = hud.hitTestPanels(screenPos, windowSize, openChestTile.has_value());
+    if (!hit.has_value())
+        return;
+
+    Inventory& source = hit->isChest ? machines.at(openChestTile->x, openChestTile->y)->storage
+                                      : player.inventory();
+
+    const ItemStack taken = source.take(hit->index);
+    if (taken.empty())
+        return;
+
+    dragging = true;
+    dragStack = taken;
+    dragSourcePanel = hit->isChest ? InventoryPanel::Chest : InventoryPanel::Bag;
+    dragSourceSlot = hit->index;
+}
+
+void Game::endDrag()
+{
+    const sf::Vector2f screenPos(sf::Mouse::getPosition(window));
+    const sf::Vector2f windowSize(window.getSize());
+
+    Inventory& sourceInventory = (dragSourcePanel == InventoryPanel::Chest)
+        ? machines.at(openChestTile->x, openChestTile->y)->storage
+        : player.inventory();
+
+    const auto hit = hud.hitTestPanels(screenPos, windowSize, openChestTile.has_value());
+
+    if (!hit.has_value())
+    {
+        // Released outside any slot: put it back where it came from.
+        sourceInventory.exchange(dragSourceSlot, dragStack);
+        dragging = false;
+        return;
+    }
+
+    Inventory& destInventory = hit->isChest ? machines.at(openChestTile->x, openChestTile->y)->storage
+                                             : player.inventory();
+
+    const ItemStack leftover = destInventory.exchange(hit->index, dragStack);
+
+    if (!leftover.empty())
+        sourceInventory.exchange(dragSourceSlot, leftover);
+
+    dragging = false;
 }
 
 void Game::tickMachines(float dt)
@@ -307,7 +380,7 @@ void Game::handleEvents()
             if (key->code == Key::Num0)
                 player.setSelectedSlot(9);
 
-            if (key->code == Key::B)
+            if (key->code == Key::B && !dragging)
             {
                 buildMode = !buildMode;
                 if (buildMode)
@@ -339,6 +412,13 @@ void Game::handleEvents()
                 placeMachineAtCursor();
             else if (buildMode && mouse->button == sf::Mouse::Button::Right)
                 removeMachineAtCursor();
+            else if (inventoryOpen && mouse->button == sf::Mouse::Button::Left)
+                beginDrag();
+        }
+        else if (const auto* release = event->getIf<sf::Event::MouseButtonReleased>())
+        {
+            if (dragging && release->button == sf::Mouse::Button::Left)
+                endDrag();
         }
     }
 }
@@ -445,7 +525,10 @@ void Game::render()
         hud.drawBuildPalette(window, buildType);
 
     if (inventoryOpen)
-        hud.drawInventoryPanel(window, player.inventory());
+        drawInventoryPanels();
+
+    if (dragging)
+        hud.drawDragGhost(window, dragStack, sf::Vector2f(sf::Mouse::getPosition(window)));
 
     drawMachineTooltip();
 

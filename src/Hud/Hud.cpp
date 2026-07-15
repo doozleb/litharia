@@ -81,6 +81,18 @@ sf::Vector2f bagPanelOrigin(sf::Vector2f windowSize)
     return {startX, bagY};
 }
 
+// Where the chest panel's first slot sits: directly above the bag panel.
+sf::Vector2f chestPanelOrigin(sf::Vector2f windowSize)
+{
+    constexpr int CHEST_ROWS = 2;
+
+    const sf::Vector2f bagOrigin = bagPanelOrigin(windowSize);
+    const float chestY =
+        bagOrigin.y - Hud::MARGIN - CHEST_ROWS * Hud::SLOT_SIZE - (CHEST_ROWS - 1) * Hud::SLOT_GAP;
+
+    return {bagOrigin.x, chestY};
+}
+
 struct TooltipLine
 {
     std::string text;
@@ -163,6 +175,76 @@ void Hud::drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventor
     }
 
     window.setView(previous);
+}
+
+void Hud::drawChestPanel(sf::RenderWindow& window, const Inventory& chestStorage)
+{
+    const sf::View previous = window.getView();
+    window.setView(window.getDefaultView());
+
+    const sf::Vector2f origin = chestPanelOrigin(window.getDefaultView().getSize());
+    constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
+
+    for (int i = 0; i < chestStorage.slotCount(); ++i)
+    {
+        const sf::Vector2f pos = hudLayout::gridSlotPosition(origin, i, COLUMNS, SLOT_SIZE, SLOT_GAP);
+        drawSlot(window, font, pos, chestStorage.slot(i), false);
+    }
+
+    window.setView(previous);
+}
+
+void Hud::drawDragGhost(sf::RenderWindow& window, const ItemStack& stack, sf::Vector2f screenPos)
+{
+    if (stack.empty())
+        return;
+
+    const sf::View previous = window.getView();
+    window.setView(window.getDefaultView());
+
+    constexpr float SIZE = SLOT_SIZE - ICON_INSET * 2.0f;
+
+    sf::RectangleShape icon({SIZE, SIZE});
+    icon.setPosition(screenPos - sf::Vector2f{SIZE * 0.5f, SIZE * 0.5f});
+    icon.setFillColor(itemColor(stack.type));
+    icon.setOutlineThickness(-1.0f);
+    icon.setOutlineColor(sf::Color(240, 240, 240));
+    window.draw(icon);
+
+    if (font)
+    {
+        sf::Text count(*font, std::to_string(stack.count), 14);
+        count.setFillColor(sf::Color::White);
+        count.setOutlineThickness(2.0f);
+        count.setOutlineColor(sf::Color(10, 10, 12));
+        count.setPosition(screenPos + sf::Vector2f{8.0f, 8.0f});
+        window.draw(count);
+    }
+
+    window.setView(previous);
+}
+
+std::optional<Hud::SlotHit> Hud::hitTestPanels(sf::Vector2f screenPos, sf::Vector2f windowSize,
+                                                bool chestOpen) const
+{
+    constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
+    constexpr int BAG_ROWS = 3;
+    constexpr int CHEST_ROWS = 2;
+
+    if (chestOpen)
+    {
+        const int chestIndex = hudLayout::hitTestGrid(screenPos, chestPanelOrigin(windowSize),
+                                                        COLUMNS, CHEST_ROWS, SLOT_SIZE, SLOT_GAP);
+        if (chestIndex >= 0)
+            return SlotHit{true, chestIndex};
+    }
+
+    const int bagGridIndex = hudLayout::hitTestGrid(screenPos, bagPanelOrigin(windowSize), COLUMNS,
+                                                      BAG_ROWS, SLOT_SIZE, SLOT_GAP);
+    if (bagGridIndex >= 0)
+        return SlotHit{false, Inventory::HOTBAR_SIZE + bagGridIndex};
+
+    return std::nullopt;
 }
 
 void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected)

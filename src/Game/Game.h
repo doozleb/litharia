@@ -7,6 +7,7 @@
 
 #include "../Camera/Camera.h"
 #include "../Hud/Hud.h"
+#include "../Items/Inventory.h"
 #include "../Items/ItemEntity.h"
 #include "../Machines/Machines.h"
 #include "../Machines/MachineRenderer.h"
@@ -48,6 +49,9 @@ private:
     void cycleBuildType(int delta);
     void interactAtCursor();
     void toggleInventory();
+    void drawInventoryPanels();
+    void beginDrag();
+    void endDrag();
     sf::Vector2i cursorTile() const;
     void drawMachineTooltip();
 
@@ -71,4 +75,11 @@ private:
 
     bool inventoryOpen = false;
     std::optional<sf::Vector2i> openChestTile;
+
+    enum class InventoryPanel { Bag, Chest };
+
+    bool dragging = false;
+    ItemStack dragStack;
+    InventoryPanel dragSourcePanel = InventoryPanel::Bag;
+    int dragSourceSlot = -1;
 };

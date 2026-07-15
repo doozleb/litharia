@@ -27,6 +27,24 @@ public:
     // shown only while the player has the inventory open.
     void drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventory);
 
+    // A chest's own 20 slots, shown alongside the bag panel while a chest is open.
+    void drawChestPanel(sf::RenderWindow& window, const Inventory& chestStorage);
+
+    // The stack currently being dragged, drawn centered on the live cursor.
+    void drawDragGhost(sf::RenderWindow& window, const ItemStack& stack, sf::Vector2f screenPos);
+
+    struct SlotHit
+    {
+        bool isChest = false; // false: the player's bag; true: the open chest
+        int index = -1;       // index into that Inventory
+    };
+
+    // Screen position -> which open panel/slot it lands on, or nullopt if
+    // neither. `chestOpen` must match whether drawChestPanel was actually
+    // called this frame, so hit-testing and drawing never disagree.
+    std::optional<SlotHit> hitTestPanels(sf::Vector2f screenPos, sf::Vector2f windowSize,
+                                          bool chestOpen) const;
+
     // A small info panel anchored near the cursor, describing one machine's
     // current state: name, input/output, power/fuel state, bar percentage, and
     // (when idle/unpowered) a plain-English reason. Degrades like draw() does:
