@@ -50,6 +50,7 @@ add_executable(Litharia
     src/World/Chunks.cpp
     src/Camera/Camera.cpp
     src/Hud/Hud.cpp
+    src/Machines/MachineRenderer.cpp
 )
 
 target_link_libraries(Litharia PRIVATE
