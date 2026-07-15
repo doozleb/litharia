@@ -47,6 +47,7 @@ private:
     void placeMachineAtCursor();
     void removeMachineAtCursor();
     void cycleBuildType(int delta);
+    void setBuildType(MachineType type);
     void interactAtCursor();
     void toggleInventory();
     void drawInventoryPanels();

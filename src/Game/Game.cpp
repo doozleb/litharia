@@ -166,7 +166,19 @@ void Game::cycleBuildType(int delta)
     int index = static_cast<int>(buildType) - first;
     index = ((index + delta) % count + count) % count;
 
-    buildType = static_cast<MachineType>(first + index);
+    setBuildType(static_cast<MachineType>(first + index));
+}
+
+void Game::setBuildType(MachineType type)
+{
+    buildType = type;
+
+    // A conveyor belt only ever outputs sideways - chutes already own straight-
+    // down movement - so a facing left over from another machine type must
+    // never leave a freshly-selected belt pointed up or down.
+    if (buildType == MachineType::Belt
+        && (buildFacing == Direction::Up || buildFacing == Direction::Down))
+        buildFacing = Direction::Right;
 }
 
 void Game::interactAtCursor()
@@ -391,7 +403,16 @@ void Game::handleEvents()
             }
 
             if (key->code == Key::R)
-                buildFacing = rotateCW(buildFacing);
+            {
+                // A belt only ever rotates between its two horizontal facings -
+                // chutes already own straight-down movement, so a belt never
+                // gets to output up or down. Every other machine type still
+                // cycles through all 4.
+                if (buildType == MachineType::Belt)
+                    buildFacing = (buildFacing == Direction::Right) ? Direction::Left : Direction::Right;
+                else
+                    buildFacing = rotateCW(buildFacing);
+            }
 
             if (key->code == Key::F)
                 interactAtCursor();
@@ -399,12 +420,12 @@ void Game::handleEvents()
             if (key->code == Key::E)
                 toggleInventory();
 
-            if (key->code == Key::F1) buildType = MachineType::BurnerGenerator;
-            if (key->code == Key::F2) buildType = MachineType::Drill;
-            if (key->code == Key::F3) buildType = MachineType::Belt;
-            if (key->code == Key::F4) buildType = MachineType::Chute;
-            if (key->code == Key::F5) buildType = MachineType::Smelter;
-            if (key->code == Key::F6) buildType = MachineType::Chest;
+            if (key->code == Key::F1) setBuildType(MachineType::BurnerGenerator);
+            if (key->code == Key::F2) setBuildType(MachineType::Drill);
+            if (key->code == Key::F3) setBuildType(MachineType::Belt);
+            if (key->code == Key::F4) setBuildType(MachineType::Chute);
+            if (key->code == Key::F5) setBuildType(MachineType::Smelter);
+            if (key->code == Key::F6) setBuildType(MachineType::Chest);
         }
         else if (const auto* mouse = event->getIf<sf::Event::MouseButtonPressed>())
         {
