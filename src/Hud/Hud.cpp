@@ -22,6 +22,15 @@ sf::Color toColor(BlockColor c)
     return sf::Color(c.r, c.g, c.b);
 }
 
+// sf::RenderTarget::getDefaultView() is frozen at the window's size when it was
+// created and never follows a resize, but Game's hit-testing uses the window's
+// live size - so HUD drawing must too, or panels render in one coordinate space
+// while clicks are tested in another and every click on a visible slot misses.
+sf::View currentWindowView(const sf::RenderWindow& window)
+{
+    return sf::View(sf::FloatRect({0.0f, 0.0f}, sf::Vector2f(window.getSize())));
+}
+
 // The block an item places is also what it looks like in the slot.
 sf::Color itemColor(ItemType type)
 {
@@ -141,13 +150,14 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
     // The HUD lives in screen space, not world space, so it does not scroll with
     // the camera.
     const sf::View previous = window.getView();
-    window.setView(window.getDefaultView());
+    window.setView(currentWindowView(window));
 
     const float totalWidth =
         Inventory::HOTBAR_SIZE * SLOT_SIZE + (Inventory::HOTBAR_SIZE - 1) * SLOT_GAP;
 
-    const float startX = (window.getDefaultView().getSize().x - totalWidth) * 0.5f;
-    const float y = window.getDefaultView().getSize().y - SLOT_SIZE - MARGIN;
+    const sf::Vector2f windowSize(window.getSize());
+    const float startX = (windowSize.x - totalWidth) * 0.5f;
+    const float y = windowSize.y - SLOT_SIZE - MARGIN;
 
     for (int i = 0; i < Inventory::HOTBAR_SIZE; ++i)
     {
@@ -161,9 +171,9 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
 void Hud::drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventory)
 {
     const sf::View previous = window.getView();
-    window.setView(window.getDefaultView());
+    window.setView(currentWindowView(window));
 
-    const sf::Vector2f origin = bagPanelOrigin(window.getDefaultView().getSize());
+    const sf::Vector2f origin = bagPanelOrigin(sf::Vector2f(window.getSize()));
     constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
 
     for (int i = Inventory::HOTBAR_SIZE; i < inventory.slotCount(); ++i)
@@ -180,9 +190,9 @@ void Hud::drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventor
 void Hud::drawChestPanel(sf::RenderWindow& window, const Inventory& chestStorage)
 {
     const sf::View previous = window.getView();
-    window.setView(window.getDefaultView());
+    window.setView(currentWindowView(window));
 
-    const sf::Vector2f origin = chestPanelOrigin(window.getDefaultView().getSize());
+    const sf::Vector2f origin = chestPanelOrigin(sf::Vector2f(window.getSize()));
     constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
 
     for (int i = 0; i < chestStorage.slotCount(); ++i)
@@ -200,7 +210,7 @@ void Hud::drawDragGhost(sf::RenderWindow& window, const ItemStack& stack, sf::Ve
         return;
 
     const sf::View previous = window.getView();
-    window.setView(window.getDefaultView());
+    window.setView(currentWindowView(window));
 
     constexpr float SIZE = SLOT_SIZE - ICON_INSET * 2.0f;
 
@@ -250,7 +260,7 @@ std::optional<Hud::SlotHit> Hud::hitTestPanels(sf::Vector2f screenPos, sf::Vecto
 void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected)
 {
     const sf::View previous = window.getView();
-    window.setView(window.getDefaultView());
+    window.setView(currentWindowView(window));
 
     constexpr int VISIBLE = 5;
     constexpr float SWATCH = 40.0f;
@@ -262,7 +272,7 @@ void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected)
     const int half = VISIBLE / 2;
 
     const float totalWidth = VISIBLE * SWATCH + (VISIBLE - 1) * GAP;
-    const sf::Vector2f windowSize = window.getDefaultView().getSize();
+    const sf::Vector2f windowSize(window.getSize());
     const float startX = (windowSize.x - totalWidth) * 0.5f;
     const float y = windowSize.y - SLOT_SIZE - MARGIN - SWATCH - MARGIN * 2.0f;
 
@@ -308,7 +318,7 @@ void Hud::drawMachineTooltip(sf::RenderWindow& window,
                               sf::Vector2f screenPos)
 {
     const sf::View previous = window.getView();
-    window.setView(window.getDefaultView());
+    window.setView(currentWindowView(window));
 
     const MachineInfo& info = machineInfo(machine.type);
 
