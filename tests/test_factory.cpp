@@ -34,13 +34,17 @@ TEST_CASE("a coal-fed drill-belt-smelter line produces plates on its own")
     for (int i = 0; i < 1800; ++i)
         m.tick(world, step, mined);
 
-    // The vein has been eaten...
+    // The vein is untouched - mining no longer destroys the block...
     for (int y = 1; y <= 4; ++y)
-        CHECK(world.get(10, y) == BlockType::Air);
+        CHECK(world.get(10, y) == BlockType::CopperOre);
 
     // ...and copper plates exist somewhere in the line (smelter output or belt).
     const bool platesMade = m.at(12, 0)->output.type == ItemType::CopperPlate
         || m.at(11, 0)->carried == ItemType::CopperPlate;
     CHECK(platesMade);
-    CHECK(m.at(12, 0)->output.count >= 1);
+    // A one-tile vein could only ever have produced 1 ore total under the old
+    // destroy-on-mine rule (there is only one reachable ore tile here - see the
+    // drill's placement above). Comfortably exceeding that proves the vein is
+    // being mined over and over, not drained.
+    CHECK(m.at(12, 0)->output.count >= 5);
 }

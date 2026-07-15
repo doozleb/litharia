@@ -378,13 +378,9 @@ void Machines::tickDrills(World& world, float dt, std::vector<sf::Vector2i>& min
 
         if (m.progress >= machineInfo(m.type).actionTime)
         {
-            const BlockType ore = world.get(m.x, oreY);
-            const ItemType drop = itemForBlock(ore);
-
-            world.set(m.x, oreY, BlockType::Air);
-            minedTiles.push_back({m.x, oreY});
-
-            m.output = {drop, 1};
+            // The vein is inexhaustible: mining does not remove the block, so the
+            // same tile keeps producing and the chunk mesh never needs a redraw.
+            m.output = {itemForBlock(world.get(m.x, oreY)), 1};
             m.progress = 0.0f;
         }
     }

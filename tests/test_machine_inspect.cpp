@@ -110,7 +110,7 @@ TEST_CASE("a drill whose output cannot be pushed anywhere reports that its outpu
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;
-    for (int i = 0; i < 120; ++i) // long enough to mine once and fill the output
+    for (int i = 0; i < 240; ++i) // long enough (4s > 3.0s cycle) to mine once and fill the output
         m.tick(world, STEP, mined);
 
     REQUIRE_FALSE(m.at(1, 0)->output.empty());

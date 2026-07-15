@@ -64,23 +64,43 @@ TEST_CASE("a powered drill eats the ore below it and outputs onto a belt")
     std::vector<sf::Vector2i> mined;
     const float step = 1.0f / 60.0f;
 
-    // Drill work time is 1.0s; run 2s to be safe, plus belt handoff.
-    for (int i = 0; i < 180; ++i)
+    // Drill work time is 3.0s; run 4s to be safe, plus belt handoff.
+    for (int i = 0; i < 240; ++i)
         m.tick(world, step, mined);
 
-    // The ore tile is gone...
-    CHECK(world.get(1, 1) == BlockType::Air);
+    // The ore is not destroyed: the vein is inexhaustible now.
+    CHECK(world.get(1, 1) == BlockType::CopperOre);
+
     // ...and copper ore reached the belt (or is sitting in the drill output).
     const bool onBelt = m.at(2, 0)->carried == ItemType::CopperOre;
     const bool inDrill = m.at(1, 0)->output.type == ItemType::CopperOre;
     CHECK((onBelt || inDrill));
+}
 
-    // The mined coordinate was reported for redraw.
-    bool reported = false;
-    for (const sf::Vector2i& t : mined)
-        if (t.x == 1 && t.y == 1)
-            reported = true;
-    CHECK(reported);
+TEST_CASE("a drill's vein never runs out: it mines the same tile again and again")
+{
+    World world;
+    world.fill(BlockType::Air);
+    world.set(1, 1, BlockType::CopperOre);
+
+    Machines m;
+    m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    // Facing Up with nothing to receive output, so it fills and we can count how
+    // many times it has mined without a downstream machine interfering.
+    m.place(MachineType::Drill, 1, 0, Direction::Up);
+    REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+
+    // One mining cycle (3.0s) fills the output; it then stays full since nothing
+    // is there to take it. The tile must still be ore no matter how long this runs -
+    // a finite vein of one tile would already be Air well before 10 seconds in.
+    for (int i = 0; i < 600; ++i) // 10 seconds
+        m.tick(world, step, mined);
+
+    CHECK(world.get(1, 1) == BlockType::CopperOre);
+    CHECK(m.at(1, 0)->output.type == ItemType::CopperOre);
 }
 
 TEST_CASE("a drill with no ore in reach stays idle")
