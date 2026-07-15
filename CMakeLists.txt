@@ -33,6 +33,8 @@ add_library(Litharia_core STATIC
     src/Machines/MachineRegistry.cpp
     src/Machines/Machines.cpp
     src/Machines/MachineStatus.cpp
+
+    src/Hud/HudLayout.cpp
 )
 
 target_include_directories(Litharia_core PUBLIC src)
@@ -90,6 +92,7 @@ add_executable(Litharia_tests
     tests/test_machine_status.cpp
     tests/test_machine_inspect.cpp
     tests/test_extraction.cpp
+    tests/test_hud_layout.cpp
 )
 
 target_include_directories(Litharia_tests PRIVATE libs/doctest)

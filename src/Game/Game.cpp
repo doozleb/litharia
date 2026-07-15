@@ -202,7 +202,13 @@ void Game::drawMachineTooltip()
         return;
 
     const MachineStatus status = machines.inspect(tile.x, tile.y, world);
-    const sf::Vector2f screenPos(sf::Mouse::getPosition(window));
+
+    // Anchor to the machine's own tile in screen space, not the raw mouse
+    // position, so the tooltip tracks the machine (and the camera) instead of
+    // drifting toward wherever the cursor happens to be.
+    const sf::Vector2f tileTopCenter{(tile.x + 0.5f) * TILE_SIZE,
+                                     static_cast<float>(tile.y * TILE_SIZE)};
+    const sf::Vector2f screenPos(window.mapCoordsToPixel(tileTopCenter, camera.view()));
 
     hud.drawMachineTooltip(window, *machine, status, screenPos);
 }

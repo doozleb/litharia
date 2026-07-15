@@ -15,6 +15,10 @@ class Inventory;
 class Hud
 {
 public:
+    static constexpr float SLOT_SIZE = 48.0f;
+    static constexpr float SLOT_GAP = 4.0f;
+    static constexpr float MARGIN = 12.0f;
+
     Hud();
 
     void draw(sf::RenderWindow& window, const Inventory& inventory, int selectedSlot);

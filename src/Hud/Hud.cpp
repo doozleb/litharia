@@ -10,13 +10,10 @@
 #include "../Blocks/Blocks.h"
 #include "../Items/Inventory.h"
 #include "../Machines/MachineType.h"
+#include "HudLayout.h"
 
 namespace
 {
-
-constexpr float SLOT_SIZE = 48.0f;
-constexpr float SLOT_GAP = 4.0f;
-constexpr float MARGIN = 12.0f;
 
 constexpr float ICON_INSET = 10.0f;
 
@@ -183,7 +180,8 @@ void Hud::drawMachineTooltip(sf::RenderWindow& window,
     const float width = static_cast<float>(longest) * CHAR_WIDTH + PADDING * 2.0f;
     const float height = static_cast<float>(lines.size()) * LINE_HEIGHT + PADDING * 2.0f;
 
-    const sf::Vector2f pos = screenPos + sf::Vector2f(16.0f, 16.0f);
+    constexpr float TOOLTIP_MARGIN = 10.0f;
+    const sf::Vector2f pos = hudLayout::tooltipTopLeft(screenPos, {width, height}, TOOLTIP_MARGIN);
 
     sf::RectangleShape panel({width, height});
     panel.setPosition(pos);
