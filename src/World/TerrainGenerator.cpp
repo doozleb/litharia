@@ -36,6 +36,7 @@ constexpr int VEIN_CELL = 10;
 
 constexpr float COPPER_DENSITY = 0.34f;
 constexpr float IRON_DENSITY = 0.24f;
+constexpr float COAL_DENSITY = 0.30f;
 
 constexpr float VEIN_MIN_RADIUS = 1.4f;
 constexpr float VEIN_MAX_RADIUS = 3.1f;
@@ -45,6 +46,7 @@ constexpr std::uint32_t SALT_SURFACE = 0x1000u;
 constexpr std::uint32_t SALT_CAVE = 0x2000u;
 constexpr std::uint32_t SALT_COPPER = 0x3000u;
 constexpr std::uint32_t SALT_IRON = 0x4000u;
+constexpr std::uint32_t SALT_COAL = 0x5000u;
 
 float lerp(float a, float b, float t)
 {
@@ -181,6 +183,7 @@ void TerrainGenerator::scatterOre(World& world) const
     const Ore ores[] = {
         {BlockType::CopperOre, COPPER_MIN_Y, COPPER_MAX_Y, COPPER_DENSITY, SALT_COPPER},
         {BlockType::IronOre, IRON_MIN_Y, IRON_MAX_Y, IRON_DENSITY, SALT_IRON},
+        {BlockType::Coal, COAL_MIN_Y, COAL_MAX_Y, COAL_DENSITY, SALT_COAL},
     };
 
     for (const Ore& ore : ores)

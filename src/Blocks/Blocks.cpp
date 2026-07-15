@@ -14,6 +14,7 @@ constexpr std::array<BlockInfo, static_cast<std::size_t>(BlockType::Count)> regi
     {"Stone",       {112, 112, 118}, true,  0.90f, BlockType::Stone},
     {"Copper Ore",  {201, 116,  56}, true,  1.40f, BlockType::CopperOre},
     {"Iron Ore",    {166, 174, 190}, true,  2.00f, BlockType::IronOre},
+    {"Coal",        { 44,  44,  50}, true,  1.10f, BlockType::Coal},
 }};
 
 } // namespace

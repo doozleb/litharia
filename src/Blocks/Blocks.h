@@ -14,6 +14,7 @@ enum class BlockType : std::uint8_t
     Stone,
     CopperOre,
     IronOre,
+    Coal,
 
     Count
 };

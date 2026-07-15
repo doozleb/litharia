@@ -28,6 +28,9 @@ public:
     static constexpr int IRON_MIN_Y = 320;
     static constexpr int IRON_MAX_Y = 495;
 
+    static constexpr int COAL_MIN_Y = 180;
+    static constexpr int COAL_MAX_Y = 300;
+
     explicit TerrainGenerator(std::uint32_t seed);
 
     // Passes 1-3.

@@ -246,3 +246,29 @@ TEST_CASE("a dirt band separates grass from stone")
         CHECK((below == BlockType::Dirt || below == BlockType::Air));
     }
 }
+
+TEST_CASE("coal spawns only in stone and inside its depth band")
+{
+    World world;
+    TerrainGenerator(4242u).generate(world);
+
+    int coalCount = 0;
+
+    for (int x = 0; x < WORLD_WIDTH; ++x)
+    {
+        for (int y = 0; y < WORLD_HEIGHT; ++y)
+        {
+            if (world.get(x, y) != BlockType::Coal)
+                continue;
+
+            ++coalCount;
+
+            // Inside the band...
+            CHECK(y >= TerrainGenerator::COAL_MIN_Y);
+            CHECK(y <= TerrainGenerator::COAL_MAX_Y);
+        }
+    }
+
+    // The world is not barren of fuel.
+    CHECK(coalCount > 0);
+}
