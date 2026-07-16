@@ -39,8 +39,8 @@ struct Machine
     float fuel = 0.0f;
 
     // Power, set every tick by Machines::updatePower().
-    int network = -1;
-    bool powered = false;
+    bool powered = false;   // consumer: is my demand met by an adjacent generator?
+    bool supplying = false; // generator: did I hand any power out this tick?
 
     // Transport machines (belt, chute): one carried item and its move timer.
     ItemType carried = ItemType::None;

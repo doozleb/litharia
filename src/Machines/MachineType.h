@@ -40,8 +40,8 @@ struct MachineInfo
     std::string_view name;
     BlockColor color;
 
-    bool generator; // supplies power to its network
-    bool consumer;  // draws power from its network
+    bool generator; // supplies power to the machines touching it
+    bool consumer;  // draws power from a generator touching it
     bool transport; // belt/chute: carries one item toward its facing (chute: down)
 
     float powerRating; // supply if generator, demand if consumer

@@ -17,7 +17,12 @@ TEST_CASE("a coal-fed drill-belt-smelter line produces plates on its own")
     Machines m;
 
     // Layout (all on row 0 except the ore below the drill):
-    //   (9,0) generator  (10,0) drill  (11,0) belt  (12,0) smelter
+    //   (9,0) generator  (10,0) drill  (11,0) belt  (12,0) smelter  (13,0) generator
+    //
+    // Two generators, not one: power only reaches machines a generator is
+    // touching, and the only tile adjacent to both the drill and the smelter is
+    // (11,0) - which the belt needs. The belt itself needs no power; transport
+    // runs regardless.
     //
     // A machine's facing is reserved for input and is never an output target
     // (the other 3 sides round-robin instead), so the drill and smelter both
@@ -29,10 +34,14 @@ TEST_CASE("a coal-fed drill-belt-smelter line produces plates on its own")
     m.place(MachineType::Drill,           10, 0, Direction::Down);
     m.place(MachineType::Belt,            11, 0, Direction::Right);
     m.place(MachineType::Smelter,         12, 0, Direction::Left);
+    m.place(MachineType::BurnerGenerator, 13, 0, Direction::Left);
 
-    // Prime the generator with plenty of coal.
+    // Prime both generators with plenty of coal.
     for (int i = 0; i < 10; ++i)
+    {
         REQUIRE(m.tryInsert(9, 0, ItemType::Coal));
+        REQUIRE(m.tryInsert(13, 0, ItemType::Coal));
+    }
 
     std::vector<sf::Vector2i> mined;
     const float step = 1.0f / 60.0f;

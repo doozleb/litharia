@@ -160,3 +160,35 @@ TEST_CASE("an unpowered smelter makes no progress")
     CHECK(s->input.type == ItemType::CopperOre); // untouched
     CHECK(s->output.empty());
 }
+
+TEST_CASE("a generator supplying nothing does not burn, even next to a powered machine")
+{
+    World world;
+    Machines m;
+
+    // Both burners touch the drill, but its whole 5 comes from one of them.
+    m.place(MachineType::BurnerGenerator, 5, 5, Direction::Right);
+    m.place(MachineType::BurnerGenerator, 7, 5, Direction::Right);
+    m.place(MachineType::Drill, 6, 5, Direction::Down);
+
+    REQUIRE(m.tryInsert(5, 5, ItemType::Coal));
+    REQUIRE(m.tryInsert(7, 5, ItemType::Coal));
+
+    std::vector<sf::Vector2i> mined;
+    for (int i = 0; i < 120; ++i)
+        m.tick(world, STEP, mined);
+
+    REQUIRE(m.at(6, 5)->powered);
+
+    // Exactly one generator supplied it, so exactly one burned - asserted
+    // without pinning down which, since that is down to neighbour scan order.
+    const float left = m.at(5, 5)->fuel;
+    const float right = m.at(7, 5)->fuel;
+
+    const bool leftBurned = left < COAL_BURN_SECONDS
+        && right == doctest::Approx(COAL_BURN_SECONDS);
+    const bool rightBurned = right < COAL_BURN_SECONDS
+        && left == doctest::Approx(COAL_BURN_SECONDS);
+
+    CHECK((leftBurned || rightBurned));
+}

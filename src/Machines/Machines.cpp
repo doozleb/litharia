@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <queue>
 
 #include "Recipes.h"
 #include "../World/World.h"
@@ -239,12 +238,19 @@ std::string Machines::idleReason(const Machine& m, const World& world) const
 
     if (info.consumer && !m.powered)
     {
-        const bool hasSupply = m.network >= 0
-            && m.network < static_cast<int>(networkSupply.size())
-            && networkSupply[m.network] > 0.0f;
+        std::array<int, 4> generators{};
+        const int count = adjacentGenerators(m.x, m.y, generators);
 
-        return hasSupply ? "No power: network demand exceeds supply."
-                          : "No power: no fuel in this network.";
+        if (count == 0)
+            return "No power: not next to a burner generator.";
+
+        // Touching a generator with fuel but still unpowered means its supply
+        // went to machines built earlier.
+        for (int i = 0; i < count; ++i)
+            if (machines[generators[i]].fuel > 0.0f)
+                return "No power: the adjacent burner is already at capacity.";
+
+        return "No power: the adjacent burner has no fuel.";
     }
 
     if (m.type == MachineType::Drill)
@@ -280,75 +286,91 @@ std::string Machines::idleReason(const Machine& m, const World& world) const
     return "";
 }
 
-void Machines::assignNetworks()
+int Machines::adjacentGenerators(int x, int y, std::array<int, 4>& out) const
 {
-    for (Machine& m : machines)
-        m.network = -1;
+    const int nx[4] = {x - 1, x + 1, x, x};
+    const int ny[4] = {y, y, y - 1, y + 1};
 
-    int next = 0;
+    int count = 0;
 
-    for (std::size_t start = 0; start < machines.size(); ++start)
+    for (int i = 0; i < 4; ++i)
     {
-        if (machines[start].network != -1)
-            continue;
+        const int index = indexAt(nx[i], ny[i]);
 
-        // Flood fill orthogonally connected machines into one network.
-        const int id = next++;
-        std::queue<int> frontier;
-        machines[start].network = id;
-        frontier.push(static_cast<int>(start));
-
-        while (!frontier.empty())
-        {
-            const Machine& m = machines[frontier.front()];
-            frontier.pop();
-
-            const int nx[4] = {m.x - 1, m.x + 1, m.x, m.x};
-            const int ny[4] = {m.y, m.y, m.y - 1, m.y + 1};
-
-            for (int i = 0; i < 4; ++i)
-            {
-                const int neighbour = indexAt(nx[i], ny[i]);
-                if (neighbour >= 0 && machines[neighbour].network == -1)
-                {
-                    machines[neighbour].network = id;
-                    frontier.push(neighbour);
-                }
-            }
-        }
+        if (index >= 0 && machineInfo(machines[index].type).generator)
+            out[count++] = index;
     }
+
+    return count;
 }
 
 void Machines::updatePower()
 {
-    assignNetworks();
+    // Each generator starts the tick with its whole rating to give away; an
+    // unfuelled one has nothing.
+    std::vector<float> budget(machines.size(), 0.0f);
 
-    int networkCount = 0;
-    for (const Machine& m : machines)
-        networkCount = std::max(networkCount, m.network + 1);
-
-    std::vector<float> supply(networkCount, 0.0f);
-    std::vector<float> demand(networkCount, 0.0f);
-
-    for (const Machine& m : machines)
+    for (std::size_t i = 0; i < machines.size(); ++i)
     {
+        Machine& m = machines[i];
         const MachineInfo& info = machineInfo(m.type);
 
         if (info.generator && m.fuel > 0.0f)
-            supply[m.network] += info.powerRating;
+            budget[i] = info.powerRating;
 
-        if (info.consumer)
-            demand[m.network] += info.powerRating;
+        m.powered = false;
+        m.supplying = false;
     }
 
-    for (Machine& m : machines)
+    // Consumers claim in the order they were built, not the order they happen to
+    // sit in the vector - remove() swap-and-pops, so vector position is not
+    // build order.
+    std::vector<int> order(machines.size());
+    for (std::size_t i = 0; i < machines.size(); ++i)
+        order[i] = static_cast<int>(i);
+
+    std::sort(order.begin(), order.end(), [this](int a, int b) {
+        return machines[a].placedSeq < machines[b].placedSeq;
+    });
+
+    for (const int index : order)
     {
+        Machine& m = machines[index];
         const MachineInfo& info = machineInfo(m.type);
-        m.powered = info.consumer && supply[m.network] >= demand[m.network];
-    }
 
-    networkDemand = demand;
-    networkSupply = supply;
+        if (!info.consumer)
+            continue;
+
+        std::array<int, 4> generators{};
+        const int count = adjacentGenerators(m.x, m.y, generators);
+
+        float available = 0.0f;
+        for (int i = 0; i < count; ++i)
+            available += budget[generators[i]];
+
+        // All or nothing: a machine that cannot be fully fed draws nothing at
+        // all, rather than stranding a part-share no one else can finish.
+        if (available < info.powerRating)
+            continue;
+
+        m.powered = true;
+
+        float need = info.powerRating;
+
+        for (int i = 0; i < count && need > 0.0f; ++i)
+        {
+            const int g = generators[i];
+            const float drawn = std::min(need, budget[g]);
+
+            if (drawn <= 0.0f)
+                continue;
+
+            budget[g] -= drawn;
+            need -= drawn;
+
+            machines[g].supplying = true;
+        }
+    }
 }
 
 void Machines::insertOutput(Machine& m)
@@ -437,12 +459,10 @@ void Machines::tickGenerators(float dt)
             m.fuel += COAL_BURN_SECONDS;
         }
 
-        // Burn only under load, so an idle base does not drain its fuel.
-        const bool hasLoad = m.network >= 0
-            && m.network < static_cast<int>(networkDemand.size())
-            && networkDemand[m.network] > 0.0f;
-
-        if (m.fuel > 0.0f && hasLoad)
+        // Burn only while actually powering something. Asking whether anything
+        // nearby *wants* power is not enough: a generator whose neighbours all
+        // went unpowered would burn coal for nothing.
+        if (m.fuel > 0.0f && m.supplying)
             m.fuel = std::max(0.0f, m.fuel - dt);
     }
 }

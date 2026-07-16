@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <unordered_map>
@@ -56,7 +57,10 @@ public:
     // or the tile is empty/not a processing machine).
     MachineStatus inspect(int x, int y, const World& world) const;
 
-    // Rebuilds power networks and sets each machine's powered flag. Task 7.
+    // Sets every machine's powered/supplying flags. A consumer runs only if the
+    // generators orthogonally touching it have enough unclaimed supply between
+    // them; consumers claim in placement order, so building a new machine never
+    // unpowers one that is already running.
     void updatePower();
 
     // One fixed simulation step of the whole factory. Fills minedTiles with any
@@ -77,8 +81,10 @@ private:
 
     int indexAt(int x, int y) const; // -1 if no machine there
 
-    // Task 7 helpers.
-    void assignNetworks();
+    // Fills `out` with the indices of the generators orthogonally touching
+    // (x, y) and returns how many there are, 0 to 4. The power solve and the
+    // idle reason both need the same scan.
+    int adjacentGenerators(int x, int y, std::array<int, 4>& out) const;
 
     // Task 8-13 helpers.
     void insertOutput(Machine& m);
@@ -92,7 +98,4 @@ private:
     std::uint32_t nextSeq = 0; // stamps Machine::placedSeq; never rewinds
     std::vector<Machine> machines;
     std::unordered_map<long long, int> byTile;
-
-    std::vector<float> networkDemand; // demand per network id, filled by updatePower
-    std::vector<float> networkSupply; // per-network supply, alongside networkDemand
 };

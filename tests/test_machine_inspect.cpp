@@ -21,7 +21,7 @@ TEST_CASE("inspecting an empty tile returns a default status")
     CHECK(status.reason.empty());
 }
 
-TEST_CASE("a drill with no generator anywhere reports no fuel in its network")
+TEST_CASE("a drill with no generator next to it says so")
 {
     Machines m;
     World world;
@@ -34,29 +34,48 @@ TEST_CASE("a drill with no generator anywhere reports no fuel in its network")
 
     const MachineStatus status = m.inspect(0, 0, world);
 
-    CHECK(status.reason == "No power: no fuel in this network.");
+    CHECK(status.reason == "No power: not next to a burner generator.");
 }
 
-TEST_CASE("a network whose demand exceeds supply reports that reason")
+TEST_CASE("a drill next to an unfuelled burner blames the fuel")
 {
     Machines m;
     World world;
     world.fill(BlockType::Air);
 
-    // Generator supply is 10; three drills demand 15 together.
-    m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Right);
-    m.place(MachineType::Drill, 2, 0, Direction::Right);
-    m.place(MachineType::Drill, 3, 0, Direction::Right);
-    REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
+    m.place(MachineType::BurnerGenerator, 5, 5, Direction::Right);
+    m.place(MachineType::Drill, 6, 5, Direction::Right);
+    // No coal inserted: the burner is there, it just has nothing to burn.
+
+    std::vector<sf::Vector2i> mined;
+    m.tick(world, STEP, mined);
+
+    const MachineStatus status = m.inspect(6, 5, world);
+
+    CHECK(status.reason == "No power: the adjacent burner has no fuel.");
+}
+
+TEST_CASE("a drill whose burner is already spoken for says so")
+{
+    Machines m;
+    World world;
+    world.fill(BlockType::Air);
+
+    // Supply is 10 and each drill demands 5, so the third one placed loses out
+    // even though it is touching the burner.
+    m.place(MachineType::BurnerGenerator, 5, 5, Direction::Right);
+    m.place(MachineType::Drill, 6, 5, Direction::Right);
+    m.place(MachineType::Drill, 4, 5, Direction::Right);
+    m.place(MachineType::Drill, 5, 6, Direction::Right);
+    REQUIRE(m.tryInsert(5, 5, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;
     for (int i = 0; i < 10; ++i)
         m.tick(world, STEP, mined);
 
-    const MachineStatus status = m.inspect(1, 0, world);
+    const MachineStatus status = m.inspect(5, 6, world);
 
-    CHECK(status.reason == "No power: network demand exceeds supply.");
+    CHECK(status.reason == "No power: the adjacent burner is already at capacity.");
 }
 
 TEST_CASE("a powered drill with no ore in reach reports that reason")
