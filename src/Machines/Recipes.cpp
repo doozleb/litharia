@@ -10,6 +10,16 @@ constexpr std::array<SmeltRecipe, 2> recipes = {{
     {ItemType::IronOre,   ItemType::IronPlate,   3.5f},
 }};
 
+constexpr std::array<CraftRecipe, 7> craftRecipes = {{
+    {ItemType::CraftingTable,   {{{ItemType::OakLog, 15}, {}}},                          3.0f, false},
+    {ItemType::Chest,           {{{ItemType::OakLog, 8}, {}}},                           2.0f, true},
+    {ItemType::Belt,            {{{ItemType::IronPlate, 1}, {ItemType::CopperPlate, 1}}}, 1.0f, true},
+    {ItemType::Chute,           {{{ItemType::Stone, 2}, {}}},                            1.0f, true},
+    {ItemType::BurnerGenerator, {{{ItemType::Stone, 5}, {ItemType::IronPlate, 2}}},       3.0f, true},
+    {ItemType::Drill,           {{{ItemType::IronPlate, 5}, {ItemType::CopperPlate, 2}}}, 4.0f, true},
+    {ItemType::Smelter,         {{{ItemType::Stone, 5}, {ItemType::CopperPlate, 3}}},     4.0f, true},
+}};
+
 } // namespace
 
 const SmeltRecipe* smeltRecipeFor(ItemType in)
@@ -24,6 +34,11 @@ const SmeltRecipe* smeltRecipeFor(ItemType in)
 std::span<const SmeltRecipe> allSmeltRecipes()
 {
     return recipes;
+}
+
+std::span<const CraftRecipe> allCraftRecipes()
+{
+    return craftRecipes;
 }
 
 std::string formatSmeltRecipeList(std::span<const SmeltRecipe> list)

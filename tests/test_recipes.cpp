@@ -1,5 +1,6 @@
 #include "doctest.h"
 
+#include <algorithm>
 #include <ostream>
 
 #include "Machines/Recipes.h"
@@ -52,4 +53,43 @@ TEST_CASE("every placeable machine has a matching craftable item")
     CHECK(itemInfo(ItemType::Chute).name == "Chute");
     CHECK(itemInfo(ItemType::Smelter).name == "Smelter");
     CHECK(itemInfo(ItemType::Chest).name == "Chest");
+}
+
+TEST_CASE("allCraftRecipes exposes every craftable item exactly once")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    CHECK(all.size() == 7);
+}
+
+TEST_CASE("the Crafting Table recipe costs 15 oak logs and needs no table")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::CraftingTable; });
+
+    REQUIRE(it != all.end());
+    CHECK_FALSE(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::OakLog);
+    CHECK(it->ingredients[0].count == 15);
+}
+
+TEST_CASE("every recipe but the Crafting Table requires a placed table")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+
+    for (const CraftRecipe& r : all)
+        if (r.output != ItemType::CraftingTable)
+            CHECK(r.requiresCraftingTable);
+}
+
+TEST_CASE("every recipe costs a positive amount of at least one ingredient")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+
+    for (const CraftRecipe& r : all)
+    {
+        CHECK(r.ingredients[0].item != ItemType::None);
+        CHECK(r.ingredients[0].count > 0);
+        CHECK(r.seconds > 0.0f);
+    }
 }
