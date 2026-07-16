@@ -97,6 +97,7 @@ TEST_CASE("a block cannot be placed inside the player")
     Player player = standingAt(world, 10.0f, 30);
 
     player.inventory().add({ItemType::Stone, 5});
+    player.setSelectedSlot(2);
 
     // The tile the player's own body is standing in.
     const int tileX = static_cast<int>(player.center().x / TILE_SIZE);
@@ -119,6 +120,7 @@ TEST_CASE("a block cannot be placed into an occupied tile")
 
     Player player = standingAt(world, 10.0f, 30);
     player.inventory().add({ItemType::Dirt, 5});
+    player.setSelectedSlot(2);
 
     // Tile 12,30 is part of the stone floor.
     REQUIRE(world.get(12, 30) == BlockType::Stone);
@@ -139,6 +141,7 @@ TEST_CASE("a block cannot be placed onto a tile a machine occupies")
 
     Player player = standingAt(world, 10.0f, 30);
     player.inventory().add({ItemType::Stone, 5});
+    player.setSelectedSlot(2);
 
     Machines machines;
     machines.place(MachineType::Belt, 13, 29, Direction::Right);
@@ -171,6 +174,7 @@ TEST_CASE("a block cannot be placed out of reach")
 
     Player player = standingAt(world, 10.0f, 30);
     player.inventory().add({ItemType::Stone, 5});
+    player.setSelectedSlot(2);
 
     REQUIRE_FALSE(player.inReach(40, 29));
 
