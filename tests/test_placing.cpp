@@ -51,7 +51,7 @@ TEST_CASE("placing puts the selected block into the world and takes it from the 
     Player player = standingAt(world, 10.0f, 30);
 
     player.inventory().add({ItemType::Stone, 3});
-    player.setSelectedSlot(0);
+    player.setSelectedSlot(2);
 
     REQUIRE(world.get(13, 29) == BlockType::Air);
 
@@ -75,11 +75,12 @@ TEST_CASE("placing the last item empties the slot")
     Player player = standingAt(world, 10.0f, 30);
 
     player.inventory().add({ItemType::Dirt, 1});
+    player.setSelectedSlot(2);
 
     player.update(placingAt(13, 29), world, STEP);
 
     CHECK(world.get(13, 29) == BlockType::Dirt);
-    CHECK(player.inventory().slot(0).empty());
+    CHECK(player.inventory().slot(2).empty());
 
     // Nothing left to place: the next attempt does nothing.
     const ActionResult again = player.update(placingAt(13, 28), world, STEP);
@@ -156,6 +157,7 @@ TEST_CASE("placing still works normally when no machines are passed in")
 
     Player player = standingAt(world, 10.0f, 30);
     player.inventory().add({ItemType::Stone, 1});
+    player.setSelectedSlot(2);
 
     const ActionResult result = player.update(placingAt(13, 29), world, STEP);
 
@@ -185,8 +187,9 @@ TEST_CASE("placing with an empty hand does nothing")
     buildFloor(world, 30);
 
     Player player = standingAt(world, 10.0f, 30);
+    player.setSelectedSlot(2); // empty; the two starting tools sit in slots 0-1
 
-    REQUIRE(player.inventory().isEmpty());
+    REQUIRE(player.inventory().slot(2).empty());
 
     const ActionResult result = player.update(placingAt(13, 29), world, STEP);
 
@@ -201,10 +204,10 @@ TEST_CASE("placing uses the selected hotbar slot, not just the first one")
 
     Player player = standingAt(world, 10.0f, 30);
 
-    player.inventory().add({ItemType::Dirt, 2});      // slot 0
-    player.inventory().add({ItemType::CopperOre, 2}); // slot 1
+    player.inventory().add({ItemType::Dirt, 2});      // slot 2
+    player.inventory().add({ItemType::CopperOre, 2}); // slot 3
 
-    player.setSelectedSlot(1);
+    player.setSelectedSlot(3);
 
     player.update(placingAt(13, 29), world, STEP);
 
@@ -276,6 +279,7 @@ TEST_CASE("mine it, pick it up, place it back: the loop closes")
     // Pick it up (the game does this via the item entity; the effect is the same).
     player.inventory().add({itemForBlock(mined.brokenBlock), 1});
     REQUIRE(player.inventory().count(ItemType::Stone) == 1);
+    player.setSelectedSlot(2);
 
     // Put it back.
     const ActionResult placed = player.update(placingAt(13, 29), world, STEP);

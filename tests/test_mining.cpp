@@ -407,3 +407,15 @@ TEST_CASE("the player can dig down through the floor and stand in the hole")
     CHECK(player.isGrounded());
     CHECK(player.box().bottom() == doctest::Approx(31.0f * TILE_SIZE).epsilon(0.01));
 }
+
+TEST_CASE("the player spawns already holding a pickaxe and an axe")
+{
+    World world;
+    buildFloor(world, 30);
+    Player player = standingAt(world, 10.0f, 30);
+
+    CHECK(player.inventory().slot(0).type == ItemType::Pickaxe);
+    CHECK(player.inventory().slot(0).count == 1);
+    CHECK(player.inventory().slot(1).type == ItemType::Axe);
+    CHECK(player.inventory().slot(1).count == 1);
+}

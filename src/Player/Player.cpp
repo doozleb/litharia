@@ -45,6 +45,10 @@ AABB tileBox(int tileX, int tileY)
 Player::Player(sf::Vector2f topLeft)
     : body{topLeft, {WIDTH, HEIGHT}}
 {
+    // There is no crafting system yet, so the player starts equipped rather
+    // than unable to mine anything at all.
+    bag.exchange(0, {ItemType::Pickaxe, 1});
+    bag.exchange(1, {ItemType::Axe, 1});
 }
 
 void Player::setSelectedSlot(int slot)
