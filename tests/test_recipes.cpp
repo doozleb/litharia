@@ -1,5 +1,7 @@
 #include "doctest.h"
 
+#include <ostream>
+
 #include "Machines/Recipes.h"
 
 TEST_CASE("ores smelt into their plates")
@@ -39,4 +41,15 @@ TEST_CASE("formatSmeltRecipeList joins every recipe as \"In -> Out\"")
 TEST_CASE("formatSmeltRecipeList on an empty span yields an empty string")
 {
     CHECK(formatSmeltRecipeList({}) == "");
+}
+
+TEST_CASE("every placeable machine has a matching craftable item")
+{
+    CHECK(itemInfo(ItemType::CraftingTable).name == "Crafting Table");
+    CHECK(itemInfo(ItemType::BurnerGenerator).name == "Burner Generator");
+    CHECK(itemInfo(ItemType::Drill).name == "Drill");
+    CHECK(itemInfo(ItemType::Belt).name == "Belt");
+    CHECK(itemInfo(ItemType::Chute).name == "Chute");
+    CHECK(itemInfo(ItemType::Smelter).name == "Smelter");
+    CHECK(itemInfo(ItemType::Chest).name == "Chest");
 }

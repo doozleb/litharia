@@ -21,6 +21,13 @@ enum class ItemType : std::uint8_t
     Pickaxe,
     Axe,
     OakLog,
+    CraftingTable,
+    BurnerGenerator,
+    Drill,
+    Belt,
+    Chute,
+    Smelter,
+    Chest,
 
     Count
 };

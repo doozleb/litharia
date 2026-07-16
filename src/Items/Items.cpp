@@ -7,18 +7,25 @@ namespace
 
 // Indexed by ItemType. Order must match the enum.
 constexpr std::array<ItemInfo, static_cast<std::size_t>(ItemType::Count)> registry = {{
-    //  name           maxStack  placeBlock            toolType           iconColor
-    {"Nothing",       0,  BlockType::Air,       ToolType::None,    {  0,   0,   0}},
-    {"Dirt",         99,  BlockType::Dirt,      ToolType::None,    {134,  89,  52}},
-    {"Stone",        99,  BlockType::Stone,     ToolType::None,    {112, 112, 118}},
-    {"Copper Ore",   99,  BlockType::CopperOre, ToolType::None,    {201, 116,  56}},
-    {"Iron Ore",     99,  BlockType::IronOre,   ToolType::None,    {166, 174, 190}},
-    {"Coal",         99,  BlockType::Coal,      ToolType::None,    { 44,  44,  50}},
-    {"Copper Plate", 99,  BlockType::Air,       ToolType::None,    {224, 150,  90}},
-    {"Iron Plate",   99,  BlockType::Air,       ToolType::None,    {205, 210, 218}},
-    {"Pickaxe",       1,  BlockType::Air,       ToolType::Pickaxe, {170, 170, 180}},
-    {"Axe",           1,  BlockType::Air,       ToolType::Axe,     {160,  90,  50}},
-    {"Oak Log",      99,  BlockType::Air,       ToolType::None,    {101,  67,  33}},
+    //  name                 maxStack  placeBlock            toolType           iconColor
+    {"Nothing",           0,  BlockType::Air,       ToolType::None,    {  0,   0,   0}},
+    {"Dirt",             99,  BlockType::Dirt,      ToolType::None,    {134,  89,  52}},
+    {"Stone",            99,  BlockType::Stone,     ToolType::None,    {112, 112, 118}},
+    {"Copper Ore",       99,  BlockType::CopperOre, ToolType::None,    {201, 116,  56}},
+    {"Iron Ore",         99,  BlockType::IronOre,   ToolType::None,    {166, 174, 190}},
+    {"Coal",             99,  BlockType::Coal,      ToolType::None,    { 44,  44,  50}},
+    {"Copper Plate",     99,  BlockType::Air,       ToolType::None,    {224, 150,  90}},
+    {"Iron Plate",       99,  BlockType::Air,       ToolType::None,    {205, 210, 218}},
+    {"Pickaxe",           1,  BlockType::Air,       ToolType::Pickaxe, {170, 170, 180}},
+    {"Axe",               1,  BlockType::Air,       ToolType::Axe,     {160,  90,  50}},
+    {"Oak Log",          99,  BlockType::Air,       ToolType::None,    {101,  67,  33}},
+    {"Crafting Table",   10,  BlockType::Air,       ToolType::None,    {120,  80,  40}},
+    {"Burner Generator", 10,  BlockType::Air,       ToolType::None,    {190, 120,  60}},
+    {"Drill",            10,  BlockType::Air,       ToolType::None,    {150, 150, 160}},
+    {"Belt",             50,  BlockType::Air,       ToolType::None,    { 90,  90, 100}},
+    {"Chute",            50,  BlockType::Air,       ToolType::None,    { 70,  70,  80}},
+    {"Smelter",          10,  BlockType::Air,       ToolType::None,    {200,  90,  70}},
+    {"Chest",            10,  BlockType::Air,       ToolType::None,    {140,  95,  50}},
 }};
 
 } // namespace
