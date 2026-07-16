@@ -5,6 +5,7 @@
 namespace
 {
 
+// Indexed by MachineType. Order must match the enum.
 constexpr std::array<MachineInfo, static_cast<std::size_t>(MachineType::Count)> registry = {{
     //  name                 color            gen    con    trans  power  action  width
     {"None",              {  0,   0,   0}, false, false, false, 0.0f,  0.0f,  1},
