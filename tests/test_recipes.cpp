@@ -20,3 +20,23 @@ TEST_CASE("things that do not smelt return null")
     CHECK(smeltRecipeFor(ItemType::CopperPlate) == nullptr);
     CHECK(smeltRecipeFor(ItemType::None) == nullptr);
 }
+
+TEST_CASE("allSmeltRecipes exposes both defined recipes")
+{
+    const std::span<const SmeltRecipe> all = allSmeltRecipes();
+
+    REQUIRE(all.size() == 2);
+    CHECK(all[0].in == ItemType::CopperOre);
+    CHECK(all[1].in == ItemType::IronOre);
+}
+
+TEST_CASE("formatSmeltRecipeList joins every recipe as \"In -> Out\"")
+{
+    CHECK(formatSmeltRecipeList(allSmeltRecipes()) ==
+          "Copper Ore -> Copper Plate, Iron Ore -> Iron Plate");
+}
+
+TEST_CASE("formatSmeltRecipeList on an empty span yields an empty string")
+{
+    CHECK(formatSmeltRecipeList({}) == "");
+}

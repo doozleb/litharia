@@ -20,3 +20,24 @@ const SmeltRecipe* smeltRecipeFor(ItemType in)
 
     return nullptr;
 }
+
+std::span<const SmeltRecipe> allSmeltRecipes()
+{
+    return recipes;
+}
+
+std::string formatSmeltRecipeList(std::span<const SmeltRecipe> list)
+{
+    std::string result;
+
+    for (std::size_t i = 0; i < list.size(); ++i)
+    {
+        if (i > 0)
+            result += ", ";
+
+        result += std::string(itemInfo(list[i].in).name) + " -> " +
+                   std::string(itemInfo(list[i].out).name);
+    }
+
+    return result;
+}
