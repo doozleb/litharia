@@ -66,6 +66,8 @@ Machine* Machines::place(MachineType type, int x, int y, Direction facing)
     // rotation just past it.
     m.outputCursor = rotateCW(facing);
 
+    m.placedSeq = nextSeq++;
+
     if (type == MachineType::Chest)
         m.storage = Inventory(CHEST_SLOTS);
 

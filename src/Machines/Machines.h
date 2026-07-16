@@ -89,6 +89,7 @@ private:
 
     std::string idleReason(const Machine& m, const World& world) const;
 
+    std::uint32_t nextSeq = 0; // stamps Machine::placedSeq; never rewinds
     std::vector<Machine> machines;
     std::unordered_map<long long, int> byTile;
 

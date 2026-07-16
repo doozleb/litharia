@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "../Core/Direction.h"
 #include "../Items/Inventory.h"
 #include "../Items/Items.h"
@@ -22,6 +23,12 @@ struct Machine
     // several belts around a machine take turns rather than one starving the
     // rest.
     Direction outputCursor = Direction::Right;
+
+    // Ascending order of placement, stamped by Machines::place(). The power
+    // solve visits consumers in this order, so a machine already running never
+    // loses power to one built later. It cannot be read off the machines
+    // vector: remove() swap-and-pops, which scrambles that order.
+    std::uint32_t placedSeq = 0;
 
     // Processing machines (drill, smelter, generator).
     ItemStack input;

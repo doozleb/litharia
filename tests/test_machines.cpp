@@ -151,3 +151,32 @@ TEST_CASE("formatDrillOreList on an empty span yields an empty string")
 {
     CHECK(formatDrillOreList({}) == "");
 }
+
+TEST_CASE("machines are stamped with an increasing placement sequence")
+{
+    Machines m;
+
+    // Read the stamp straight off each returned pointer: place() may reallocate
+    // the machine vector, so a pointer must not be held across the next place().
+    const std::uint32_t first = m.place(MachineType::Drill, 0, 0, Direction::Right)->placedSeq;
+    const std::uint32_t second = m.place(MachineType::Drill, 1, 0, Direction::Right)->placedSeq;
+
+    CHECK(second > first);
+}
+
+TEST_CASE("a machine placed after a removal still sorts last")
+{
+    Machines m;
+    m.place(MachineType::Drill, 0, 0, Direction::Right);
+    m.place(MachineType::Drill, 1, 0, Direction::Right);
+
+    const std::uint32_t survivor = m.at(1, 0)->placedSeq;
+
+    REQUIRE(m.remove(0, 0));
+
+    // remove() swap-and-pops, so this machine lands in the freed vector slot -
+    // but the counter never rewinds, so it cannot jump the queue.
+    const std::uint32_t fresh = m.place(MachineType::Drill, 2, 0, Direction::Right)->placedSeq;
+
+    CHECK(fresh > survivor);
+}
