@@ -11,6 +11,7 @@
 #include "../Items/ItemEntity.h"
 #include "../Machines/Machines.h"
 #include "../Machines/MachineRenderer.h"
+#include "../Machines/Recipes.h"
 #include "../Player/Player.h"
 #include "../World/Chunks.h"
 #include "../World/TerrainGenerator.h"
@@ -55,6 +56,8 @@ private:
     void endDrag();
     void depositAllToChest();
     void collectAllFromChest();
+    void startCraft(int recipeIndex);
+    void updateCrafting(float dt);
     sf::Vector2i cursorTile() const;
     void drawMachineTooltip();
 
@@ -78,6 +81,11 @@ private:
 
     bool inventoryOpen = false;
     std::optional<sf::Vector2i> openChestTile;
+    std::optional<sf::Vector2i> openCraftingTableTile;
+
+    bool crafting = false;
+    int craftingRecipeIndex = -1;
+    float craftProgress = 0.0f;
 
     enum class InventoryPanel { Bag, Chest };
 

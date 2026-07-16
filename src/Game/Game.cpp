@@ -255,16 +255,20 @@ void Game::toggleInventory()
     {
         inventoryOpen = false;
         openChestTile.reset();
+        openCraftingTableTile.reset();
         return;
     }
 
     const sf::Vector2i tile = cursorTile();
     const Machine* machine = machines.at(tile.x, tile.y);
 
+    openChestTile.reset();
+    openCraftingTableTile.reset();
+
     if (machine != nullptr && machine->type == MachineType::Chest)
         openChestTile = tile;
-    else
-        openChestTile.reset();
+    else if (machine != nullptr && machine->type == MachineType::CraftingTable)
+        openCraftingTableTile = tile;
 
     inventoryOpen = true;
     buildMode = false;
@@ -282,12 +286,25 @@ void Game::drawInventoryPanels()
             openChestTile.reset();
     }
 
+    if (openCraftingTableTile.has_value())
+    {
+        const Machine* table = machines.at(openCraftingTableTile->x, openCraftingTableTile->y);
+
+        if (table == nullptr || table->type != MachineType::CraftingTable)
+            openCraftingTableTile.reset();
+    }
+
     hud.drawInventoryPanel(window, player.inventory());
 
     if (openChestTile.has_value())
     {
         hud.drawChestPanel(window, machines.at(openChestTile->x, openChestTile->y)->storage);
         hud.drawChestButtons(window);
+    }
+    else
+    {
+        hud.drawCraftPanel(window, player.inventory(), openCraftingTableTile.has_value(), crafting,
+                            craftingRecipeIndex, craftProgress);
     }
 }
 
@@ -388,6 +405,63 @@ void Game::collectAllFromChest()
         if (leftover > 0)
             chest.exchange(i, {taken.type, leftover});
     }
+}
+
+void Game::startCraft(int recipeIndex)
+{
+    if (crafting)
+        return;
+
+    const std::span<const CraftRecipe> recipes = allCraftRecipes();
+    if (recipeIndex < 0 || recipeIndex >= static_cast<int>(recipes.size()))
+        return;
+
+    const CraftRecipe& recipe = recipes[recipeIndex];
+    Inventory& bag = player.inventory();
+
+    for (const CraftIngredient& ing : recipe.ingredients)
+        if (ing.item != ItemType::None && bag.count(ing.item) < ing.count)
+            return;
+
+    for (const CraftIngredient& ing : recipe.ingredients)
+    {
+        if (ing.item == ItemType::None)
+            continue;
+
+        for (int i = 0; i < ing.count; ++i)
+            bag.removeOne(ing.item);
+    }
+
+    crafting = true;
+    craftingRecipeIndex = recipeIndex;
+    craftProgress = 0.0f;
+}
+
+void Game::updateCrafting(float dt)
+{
+    if (!crafting)
+        return;
+
+    const std::span<const CraftRecipe> recipes = allCraftRecipes();
+    const CraftRecipe& recipe = recipes[craftingRecipeIndex];
+
+    craftProgress += dt;
+    if (craftProgress < recipe.seconds)
+        return;
+
+    Inventory& bag = player.inventory();
+    const int leftover = bag.add({recipe.output, 1});
+
+    if (leftover > 0)
+    {
+        const sf::Vector2f position =
+            player.center() - sf::Vector2f{ItemEntity::SIZE * 0.5f, ItemEntity::SIZE * 0.5f};
+        drops.emplace_back(ItemStack{recipe.output, leftover}, position, sf::Vector2f{0.0f, -60.0f});
+    }
+
+    crafting = false;
+    craftingRecipeIndex = -1;
+    craftProgress = 0.0f;
 }
 
 void Game::tickMachines(float dt)
@@ -525,17 +599,30 @@ void Game::handleEvents()
                 removeMachineAtCursor();
             else if (inventoryOpen && mouse->button == sf::Mouse::Button::Left)
             {
-                const auto chestButton = openChestTile.has_value()
-                    ? hud.hitTestChestButton(sf::Vector2f(sf::Mouse::getPosition(window)),
-                                              sf::Vector2f(window.getSize()))
-                    : std::nullopt;
+                const sf::Vector2f screenPos(sf::Mouse::getPosition(window));
+                const sf::Vector2f windowSize(window.getSize());
 
-                if (chestButton == Hud::ChestButton::DepositAll)
-                    depositAllToChest();
-                else if (chestButton == Hud::ChestButton::CollectAll)
-                    collectAllFromChest();
+                if (openChestTile.has_value())
+                {
+                    const auto chestButton = hud.hitTestChestButton(screenPos, windowSize);
+
+                    if (chestButton == Hud::ChestButton::DepositAll)
+                        depositAllToChest();
+                    else if (chestButton == Hud::ChestButton::CollectAll)
+                        collectAllFromChest();
+                    else
+                        beginDrag();
+                }
                 else
-                    beginDrag();
+                {
+                    const auto craftHit =
+                        hud.hitTestCraftButton(screenPos, windowSize, openCraftingTableTile.has_value());
+
+                    if (craftHit.has_value())
+                        startCraft(*craftHit);
+                    else
+                        beginDrag();
+                }
             }
         }
         else if (const auto* release = event->getIf<sf::Event::MouseButtonReleased>())
@@ -564,6 +651,7 @@ void Game::fixedUpdate(float dt)
 
     updateDrops(dt);
     tickMachines(dt);
+    updateCrafting(dt);
 
     camera.follow(player.center(), dt);
 
