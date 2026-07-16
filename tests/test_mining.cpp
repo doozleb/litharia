@@ -56,6 +56,27 @@ TEST_CASE("the item registry maps mined blocks to items")
     }
 }
 
+TEST_CASE("every terrain block requires a pickaxe, and both tree blocks require an axe")
+{
+    CHECK(blockInfo(BlockType::Grass).requiredTool == ToolType::Pickaxe);
+    CHECK(blockInfo(BlockType::Dirt).requiredTool == ToolType::Pickaxe);
+    CHECK(blockInfo(BlockType::Stone).requiredTool == ToolType::Pickaxe);
+    CHECK(blockInfo(BlockType::CopperOre).requiredTool == ToolType::Pickaxe);
+    CHECK(blockInfo(BlockType::IronOre).requiredTool == ToolType::Pickaxe);
+    CHECK(blockInfo(BlockType::Coal).requiredTool == ToolType::Pickaxe);
+
+    CHECK(blockInfo(BlockType::OakLog).requiredTool == ToolType::Axe);
+    CHECK(blockInfo(BlockType::OakLeaves).requiredTool == ToolType::Axe);
+
+    // Neither tree block is solid: the whole tree is non-collidable.
+    CHECK_FALSE(blockInfo(BlockType::OakLog).solid);
+    CHECK_FALSE(blockInfo(BlockType::OakLeaves).solid);
+
+    // Leaves drop nothing; the log drops itself.
+    CHECK(blockInfo(BlockType::OakLeaves).drop == BlockType::Air);
+    CHECK(blockInfo(BlockType::OakLog).drop == BlockType::OakLog);
+}
+
 TEST_CASE("holding mine breaks a block after its hardness, and it drops itself")
 {
     World world;
