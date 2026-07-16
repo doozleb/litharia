@@ -38,10 +38,11 @@ public:
     static constexpr int TREE_MAX_HEIGHT = 6;
 
     // Minimum distance between two trunks. Each canopy is 3 tiles wide
-    // (trunk-1..trunk+1); at this spacing the widest two canopies can ever
-    // get is one tile apart, so they can never touch - which is what keeps
-    // the break-cascade's flood-fill from ever bleeding into a neighbor tree.
-    static constexpr int TREE_MIN_SPACING = 3;
+    // (trunk-1..trunk+1), so two trunks 4 apart have their nearest leaves at
+    // trunk+1 and trunk+3 - a gap at trunk+2 that keeps them from ever being
+    // 4-connected. That gap is what keeps the break-cascade's flood-fill
+    // from ever bleeding into a neighbor tree.
+    static constexpr int TREE_MIN_SPACING = 4;
 
     explicit TerrainGenerator(std::uint32_t seed);
 

@@ -1,6 +1,8 @@
 #include "doctest.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "Blocks/Blocks.h"
@@ -316,6 +318,108 @@ TEST_CASE("trees stand on the surface, stay within height bounds, and never crow
         CHECK(trunkColumns[i] - trunkColumns[i - 1] >= TerrainGenerator::TREE_MIN_SPACING);
 }
 
+TEST_CASE("no two trees' tiles are ever 4-connected, so a break-cascade cannot cross between them")
+{
+    // Trunk-to-trunk distance is not the invariant that matters - it is exactly
+    // what the original TREE_MIN_SPACING=3 bug satisfied while still letting
+    // canopies touch (leaves at trunk+1 and the neighbor's trunk+2-1==trunk+2
+    // are adjacent when spacing is only 3). What actually matters is whether
+    // Player::mine's collectTreeBreak flood-fill, which walks 4-connected
+    // OakLog/OakLeaves tiles, can ever step from one tree into another.
+    //
+    // So: label every OakLog/OakLeaves tile with its 4-connected component
+    // (flood-filling in all four directions, not just the cascade's
+    // up-and-sideways subset, since any touch at all between two trees is a
+    // bug regardless of which direction the cascade happens to explore it
+    // from). If two trees' tiles were ever adjacent, they would land in the
+    // same component. So every component must own exactly one trunk.
+    auto checkSeed = [](std::uint32_t seed) {
+        World world;
+        const TerrainGenerator generator(seed);
+        generator.generate(world);
+
+        auto isTreeTile = [&](int x, int y) {
+            if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT)
+                return false;
+
+            const BlockType type = world.get(x, y);
+            return type == BlockType::OakLog || type == BlockType::OakLeaves;
+        };
+
+        std::vector<int> trunkColumns;
+        for (int x = 1; x < WORLD_WIDTH - 1; ++x)
+        {
+            const int surface = generator.surfaceHeight(x);
+            if (world.get(x, surface - 1) == BlockType::OakLog)
+                trunkColumns.push_back(x);
+        }
+
+        REQUIRE(trunkColumns.size() > 10);
+
+        // -1 means "not part of any tree yet"; otherwise the component id.
+        std::vector<std::vector<int>> label(
+            static_cast<std::size_t>(WORLD_WIDTH),
+            std::vector<int>(static_cast<std::size_t>(WORLD_HEIGHT), -1));
+
+        int nextLabel = 0;
+
+        for (int x = 0; x < WORLD_WIDTH; ++x)
+        {
+            for (int y = 0; y < WORLD_HEIGHT; ++y)
+            {
+                if (!isTreeTile(x, y) || label[x][y] != -1)
+                    continue;
+
+                const int component = nextLabel++;
+                std::vector<std::pair<int, int>> stack{{x, y}};
+
+                while (!stack.empty())
+                {
+                    const auto [cx, cy] = stack.back();
+                    stack.pop_back();
+
+                    if (!isTreeTile(cx, cy) || label[cx][cy] != -1)
+                        continue;
+
+                    label[cx][cy] = component;
+
+                    stack.push_back({cx - 1, cy});
+                    stack.push_back({cx + 1, cy});
+                    stack.push_back({cx, cy - 1});
+                    stack.push_back({cx, cy + 1});
+                }
+            }
+        }
+
+        // Every trunk's bottom log sits at its own component; two trunks
+        // sharing a component means their trees' tiles touched somewhere.
+        std::vector<int> seenComponents;
+
+        for (int trunkX : trunkColumns)
+        {
+            const int surface = generator.surfaceHeight(trunkX);
+            const int component = label[trunkX][surface - 1];
+
+            REQUIRE(component != -1);
+
+            const bool alreadySeen =
+                std::find(seenComponents.begin(), seenComponents.end(), component) !=
+                seenComponents.end();
+
+            CHECK_FALSE(alreadySeen);
+
+            seenComponents.push_back(component);
+        }
+    };
+
+    // The shipped world's seed, where the reviewer found 40 touching pairs
+    // (including a five-tree chain near world start) at the old spacing of 3,
+    // plus a spread of other seeds so the fix isn't validated against a
+    // single lucky world.
+    for (std::uint32_t seed : {1337u, 1u, 2u, 7u, 42u, 2024u, 2026u, 4040u, 8080u, 99999u})
+        checkSeed(seed);
+}
+
 TEST_CASE("forest density blends across the world rather than switching on and off")
 {
     // Same seed as the density noise itself: what matters is that some wide
@@ -348,7 +452,11 @@ TEST_CASE("forest density blends across the world rather than switching on and o
     const int lowest = *std::min_element(bandCounts.begin(), bandCounts.end());
     const int highest = *std::max_element(bandCounts.begin(), bandCounts.end());
 
-    // A flat per-column chance would make every 100-wide band come out close
-    // to the same count; blended forest patches should not.
-    CHECK(highest > lowest);
+    // A plain "highest > lowest" ordering check passes under ordinary sampling
+    // variance even with the forest-factor modulation deleted entirely (flat
+    // per-column density still produces bands that differ by chance) - so it
+    // cannot actually distinguish blended density from flat density. Require
+    // a spread a flat density would not produce instead, the same pattern
+    // "the surface actually rolls rather than sitting flat" uses above.
+    CHECK(highest - lowest > 5);
 }
