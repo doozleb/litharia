@@ -31,9 +31,12 @@ bool addToBuffer(ItemStack& buffer, ItemType item)
 }
 
 // True for blocks a drill should mine (they drop themselves as an ore/fuel item).
+// Derives from DRILL_ORES so the mining logic and the tooltip's "Mines: ..."
+// line can never list different ores.
 bool isOre(BlockType b)
 {
-    return b == BlockType::CopperOre || b == BlockType::IronOre || b == BlockType::Coal;
+    const ItemType item = itemForBlock(b);
+    return std::find(DRILL_ORES.begin(), DRILL_ORES.end(), item) != DRILL_ORES.end();
 }
 
 } // namespace

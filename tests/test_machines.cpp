@@ -133,3 +133,21 @@ TEST_CASE("removing a machine frees its tile and keeps the rest intact")
     // Removing an empty tile reports nothing removed.
     CHECK_FALSE(machines.remove(9, 9));
 }
+
+TEST_CASE("DRILL_ORES lists exactly the three mineable ore types")
+{
+    CHECK(DRILL_ORES.size() == 3);
+    CHECK(DRILL_ORES[0] == ItemType::CopperOre);
+    CHECK(DRILL_ORES[1] == ItemType::IronOre);
+    CHECK(DRILL_ORES[2] == ItemType::Coal);
+}
+
+TEST_CASE("formatDrillOreList joins every ore's name")
+{
+    CHECK(formatDrillOreList(DRILL_ORES) == "Copper Ore, Iron Ore, Coal");
+}
+
+TEST_CASE("formatDrillOreList on an empty span yields an empty string")
+{
+    CHECK(formatDrillOreList({}) == "");
+}

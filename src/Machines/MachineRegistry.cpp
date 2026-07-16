@@ -28,3 +28,18 @@ const MachineInfo& machineInfo(MachineType type)
 
     return registry[index];
 }
+
+std::string formatDrillOreList(std::span<const ItemType> ores)
+{
+    std::string result;
+
+    for (std::size_t i = 0; i < ores.size(); ++i)
+    {
+        if (i > 0)
+            result += ", ";
+
+        result += std::string(itemInfo(ores[i]).name);
+    }
+
+    return result;
+}

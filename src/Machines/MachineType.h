@@ -1,9 +1,13 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <span>
+#include <string>
 #include <string_view>
 
 #include "../Blocks/Blocks.h" // for BlockColor
+#include "../Items/Items.h"   // for ItemType
 
 // Seconds of generator burn one coal provides.
 inline constexpr float COAL_BURN_SECONDS = 20.0f;
@@ -13,6 +17,10 @@ inline constexpr int DRILL_REACH = 4;
 
 // How many item slots a chest holds (2 rows of 10 in the UI).
 inline constexpr int CHEST_SLOTS = 20;
+
+// Ore item types a Drill can mine, in display order.
+inline constexpr std::array<ItemType, 3> DRILL_ORES = {
+    ItemType::CopperOre, ItemType::IronOre, ItemType::Coal};
 
 enum class MachineType : std::uint8_t
 {
@@ -41,3 +49,7 @@ struct MachineInfo
 };
 
 const MachineInfo& machineInfo(MachineType type);
+
+// "Copper Ore, Iron Ore, Coal" - one segment per entry, joined by ", ". An
+// empty span yields "".
+std::string formatDrillOreList(std::span<const ItemType> ores);
