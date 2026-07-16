@@ -95,22 +95,25 @@ PlayerInput Game::readInput() const
 
 void Game::spawnDrop(const ActionResult& result)
 {
-    const ItemType type = itemForBlock(result.brokenBlock);
+    for (const BrokenTile& tile : result.broken)
+    {
+        const ItemType type = itemForBlock(tile.block);
 
-    if (type == ItemType::None)
-        return;
+        if (type == ItemType::None)
+            continue;
 
-    // Pop out of the ground with a small hashed kick, so a row of drops does not
-    // land in a perfectly straight line.
-    const float roll = noise::hashFloat(result.brokenX, result.brokenY, WORLD_SEED);
+        // Pop out of the ground with a small hashed kick, so a row of drops does
+        // not land in a perfectly straight line.
+        const float roll = noise::hashFloat(tile.x, tile.y, WORLD_SEED);
 
-    const sf::Vector2f velocity{(roll - 0.5f) * 90.0f, -140.0f};
+        const sf::Vector2f velocity{(roll - 0.5f) * 90.0f, -140.0f};
 
-    // Centred in the tile it came from.
-    const sf::Vector2f position{result.brokenX * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f,
-                                result.brokenY * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f};
+        // Centred in the tile it came from.
+        const sf::Vector2f position{tile.x * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f,
+                                    tile.y * TILE_SIZE + (TILE_SIZE - ItemEntity::SIZE) * 0.5f};
 
-    drops.emplace_back(ItemStack{type, 1}, position, velocity);
+        drops.emplace_back(ItemStack{type, 1}, position, velocity);
+    }
 }
 
 void Game::updateDrops(float dt)
@@ -513,8 +516,9 @@ void Game::fixedUpdate(float dt)
 
     if (result.broke)
     {
-        // The player mutated the tile; the renderer has to be told about it.
-        chunks.markDirty(result.brokenX, result.brokenY);
+        // The player mutated one or more tiles; the renderer has to be told.
+        for (const BrokenTile& tile : result.broken)
+            chunks.markDirty(tile.x, tile.y);
 
         spawnDrop(result);
     }

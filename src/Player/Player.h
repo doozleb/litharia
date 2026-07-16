@@ -2,6 +2,8 @@
 
 #include <SFML/System/Vector2.hpp>
 
+#include <vector>
+
 #include "../Blocks/Blocks.h"
 #include "../Items/Inventory.h"
 #include "../Physics/Physics.h"
@@ -28,15 +30,24 @@ struct PlayerInput
     sf::Vector2f cursor{0.0f, 0.0f};
 };
 
+// One tile a mining action turned to air, and what it was before that.
+struct BrokenTile
+{
+    BlockType block;
+    int x;
+    int y;
+};
+
 // What the player's actions did to the world this tick. The player mutates the
 // world, but spawning drops and rebuilding chunks is Game's business, so what
 // happened is handed back rather than acted on here.
+//
+// broken is usually one tile, but felling a tree reports every log/leaf tile
+// the cascade took down in the same action.
 struct ActionResult
 {
     bool broke = false;
-    BlockType brokenBlock = BlockType::Air;
-    int brokenX = 0;
-    int brokenY = 0;
+    std::vector<BrokenTile> broken;
 
     bool placed = false;
     int placedX = 0;

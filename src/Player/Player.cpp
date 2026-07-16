@@ -164,9 +164,7 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
     progress = 0.0f;
 
     result.broke = true;
-    result.brokenBlock = block;
-    result.brokenX = tileX;
-    result.brokenY = tileY;
+    result.broken.push_back({block, tileX, tileY});
 }
 
 void Player::place(const PlayerInput& input, World& world, const Machines* machines,

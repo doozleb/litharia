@@ -281,7 +281,7 @@ TEST_CASE("mine it, pick it up, place it back: the loop closes")
     REQUIRE(world.get(13, 29) == BlockType::Air);
 
     // Pick it up (the game does this via the item entity; the effect is the same).
-    player.inventory().add({itemForBlock(mined.brokenBlock), 1});
+    player.inventory().add({itemForBlock(mined.broken[0].block), 1});
     REQUIRE(player.inventory().count(ItemType::Stone) == 1);
     player.setSelectedSlot(2);
 

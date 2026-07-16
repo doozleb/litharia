@@ -132,19 +132,20 @@ TEST_CASE("holding mine breaks a block after its hardness, and it drops itself")
     }
 
     REQUIRE(result.broke);
+    REQUIRE(result.broken.size() == 1);
 
     CHECK(elapsed >= hardness);
     CHECK(elapsed < hardness + 0.05f);
 
-    CHECK(result.brokenBlock == BlockType::Stone);
-    CHECK(result.brokenX == 12);
-    CHECK(result.brokenY == 29);
+    CHECK(result.broken[0].block == BlockType::Stone);
+    CHECK(result.broken[0].x == 12);
+    CHECK(result.broken[0].y == 29);
 
     // The tile really is gone.
     CHECK(world.get(12, 29) == BlockType::Air);
 
     // And it yields the right item.
-    CHECK(itemForBlock(result.brokenBlock) == ItemType::Stone);
+    CHECK(itemForBlock(result.broken[0].block) == ItemType::Stone);
 }
 
 TEST_CASE("harder blocks take longer")

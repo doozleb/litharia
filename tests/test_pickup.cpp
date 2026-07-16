@@ -171,9 +171,9 @@ TEST_CASE("mining and picking up puts the block in the bag")
     REQUIRE(result.broke);
 
     // The drop the game would spawn.
-    ItemEntity drop({itemForBlock(result.brokenBlock), 1},
-                    {static_cast<float>(result.brokenX * TILE_SIZE),
-                     static_cast<float>(result.brokenY * TILE_SIZE)},
+    ItemEntity drop({itemForBlock(result.broken[0].block), 1},
+                    {static_cast<float>(result.broken[0].x * TILE_SIZE),
+                     static_cast<float>(result.broken[0].y * TILE_SIZE)},
                     {0.0f, 0.0f});
 
     // Let the magnet do its work.
