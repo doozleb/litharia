@@ -23,6 +23,13 @@ public:
     // as a visually distinct grid.
     static constexpr float CHEST_SLOT_SIZE = 36.0f;
 
+    // Stack-count text size. The chest panel's slots are 75% the size of the
+    // hotbar/bag slots (CHEST_SLOT_SIZE / SLOT_SIZE), so its counts shrink by
+    // the same ratio to match.
+    static constexpr unsigned int COUNT_FONT_SIZE = 14;
+    static constexpr unsigned int CHEST_COUNT_FONT_SIZE =
+        static_cast<unsigned int>(COUNT_FONT_SIZE * (CHEST_SLOT_SIZE / SLOT_SIZE) + 0.5f);
+
     // The "Deposit All"/"Collect All" buttons sit to the chest panel's left,
     // stacked so together they span the same height as its 2 rows
     // (2 * CHEST_SLOT_SIZE + SLOT_GAP = 76px).

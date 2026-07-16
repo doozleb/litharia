@@ -46,7 +46,8 @@ sf::Color itemColor(ItemType type)
 // hotbar and the bag/chest panels so they render identically (aside from
 // their own slot size and background color).
 void drawSlot(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf::Vector2f pos,
-              const ItemStack& stack, bool highlighted, float slotSize, sf::Color backgroundColor)
+              const ItemStack& stack, bool highlighted, float slotSize, sf::Color backgroundColor,
+              unsigned int countFontSize)
 {
     sf::RectangleShape slot({slotSize, slotSize});
     slot.setPosition(pos);
@@ -68,7 +69,7 @@ void drawSlot(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf:
     if (!font)
         return;
 
-    sf::Text count(*font, std::to_string(stack.count), 14);
+    sf::Text count(*font, std::to_string(stack.count), countFontSize);
     count.setFillColor(sf::Color::White);
     count.setOutlineThickness(2.0f);
     count.setOutlineColor(sf::Color(10, 10, 12));
@@ -212,7 +213,8 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
     for (int i = 0; i < Inventory::HOTBAR_SIZE; ++i)
     {
         const sf::Vector2f pos = hudLayout::gridSlotPosition(origin, i, COLUMNS, SLOT_SIZE, SLOT_GAP);
-        drawSlot(window, font, pos, inventory.slot(i), i == selectedSlot, SLOT_SIZE, BAG_SLOT_BACKGROUND);
+        drawSlot(window, font, pos, inventory.slot(i), i == selectedSlot, SLOT_SIZE, BAG_SLOT_BACKGROUND,
+                 COUNT_FONT_SIZE);
     }
 
     window.setView(previous);
@@ -231,7 +233,8 @@ void Hud::drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventor
         const int gridIndex = i - Inventory::HOTBAR_SIZE;
         const sf::Vector2f pos =
             hudLayout::gridSlotPosition(origin, gridIndex, COLUMNS, SLOT_SIZE, SLOT_GAP);
-        drawSlot(window, font, pos, inventory.slot(i), false, SLOT_SIZE, BAG_SLOT_BACKGROUND);
+        drawSlot(window, font, pos, inventory.slot(i), false, SLOT_SIZE, BAG_SLOT_BACKGROUND,
+                 COUNT_FONT_SIZE);
     }
 
     window.setView(previous);
@@ -249,7 +252,8 @@ void Hud::drawChestPanel(sf::RenderWindow& window, const Inventory& chestStorage
     {
         const sf::Vector2f pos =
             hudLayout::gridSlotPosition(origin, i, COLUMNS, CHEST_SLOT_SIZE, SLOT_GAP);
-        drawSlot(window, font, pos, chestStorage.slot(i), false, CHEST_SLOT_SIZE, CHEST_SLOT_BACKGROUND);
+        drawSlot(window, font, pos, chestStorage.slot(i), false, CHEST_SLOT_SIZE, CHEST_SLOT_BACKGROUND,
+                 CHEST_COUNT_FONT_SIZE);
     }
 
     window.setView(previous);
