@@ -30,6 +30,24 @@ sf::Vector2f cursorOn(int tileX, int tileY)
     return {(tileX + 0.5f) * TILE_SIZE, (tileY + 0.5f) * TILE_SIZE};
 }
 
+// A trunk of `height` oak logs standing on the grass row at `groundY`, with a
+// fixed 6-tile canopy above it - same shape TerrainGenerator will place.
+void buildTree(World& world, int trunkX, int groundY, int height)
+{
+    for (int i = 1; i <= height; ++i)
+        world.set(trunkX, groundY - i, BlockType::OakLog);
+
+    const int topY = groundY - height;
+
+    world.set(trunkX - 1, topY, BlockType::OakLeaves);
+    world.set(trunkX + 1, topY, BlockType::OakLeaves);
+
+    for (int dx = -1; dx <= 1; ++dx)
+        world.set(trunkX + dx, topY - 1, BlockType::OakLeaves);
+
+    world.set(trunkX, topY - 2, BlockType::OakLeaves);
+}
+
 } // namespace
 
 TEST_CASE("pickaxe, axe, and oak log are correctly typed items")
@@ -486,4 +504,122 @@ TEST_CASE("an empty hand cannot mine anything")
     }
 
     CHECK(world.get(12, 29) == BlockType::Dirt);
+}
+
+TEST_CASE("breaking the bottom log fells the whole tree and drops every log")
+{
+    World world;
+    buildFloor(world, 30);
+    buildTree(world, 12, 30, 5); // trunk rows 25..29, canopy above row 25
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.setSelectedSlot(1); // Axe
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 29); // the bottom log
+
+    ActionResult result;
+
+    for (int i = 0; i < 200 && !result.broke; ++i)
+        result = player.update(input, world, STEP);
+
+    REQUIRE(result.broke);
+
+    int logCount = 0;
+    for (const BrokenTile& tile : result.broken)
+        if (tile.block == BlockType::OakLog)
+            ++logCount;
+
+    CHECK(logCount == 5);
+    CHECK(result.broken.size() == 5 + 6); // 5 logs + the 6-tile canopy
+
+    // The whole column, trunk and canopy, is gone.
+    for (int y = 20; y < 30; ++y)
+        CHECK(world.get(12, y) == BlockType::Air);
+}
+
+TEST_CASE("breaking a log partway up a tree only fells what's above the cut")
+{
+    World world;
+    buildFloor(world, 30);
+    buildTree(world, 12, 30, 5); // trunk rows 25..29 (25 = top, 29 = bottom)
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.setSelectedSlot(1); // Axe
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 27); // third log from the bottom
+
+    ActionResult result;
+
+    for (int i = 0; i < 200 && !result.broke; ++i)
+        result = player.update(input, world, STEP);
+
+    REQUIRE(result.broke);
+
+    int logCount = 0;
+    for (const BrokenTile& tile : result.broken)
+        if (tile.block == BlockType::OakLog)
+            ++logCount;
+
+    // Rows 25, 26, 27 come down (3 logs); the canopy comes with them.
+    CHECK(logCount == 3);
+    CHECK(result.broken.size() == 3 + 6);
+
+    // The untouched lower trunk survives.
+    CHECK(world.get(12, 28) == BlockType::OakLog);
+    CHECK(world.get(12, 29) == BlockType::OakLog);
+}
+
+TEST_CASE("leaves never drop an item, whether broken directly or as part of a cascade")
+{
+    World world;
+    buildFloor(world, 30);
+    buildTree(world, 12, 30, 4); // canopy apex sits at row 30 - 4 - 2 = 24, within reach
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.setSelectedSlot(1); // Axe
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 24); // the lone apex leaf, isolated from the rest
+
+    ActionResult result;
+
+    for (int i = 0; i < 200 && !result.broke; ++i)
+        result = player.update(input, world, STEP);
+
+    REQUIRE(result.broke);
+    REQUIRE(result.broken.size() == 1);
+    CHECK(result.broken[0].block == BlockType::OakLeaves);
+    CHECK(itemForBlock(result.broken[0].block) == ItemType::None);
+}
+
+TEST_CASE("a felled tree's logs are the only thing an axe drops")
+{
+    World world;
+    buildFloor(world, 30);
+    buildTree(world, 12, 30, 4);
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.setSelectedSlot(1); // Axe
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 29); // bottom log
+
+    ActionResult result;
+
+    for (int i = 0; i < 200 && !result.broke; ++i)
+        result = player.update(input, world, STEP);
+
+    REQUIRE(result.broke);
+
+    for (const BrokenTile& tile : result.broken)
+    {
+        const ItemType dropped = itemForBlock(tile.block);
+        CHECK((dropped == ItemType::OakLog || dropped == ItemType::None));
+    }
 }

@@ -41,6 +41,43 @@ AABB tileBox(int tileX, int tileY)
                 {TILE_SIZE, TILE_SIZE}};
 }
 
+bool isTreePart(BlockType type)
+{
+    return type == BlockType::OakLog || type == BlockType::OakLeaves;
+}
+
+// Flood-fills from the tile that was just broken through 4-connected
+// OakLog/OakLeaves neighbors, moving sideways or up but never down. That
+// asymmetry is what makes cutting a trunk partway up only take the top half:
+// the fill can never step back below the tile that started it, so the
+// untouched trunk beneath the cut is never reached.
+void collectTreeBreak(World& world, int startX, int startY, std::vector<BrokenTile>& out)
+{
+    std::vector<sf::Vector2i> stack{sf::Vector2i{startX, startY}};
+
+    while (!stack.empty())
+    {
+        const sf::Vector2i pos = stack.back();
+        stack.pop_back();
+
+        const BlockType type = world.get(pos.x, pos.y);
+
+        if (!isTreePart(type))
+            continue;
+
+        // Clearing immediately doubles as the visited marker: a neighbor
+        // reached a second time from another direction is already Air, so it
+        // fails the isTreePart check above and is skipped rather than
+        // reprocessed or double-counted.
+        world.set(pos.x, pos.y, BlockType::Air);
+        out.push_back({type, pos.x, pos.y});
+
+        stack.push_back(sf::Vector2i{pos.x - 1, pos.y});
+        stack.push_back(sf::Vector2i{pos.x + 1, pos.y});
+        stack.push_back(sf::Vector2i{pos.x, pos.y - 1});
+    }
+}
+
 } // namespace
 
 Player::Player(sf::Vector2f topLeft)
@@ -164,13 +201,18 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
         return;
 
     // Broken.
-    world.set(tileX, tileY, BlockType::Air);
+    if (isTreePart(block))
+        collectTreeBreak(world, tileX, tileY, result.broken);
+    else
+    {
+        world.set(tileX, tileY, BlockType::Air);
+        result.broken.push_back({block, tileX, tileY});
+    }
 
     mining = false;
     progress = 0.0f;
 
     result.broke = true;
-    result.broken.push_back({block, tileX, tileY});
 }
 
 void Player::place(const PlayerInput& input, World& world, const Machines* machines,
