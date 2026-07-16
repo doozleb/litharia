@@ -420,3 +420,70 @@ TEST_CASE("the player spawns already holding a pickaxe and an axe")
     CHECK(player.inventory().slot(1).type == ItemType::Axe);
     CHECK(player.inventory().slot(1).count == 1);
 }
+
+TEST_CASE("the wrong tool cannot break a block at all")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(12, 29, BlockType::Stone);
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.setSelectedSlot(1); // Axe, not a Pickaxe
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 29);
+
+    for (int i = 0; i < 300; ++i)
+    {
+        const ActionResult result = player.update(input, world, STEP);
+        REQUIRE_FALSE(result.broke);
+    }
+
+    CHECK(world.get(12, 29) == BlockType::Stone);
+    CHECK_FALSE(player.isMining());
+}
+
+TEST_CASE("a pickaxe cannot fell a tree")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(12, 29, BlockType::OakLog);
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.setSelectedSlot(0); // Pickaxe
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 29);
+
+    for (int i = 0; i < 300; ++i)
+    {
+        const ActionResult result = player.update(input, world, STEP);
+        REQUIRE_FALSE(result.broke);
+    }
+
+    CHECK(world.get(12, 29) == BlockType::OakLog);
+}
+
+TEST_CASE("an empty hand cannot mine anything")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(12, 29, BlockType::Dirt);
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.setSelectedSlot(2); // an empty hotbar slot
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 29);
+
+    for (int i = 0; i < 300; ++i)
+    {
+        const ActionResult result = player.update(input, world, STEP);
+        REQUIRE_FALSE(result.broke);
+    }
+
+    CHECK(world.get(12, 29) == BlockType::Dirt);
+}

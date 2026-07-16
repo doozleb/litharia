@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "../Core/Constants.h"
+#include "../Items/Items.h"
 #include "../Machines/Machines.h"
 #include "../World/World.h"
 
@@ -133,9 +134,14 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
 
     const BlockType block = world.get(tileX, tileY);
 
-    // Not holding the button, nothing solid under the cursor, or out of arm's
-    // reach: no progress, and any progress already made is thrown away.
-    if (!input.mine || block == BlockType::Air || !inReach(tileX, tileY))
+    const ToolType heldTool = itemInfo(bag.slot(selected).type).toolType;
+    const bool wrongTool = block != BlockType::Air && blockInfo(block).requiredTool != heldTool;
+
+    // Not holding the button, nothing solid under the cursor, out of arm's
+    // reach, or the wrong tool (including no tool at all) in hand: no
+    // progress, and any progress already made is thrown away. A block cannot
+    // be chipped away by hand or the wrong tool - it simply does not break.
+    if (!input.mine || block == BlockType::Air || !inReach(tileX, tileY) || wrongTool)
     {
         mining = false;
         progress = 0.0f;
