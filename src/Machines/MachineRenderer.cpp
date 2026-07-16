@@ -19,13 +19,7 @@ sf::Color toColor(BlockColor c, std::uint8_t alpha = 255)
 // The color of the item riding a machine, matching how drops look on the ground.
 sf::Color itemColor(ItemType type)
 {
-    const BlockType block = itemInfo(type).placeBlock;
-
-    // Plates are not placeable; give them a bright refined tint.
-    if (block == BlockType::Air)
-        return sf::Color(220, 220, 235);
-
-    return toColor(blockInfo(block).color);
+    return toColor(itemInfo(type).iconColor);
 }
 
 // Every side of every machine is either an input (light blue) or an output

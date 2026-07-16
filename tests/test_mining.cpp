@@ -32,6 +32,35 @@ sf::Vector2f cursorOn(int tileX, int tileY)
 
 } // namespace
 
+TEST_CASE("pickaxe, axe, and oak log are correctly typed items")
+{
+    CHECK(itemInfo(ItemType::Pickaxe).toolType == ToolType::Pickaxe);
+    CHECK(itemInfo(ItemType::Pickaxe).maxStack == 1);
+
+    CHECK(itemInfo(ItemType::Axe).toolType == ToolType::Axe);
+    CHECK(itemInfo(ItemType::Axe).maxStack == 1);
+
+    CHECK(itemInfo(ItemType::OakLog).toolType == ToolType::None);
+
+    CHECK(itemForBlock(BlockType::OakLog) == ItemType::OakLog);
+    CHECK(itemForBlock(BlockType::OakLeaves) == ItemType::None);
+
+    // Every non-tool item still reports no tool type.
+    CHECK(itemInfo(ItemType::Dirt).toolType == ToolType::None);
+}
+
+TEST_CASE("every item has a real icon color, even non-placeable ones")
+{
+    // Index 0 is "Nothing" - never rendered, skip it.
+    for (int i = 1; i < static_cast<int>(ItemType::Count); ++i)
+    {
+        const ItemInfo& info = itemInfo(static_cast<ItemType>(i));
+        const bool allBlack = info.iconColor.r == 0 && info.iconColor.g == 0 && info.iconColor.b == 0;
+
+        CHECK_FALSE(allBlack);
+    }
+}
+
 TEST_CASE("the item registry maps mined blocks to items")
 {
     CHECK(itemForBlock(BlockType::Stone) == ItemType::Stone);

@@ -28,10 +28,11 @@ sf::Color toColor(BlockColor c)
     return sf::Color(c.r, c.g, c.b);
 }
 
-// The block an item would place, which is also what it looks like on the ground.
+// An item's own color, independent of what it places (most non-placeable
+// items, like tools or logs, don't place anything at all).
 sf::Color itemColor(ItemType type)
 {
-    return toColor(blockInfo(itemInfo(type).placeBlock).color);
+    return toColor(itemInfo(type).iconColor);
 }
 
 } // namespace

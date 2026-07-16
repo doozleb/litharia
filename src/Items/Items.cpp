@@ -7,15 +7,18 @@ namespace
 
 // Indexed by ItemType. Order must match the enum.
 constexpr std::array<ItemInfo, static_cast<std::size_t>(ItemType::Count)> registry = {{
-    //  name          maxStack  placeBlock
-    {"Nothing",      0,  BlockType::Air},
-    {"Dirt",        99,  BlockType::Dirt},
-    {"Stone",       99,  BlockType::Stone},
-    {"Copper Ore",  99,  BlockType::CopperOre},
-    {"Iron Ore",    99,  BlockType::IronOre},
-    {"Coal",        99,  BlockType::Coal},
-    {"Copper Plate", 99,  BlockType::Air},
-    {"Iron Plate",   99,  BlockType::Air},
+    //  name           maxStack  placeBlock            toolType           iconColor
+    {"Nothing",       0,  BlockType::Air,       ToolType::None,    {  0,   0,   0}},
+    {"Dirt",         99,  BlockType::Dirt,      ToolType::None,    {134,  89,  52}},
+    {"Stone",        99,  BlockType::Stone,     ToolType::None,    {112, 112, 118}},
+    {"Copper Ore",   99,  BlockType::CopperOre, ToolType::None,    {201, 116,  56}},
+    {"Iron Ore",     99,  BlockType::IronOre,   ToolType::None,    {166, 174, 190}},
+    {"Coal",         99,  BlockType::Coal,      ToolType::None,    { 44,  44,  50}},
+    {"Copper Plate", 99,  BlockType::Air,       ToolType::None,    {224, 150,  90}},
+    {"Iron Plate",   99,  BlockType::Air,       ToolType::None,    {205, 210, 218}},
+    {"Pickaxe",       1,  BlockType::Air,       ToolType::Pickaxe, {170, 170, 180}},
+    {"Axe",           1,  BlockType::Air,       ToolType::Axe,     {160,  90,  50}},
+    {"Oak Log",      99,  BlockType::Air,       ToolType::None,    {101,  67,  33}},
 }};
 
 } // namespace
@@ -43,6 +46,7 @@ ItemType itemForBlock(BlockType block)
         case BlockType::CopperOre: return ItemType::CopperOre;
         case BlockType::IronOre:   return ItemType::IronOre;
         case BlockType::Coal:      return ItemType::Coal;
+        case BlockType::OakLog:    return ItemType::OakLog;
 
         default: return ItemType::None;
     }

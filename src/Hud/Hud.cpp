@@ -37,10 +37,9 @@ sf::View currentWindowView(const sf::RenderWindow& window)
     return sf::View(sf::FloatRect({0.0f, 0.0f}, sf::Vector2f(window.getSize())));
 }
 
-// The block an item places is also what it looks like in the slot.
 sf::Color itemColor(ItemType type)
 {
-    return toColor(blockInfo(itemInfo(type).placeBlock).color);
+    return toColor(itemInfo(type).iconColor);
 }
 
 // Draws one slot's background, item icon, and stack count - shared by the

@@ -18,6 +18,9 @@ enum class ItemType : std::uint8_t
     Coal,
     CopperPlate,
     IronPlate,
+    Pickaxe,
+    Axe,
+    OakLog,
 
     Count
 };
@@ -29,6 +32,14 @@ struct ItemInfo
 
     // The block this item places, or Air if it is not placeable.
     BlockType placeBlock;
+
+    // None for everything except the two tools.
+    ToolType toolType;
+
+    // What this item looks like in the hotbar/bag and on the ground. Independent
+    // of placeBlock: a non-placeable item (a plate, a tool, a log) still needs a
+    // color of its own to render as anything but a black square.
+    BlockColor iconColor;
 };
 
 const ItemInfo& itemInfo(ItemType type);
