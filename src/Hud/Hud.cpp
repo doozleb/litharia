@@ -349,38 +349,71 @@ std::optional<Hud::ChestButton> Hud::hitTestChestButton(sf::Vector2f screenPos, 
     return std::nullopt;
 }
 
-void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected)
+void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected, const Inventory& bag)
 {
     const sf::View previous = window.getView();
     window.setView(currentWindowView(window));
 
+    constexpr int FIRST = 1; // skip MachineType::None
+
+    std::vector<MachineType> held;
+    for (int i = FIRST; i < static_cast<int>(MachineType::Count); ++i)
+    {
+        const MachineType type = static_cast<MachineType>(i);
+        if (bag.count(itemForMachine(type)) > 0)
+            held.push_back(type);
+    }
+
+    if (held.empty())
+    {
+        window.setView(previous);
+        return;
+    }
+
     constexpr int VISIBLE = 5;
     constexpr float SWATCH = 40.0f;
     constexpr float GAP = 6.0f;
-    constexpr int FIRST = 1; // skip MachineType::None
 
-    const int total = static_cast<int>(MachineType::Count) - FIRST;
-    const int selectedIndex = static_cast<int>(selected) - FIRST;
-    const int half = VISIBLE / 2;
+    const int total = static_cast<int>(held.size());
+    const int visible = std::min(VISIBLE, total);
 
-    const float totalWidth = VISIBLE * SWATCH + (VISIBLE - 1) * GAP;
+    const auto found = std::find(held.begin(), held.end(), selected);
+    const int selectedIndex = (found != held.end()) ? static_cast<int>(found - held.begin()) : 0;
+    const int half = visible / 2;
+
+    const float totalWidth = visible * SWATCH + (visible - 1) * GAP;
     const sf::Vector2f windowSize(window.getSize());
     const float startX = (windowSize.x - totalWidth) * 0.5f;
     const float y = windowSize.y - SLOT_SIZE - MARGIN - SWATCH - MARGIN * 2.0f;
 
-    for (int slot = 0; slot < VISIBLE; ++slot)
+    const MachineType displayed = held[selectedIndex];
+
+    for (int slot = 0; slot < visible; ++slot)
     {
         const int index = ((selectedIndex + slot - half) % total + total) % total;
-        const MachineType type = static_cast<MachineType>(FIRST + index);
+        const MachineType type = held[index];
         const MachineInfo& info = machineInfo(type);
-        const bool isSelected = (slot == half);
+        const bool isSelected = (index == selectedIndex);
+
+        const sf::Vector2f pos{startX + slot * (SWATCH + GAP), y};
 
         sf::RectangleShape swatch({SWATCH, SWATCH});
-        swatch.setPosition({startX + slot * (SWATCH + GAP), y});
+        swatch.setPosition(pos);
         swatch.setFillColor(toColor(info.color));
         swatch.setOutlineThickness(isSelected ? -3.0f : -1.0f);
         swatch.setOutlineColor(isSelected ? sf::Color(255, 236, 140) : sf::Color(90, 90, 105));
         window.draw(swatch);
+
+        if (font)
+        {
+            sf::Text count(*font, "x" + std::to_string(bag.count(itemForMachine(type))), 12);
+            count.setFillColor(sf::Color::White);
+            count.setOutlineThickness(2.0f);
+            count.setOutlineColor(sf::Color(10, 10, 12));
+            const sf::FloatRect cb = count.getLocalBounds();
+            count.setPosition({pos.x + SWATCH - cb.size.x - 3.0f, pos.y + SWATCH - cb.size.y - 6.0f});
+            window.draw(count);
+        }
     }
 
     if (!font)
@@ -389,7 +422,7 @@ void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected)
         return;
     }
 
-    sf::Text name(*font, std::string(machineInfo(selected).name), 16);
+    sf::Text name(*font, std::string(machineInfo(displayed).name), 16);
     const sf::FloatRect nameBounds = name.getLocalBounds();
     name.setFillColor(sf::Color::White);
     name.setPosition({(windowSize.x - nameBounds.size.x) * 0.5f, y - 22.0f});

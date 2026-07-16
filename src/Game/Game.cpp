@@ -148,18 +148,42 @@ sf::Vector2i Game::cursorTile() const
 void Game::placeMachineAtCursor()
 {
     const sf::Vector2i tile = cursorTile();
+    const int width = machineInfo(buildType).width;
 
-    // Do not place inside solid rock or where a machine already sits.
-    if (world.isSolid(tile.x, tile.y) || !machines.canPlace(tile.x, tile.y))
+    for (int dx = 0; dx < width; ++dx)
+        if (world.isSolid(tile.x + dx, tile.y))
+            return;
+
+    const ItemType item = itemForMachine(buildType);
+    if (player.inventory().count(item) <= 0)
         return;
 
-    machines.place(buildType, tile.x, tile.y, buildFacing);
+    if (machines.place(buildType, tile.x, tile.y, buildFacing) == nullptr)
+        return;
+
+    player.inventory().removeOne(item);
 }
 
 void Game::removeMachineAtCursor()
 {
     const sf::Vector2i tile = cursorTile();
-    machines.remove(tile.x, tile.y);
+    const Machine* target = machines.at(tile.x, tile.y);
+    if (target == nullptr)
+        return;
+
+    const MachineType type = target->type;
+    if (!machines.remove(tile.x, tile.y))
+        return;
+
+    const ItemType item = itemForMachine(type);
+    const int leftover = player.inventory().add({item, 1});
+
+    if (leftover > 0)
+    {
+        const sf::Vector2f position =
+            player.center() - sf::Vector2f{ItemEntity::SIZE * 0.5f, ItemEntity::SIZE * 0.5f};
+        drops.emplace_back(ItemStack{item, leftover}, position, sf::Vector2f{0.0f, -60.0f});
+    }
 }
 
 void Game::cycleBuildType(int delta)
@@ -167,10 +191,21 @@ void Game::cycleBuildType(int delta)
     constexpr int first = 1; // skip MachineType::None
     const int count = static_cast<int>(MachineType::Count) - first;
 
+    const Inventory& bag = player.inventory();
     int index = static_cast<int>(buildType) - first;
-    index = ((index + delta) % count + count) % count;
 
-    setBuildType(static_cast<MachineType>(first + index));
+    for (int step = 0; step < count; ++step)
+    {
+        index = ((index + delta) % count + count) % count;
+        const MachineType candidate = static_cast<MachineType>(first + index);
+
+        if (bag.count(itemForMachine(candidate)) > 0)
+        {
+            setBuildType(candidate);
+            return;
+        }
+    }
+    // Nothing held: leave buildType where it is, and the palette draws empty.
 }
 
 void Game::setBuildType(MachineType type)
@@ -480,6 +515,7 @@ void Game::handleEvents()
             if (key->code == Key::F4) setBuildType(MachineType::Chute);
             if (key->code == Key::F5) setBuildType(MachineType::Smelter);
             if (key->code == Key::F6) setBuildType(MachineType::Chest);
+            if (key->code == Key::F7) setBuildType(MachineType::CraftingTable);
         }
         else if (const auto* mouse = event->getIf<sf::Event::MouseButtonPressed>())
         {
@@ -610,7 +646,7 @@ void Game::render()
     hud.draw(window, player.inventory(), player.selectedSlot());
 
     if (buildMode)
-        hud.drawBuildPalette(window, buildType);
+        hud.drawBuildPalette(window, buildType, player.inventory());
 
     if (inventoryOpen)
         drawInventoryPanels();

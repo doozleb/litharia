@@ -82,7 +82,10 @@ public:
 
     // The build-mode picker: a strip of machine-type swatches centered on
     // `selected`, plus a "left click: place / right click: destroy" caption.
-    void drawBuildPalette(sf::RenderWindow& window, MachineType selected);
+    // Only lists MachineTypes the bag currently holds >= 1 of, labeling each
+    // swatch with its count; empty if the bag holds none of anything craftable
+    // yet.
+    void drawBuildPalette(sf::RenderWindow& window, MachineType selected, const Inventory& bag);
 
     bool hasFont() const { return font.has_value(); }
 
