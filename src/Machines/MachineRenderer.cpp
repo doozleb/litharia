@@ -55,7 +55,7 @@ bool isOutputSide(const Machine& m, Direction side)
 
 void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) const
 {
-    sf::RectangleShape body({static_cast<float>(TILE_SIZE), static_cast<float>(TILE_SIZE)});
+    sf::RectangleShape body;
     body.setOutlineThickness(-1.0f);
     body.setOutlineColor(sf::Color(20, 20, 24));
 
@@ -81,9 +81,13 @@ void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) c
         // Consumers dim when they have no power.
         const std::uint8_t alpha = (info.consumer && !m.powered) ? 120 : 255;
 
+        body.setSize({static_cast<float>(info.width * TILE_SIZE), static_cast<float>(TILE_SIZE)});
         body.setPosition({px, py});
         body.setFillColor(toColor(info.color, alpha));
         target.draw(body);
+
+        if (m.type == MachineType::CraftingTable)
+            continue;
 
         const MachineStatus status = barStatus(m);
 
