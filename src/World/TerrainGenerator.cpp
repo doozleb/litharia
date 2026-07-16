@@ -48,6 +48,21 @@ constexpr std::uint32_t SALT_COPPER = 0x3000u;
 constexpr std::uint32_t SALT_IRON = 0x4000u;
 constexpr std::uint32_t SALT_COAL = 0x5000u;
 
+// --- Pass 4: trees ------------------------------------------------------------
+// A wider wavelength than the surface noise, so forested and bare stretches
+// span many tens of tiles rather than flickering column to column.
+constexpr float FOREST_FREQUENCY = 0.006f;
+constexpr int FOREST_OCTAVES = 3;
+
+// The forest factor in [0, 1] is remapped into this density range before each
+// column rolls against it - so even a "bare" stretch occasionally grows a
+// tree, and a "forest" stretch is dense but still gated by TREE_MIN_SPACING.
+constexpr float FOREST_DENSITY_MIN = 0.05f;
+constexpr float FOREST_DENSITY_MAX = 0.6f;
+
+constexpr std::uint32_t SALT_FOREST = 0x6000u;
+constexpr std::uint32_t SALT_TREE = 0x7000u;
+
 float lerp(float a, float b, float t)
 {
     return a + (b - a) * t;
@@ -87,6 +102,7 @@ void TerrainGenerator::generate(World& world) const
 {
     generateBase(world);
     scatterOre(world);
+    scatterTrees(world);
 }
 
 void TerrainGenerator::generateBase(World& world) const
@@ -215,5 +231,56 @@ void TerrainGenerator::scatterOre(World& world) const
                 growVein(world, centerX, centerY, radius, ore.type, ore.minY, ore.maxY);
             }
         }
+    }
+}
+
+void TerrainGenerator::placeTree(World& world, int trunkX, int surface, int height) const
+{
+    for (int i = 1; i <= height; ++i)
+        world.set(trunkX, surface - i, BlockType::OakLog);
+
+    const int topY = surface - height;
+
+    // Flanking the top log.
+    world.set(trunkX - 1, topY, BlockType::OakLeaves);
+    world.set(trunkX + 1, topY, BlockType::OakLeaves);
+
+    // The 3-wide row above that.
+    for (int dx = -1; dx <= 1; ++dx)
+        world.set(trunkX + dx, topY - 1, BlockType::OakLeaves);
+
+    // The single apex tile on top.
+    world.set(trunkX, topY - 2, BlockType::OakLeaves);
+}
+
+void TerrainGenerator::scatterTrees(World& world) const
+{
+    // Far enough back that the very first eligible column can still place a
+    // tree instead of being rejected for "too close to the last one".
+    int lastTrunkX = -TREE_MIN_SPACING;
+
+    // Columns 0 and WORLD_WIDTH - 1 are skipped: a canopy needs a tile on
+    // each side of its trunk, and one at the world edge would not have it.
+    for (int x = 1; x < WORLD_WIDTH - 1; ++x)
+    {
+        if (x - lastTrunkX < TREE_MIN_SPACING)
+            continue;
+
+        const float forestFactor = noise::fbm1D(static_cast<float>(x) * FOREST_FREQUENCY,
+                                                 worldSeed + SALT_FOREST,
+                                                 FOREST_OCTAVES);
+
+        const float density = lerp(FOREST_DENSITY_MIN, FOREST_DENSITY_MAX, forestFactor);
+
+        if (noise::hashFloat(x, 0, worldSeed + SALT_TREE) >= density)
+            continue;
+
+        const float heightRoll = noise::hashFloat(x, 0, worldSeed + SALT_TREE + 1u);
+        const int height =
+            TREE_MIN_HEIGHT + static_cast<int>(heightRoll * (TREE_MAX_HEIGHT - TREE_MIN_HEIGHT + 1));
+
+        placeTree(world, x, surfaceHeight(x), height);
+
+        lastTrunkX = x;
     }
 }

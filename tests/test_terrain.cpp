@@ -1,5 +1,6 @@
 #include "doctest.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "Blocks/Blocks.h"
@@ -62,9 +63,12 @@ TEST_CASE("every column has a surface, inside the world bounds")
         CHECK(surface > 0);
         CHECK(surface < WORLD_HEIGHT);
 
-        // The surface tile itself is grass, and there is open air directly above it.
+        // The surface tile itself is grass. Directly above it is open air,
+        // unless a tree's bottom log has grown there instead.
         CHECK(world.get(x, surface) == BlockType::Grass);
-        CHECK(world.get(x, surface - 1) == BlockType::Air);
+
+        const BlockType above = world.get(x, surface - 1);
+        CHECK((above == BlockType::Air || above == BlockType::OakLog));
     }
 }
 
@@ -271,4 +275,80 @@ TEST_CASE("coal spawns only in stone and inside its depth band")
 
     // The world is not barren of fuel.
     CHECK(coalCount > 0);
+}
+
+TEST_CASE("trees stand on the surface, stay within height bounds, and never crowd a neighbor")
+{
+    World world;
+    const TerrainGenerator generator(2026);
+    generator.generate(world);
+
+    std::vector<int> trunkColumns;
+
+    for (int x = 1; x < WORLD_WIDTH - 1; ++x)
+    {
+        const int surface = generator.surfaceHeight(x);
+
+        if (world.get(x, surface - 1) != BlockType::OakLog)
+            continue;
+
+        trunkColumns.push_back(x);
+
+        // Walk up the trunk counting logs until it runs out.
+        int height = 0;
+        int y = surface - 1;
+
+        while (world.get(x, y) == BlockType::OakLog)
+        {
+            ++height;
+            --y;
+        }
+
+        CHECK(height >= TerrainGenerator::TREE_MIN_HEIGHT);
+        CHECK(height <= TerrainGenerator::TREE_MAX_HEIGHT);
+    }
+
+    // The pass actually grew a meaningful number of trees.
+    REQUIRE(trunkColumns.size() > 10);
+
+    // No two trunks close enough for their canopies to touch.
+    for (std::size_t i = 1; i < trunkColumns.size(); ++i)
+        CHECK(trunkColumns[i] - trunkColumns[i - 1] >= TerrainGenerator::TREE_MIN_SPACING);
+}
+
+TEST_CASE("forest density blends across the world rather than switching on and off")
+{
+    // Same seed as the density noise itself: what matters is that some wide
+    // stretches of the world have many more trees than others, evidence the
+    // low-frequency forest-factor channel is doing something rather than
+    // every column rolling independently at a flat rate.
+    World world;
+    const TerrainGenerator generator(4040);
+    generator.generate(world);
+
+    auto treeCountIn = [&](int fromX, int toX) {
+        int count = 0;
+
+        for (int x = fromX; x < toX; ++x)
+        {
+            const int surface = generator.surfaceHeight(x);
+            if (world.get(x, surface - 1) == BlockType::OakLog)
+                ++count;
+        }
+
+        return count;
+    };
+
+    std::vector<int> bandCounts;
+    constexpr int BAND_WIDTH = 100;
+
+    for (int start = 0; start + BAND_WIDTH <= WORLD_WIDTH; start += BAND_WIDTH)
+        bandCounts.push_back(treeCountIn(start, start + BAND_WIDTH));
+
+    const int lowest = *std::min_element(bandCounts.begin(), bandCounts.end());
+    const int highest = *std::max_element(bandCounts.begin(), bandCounts.end());
+
+    // A flat per-column chance would make every 100-wide band come out close
+    // to the same count; blended forest patches should not.
+    CHECK(highest > lowest);
 }

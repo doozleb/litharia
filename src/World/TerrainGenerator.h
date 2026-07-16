@@ -8,13 +8,16 @@ class World;
 
 // A pure function of the seed: the same seed always produces a byte-identical world.
 //
-// Three passes:
+// Four passes:
 //   1. Surface - fractal noise over x gives a rolling height; grass, then a dirt
 //      band, then stone all the way down.
 //   2. Caves   - 2D fractal noise crossing a threshold carves air. The threshold
 //      tightens near the surface so caves do not shred the landscape.
 //   3. Ore     - hashed candidate points inside a depth band grow small blobs, but
 //      only ever overwrite stone, so ore never floats in a cave or sits in dirt.
+//   4. Trees   - a low-frequency noise channel gives each x position a "forest
+//      factor"; columns roll against it to grow an oak tree, spaced far enough
+//      apart that no two canopies ever touch.
 class TerrainGenerator
 {
 public:
@@ -31,9 +34,18 @@ public:
     static constexpr int COAL_MIN_Y = 180;
     static constexpr int COAL_MAX_Y = 300;
 
+    static constexpr int TREE_MIN_HEIGHT = 4;
+    static constexpr int TREE_MAX_HEIGHT = 6;
+
+    // Minimum distance between two trunks. Each canopy is 3 tiles wide
+    // (trunk-1..trunk+1); at this spacing the widest two canopies can ever
+    // get is one tile apart, so they can never touch - which is what keeps
+    // the break-cascade's flood-fill from ever bleeding into a neighbor tree.
+    static constexpr int TREE_MIN_SPACING = 3;
+
     explicit TerrainGenerator(std::uint32_t seed);
 
-    // Passes 1-3.
+    // Passes 1-4.
     void generate(World& world) const;
 
     // Passes 1-2 only: terrain with no ore in it. The ore pass is defined as
@@ -48,6 +60,7 @@ private:
     void generateSurface(World& world) const;
     void carveCaves(World& world) const;
     void scatterOre(World& world) const;
+    void scatterTrees(World& world) const;
 
     void growVein(World& world,
                   int centerX,
@@ -56,6 +69,8 @@ private:
                   BlockType ore,
                   int minY,
                   int maxY) const;
+
+    void placeTree(World& world, int trunkX, int surface, int height) const;
 
     std::uint32_t worldSeed;
 };
