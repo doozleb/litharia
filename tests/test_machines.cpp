@@ -180,3 +180,33 @@ TEST_CASE("a machine placed after a removal still sorts last")
 
     CHECK(fresh > survivor);
 }
+
+TEST_CASE("the machine registry declares a footprint width, 1 for every type except the Crafting Table")
+{
+    for (int i = 1; i < static_cast<int>(MachineType::Count); ++i)
+    {
+        const MachineType type = static_cast<MachineType>(i);
+        const int width = machineInfo(type).width;
+
+        if (type == MachineType::CraftingTable)
+            CHECK(width == 2);
+        else
+            CHECK(width == 1);
+    }
+}
+
+TEST_CASE("itemForMachine maps every placeable machine to its own item")
+{
+    CHECK(itemForMachine(MachineType::BurnerGenerator) == ItemType::BurnerGenerator);
+    CHECK(itemForMachine(MachineType::Drill) == ItemType::Drill);
+    CHECK(itemForMachine(MachineType::Belt) == ItemType::Belt);
+    CHECK(itemForMachine(MachineType::Chute) == ItemType::Chute);
+    CHECK(itemForMachine(MachineType::Smelter) == ItemType::Smelter);
+    CHECK(itemForMachine(MachineType::Chest) == ItemType::Chest);
+    CHECK(itemForMachine(MachineType::CraftingTable) == ItemType::CraftingTable);
+}
+
+TEST_CASE("itemForMachine(None) has no matching item")
+{
+    CHECK(itemForMachine(MachineType::None) == ItemType::None);
+}

@@ -31,6 +31,7 @@ enum class MachineType : std::uint8_t
     Chute,
     Smelter,
     Chest,
+    CraftingTable,
 
     Count
 };
@@ -46,9 +47,17 @@ struct MachineInfo
 
     float powerRating; // supply if generator, demand if consumer
     float actionTime;  // drill: seconds per ore; transport: transfer interval
+
+    // Tile footprint along X, starting at the machine's placed (x, y) and
+    // growing rightward. 1 for every machine except the Crafting Table.
+    int width;
 };
 
 const MachineInfo& machineInfo(MachineType type);
+
+// The item that represents `type` in the bag - what the build palette counts,
+// what placing consumes, what removing refunds. None for MachineType::None.
+ItemType itemForMachine(MachineType type);
 
 // "Copper Ore, Iron Ore, Coal" - one segment per entry, joined by ", ". An
 // empty span yields "".
