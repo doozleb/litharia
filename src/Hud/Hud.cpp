@@ -10,6 +10,7 @@
 #include "../Blocks/Blocks.h"
 #include "../Items/Inventory.h"
 #include "../Machines/MachineType.h"
+#include "../Machines/Recipes.h"
 #include "HudLayout.h"
 
 namespace
@@ -416,6 +417,11 @@ void Hud::drawMachineTooltip(sf::RenderWindow& window,
 
     std::vector<TooltipLine> lines;
     lines.push_back({std::string(info.name), sf::Color::White});
+
+    if (machine.type == MachineType::Smelter)
+        lines.push_back({"Smelts: " + formatSmeltRecipeList(allSmeltRecipes()), sf::Color::White});
+    else if (machine.type == MachineType::Drill)
+        lines.push_back({"Mines: " + formatDrillOreList(DRILL_ORES), sf::Color::White});
 
     if (info.generator)
         lines.push_back({"Fuel: " + std::to_string(static_cast<int>(machine.fuel)) + "s remaining",
