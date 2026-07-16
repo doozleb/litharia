@@ -32,6 +32,11 @@ public:
     // was already empty.
     bool removeOne(int slot);
 
+    // Removes one unit of `type` from the first slot holding it, clearing that
+    // slot if it reaches zero. False and no-op if the bag holds none of it -
+    // the by-type counterpart to the by-slot removeOne(int) above.
+    bool removeOne(ItemType type);
+
     // Empties a slot outright and returns whatever was in it (an empty stack if
     // the slot already was). Used to lift a stack off the grid, e.g. dragging.
     ItemStack take(int index);

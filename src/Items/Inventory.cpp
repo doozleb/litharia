@@ -83,6 +83,15 @@ bool Inventory::removeOne(int slot)
     return true;
 }
 
+bool Inventory::removeOne(ItemType type)
+{
+    for (std::size_t i = 0; i < slots.size(); ++i)
+        if (slots[i].type == type)
+            return removeOne(static_cast<int>(i));
+
+    return false;
+}
+
 ItemStack Inventory::take(int index)
 {
     if (!validSlot(index))

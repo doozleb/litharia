@@ -270,3 +270,30 @@ TEST_CASE("the default inventory size is still the player's 40 slots")
     Inventory bag;
     CHECK(bag.slotCount() == Inventory::SIZE);
 }
+
+TEST_CASE("removeOne(ItemType) decrements the first matching slot")
+{
+    Inventory bag;
+    bag.add({ItemType::CopperOre, 3});
+
+    CHECK(bag.removeOne(ItemType::CopperOre));
+    CHECK(bag.count(ItemType::CopperOre) == 2);
+}
+
+TEST_CASE("removeOne(ItemType) clears a slot that reaches zero")
+{
+    Inventory bag;
+    bag.add({ItemType::Stone, 1});
+
+    CHECK(bag.removeOne(ItemType::Stone));
+    CHECK(bag.slot(0).empty());
+}
+
+TEST_CASE("removeOne(ItemType) is a no-op when the bag doesn't hold it")
+{
+    Inventory bag;
+    bag.add({ItemType::Dirt, 1});
+
+    CHECK_FALSE(bag.removeOne(ItemType::Stone));
+    CHECK(bag.count(ItemType::Dirt) == 1);
+}
