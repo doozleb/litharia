@@ -210,3 +210,61 @@ TEST_CASE("itemForMachine(None) has no matching item")
 {
     CHECK(itemForMachine(MachineType::None) == ItemType::None);
 }
+
+TEST_CASE("a 2-wide machine occupies both tiles it spans")
+{
+    Machines machines;
+    Machine* table = machines.place(MachineType::CraftingTable, 4, 4, Direction::Right);
+
+    REQUIRE(table != nullptr);
+    CHECK(machines.at(4, 4) == table);
+    CHECK(machines.at(5, 4) == table);
+    CHECK(machines.at(6, 4) == nullptr);
+    CHECK_FALSE(machines.canPlace(4, 4));
+    CHECK_FALSE(machines.canPlace(5, 4));
+}
+
+TEST_CASE("a 2-wide machine cannot be placed if either tile is taken")
+{
+    Machines machines;
+    REQUIRE(machines.place(MachineType::Belt, 5, 4, Direction::Right) != nullptr);
+
+    // (4,4) is free but (5,4) is not - the whole placement must fail, not
+    // just settle for the tile that collided.
+    CHECK(machines.place(MachineType::CraftingTable, 4, 4, Direction::Right) == nullptr);
+    CHECK(machines.count() == 1);
+    CHECK(machines.at(4, 4) == nullptr);
+}
+
+TEST_CASE("removing a 2-wide machine via either tile clears both")
+{
+    Machines machines;
+    machines.place(MachineType::CraftingTable, 4, 4, Direction::Right);
+
+    REQUIRE(machines.remove(5, 4)); // remove via the *second* tile, not the origin
+    CHECK(machines.count() == 0);
+    CHECK(machines.at(4, 4) == nullptr);
+    CHECK(machines.at(5, 4) == nullptr);
+}
+
+TEST_CASE("swap-and-pop relocates every tile of a multi-tile machine, not just its origin")
+{
+    Machines machines;
+    machines.place(MachineType::Belt, 0, 0, Direction::Right);          // index 0, doomed
+    machines.place(MachineType::Belt, 1, 0, Direction::Right);          // index 1, untouched survivor
+    machines.place(MachineType::CraftingTable, 8, 8, Direction::Right); // index 2 -> swapped into slot 0
+
+    REQUIRE(machines.count() == 3);
+    REQUIRE(machines.remove(0, 0));
+
+    // The crafting table (previously last in the vector) now lives at index 0,
+    // but must still be reachable from BOTH of its tiles.
+    Machine* table = machines.at(8, 8);
+    REQUIRE(table != nullptr);
+    CHECK(table->type == MachineType::CraftingTable);
+    CHECK(machines.at(9, 8) == table);
+
+    // The untouched survivor is still exactly where it was.
+    REQUIRE(machines.at(1, 0) != nullptr);
+    CHECK(machines.at(1, 0)->type == MachineType::Belt);
+}

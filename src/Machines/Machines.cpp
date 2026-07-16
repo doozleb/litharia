@@ -53,8 +53,11 @@ bool Machines::canPlace(int x, int y) const
 
 Machine* Machines::place(MachineType type, int x, int y, Direction facing)
 {
-    if (!canPlace(x, y))
-        return nullptr;
+    const int width = machineInfo(type).width;
+
+    for (int dx = 0; dx < width; ++dx)
+        if (!canPlace(x + dx, y))
+            return nullptr;
 
     Machine m;
     m.type = type;
@@ -72,7 +75,9 @@ Machine* Machines::place(MachineType type, int x, int y, Direction facing)
 
     machines.push_back(m);
     const int index = static_cast<int>(machines.size()) - 1;
-    byTile[key(x, y)] = index;
+
+    for (int dx = 0; dx < width; ++dx)
+        byTile[key(x + dx, y)] = index;
 
     return &machines[index];
 }
@@ -83,18 +88,30 @@ bool Machines::remove(int x, int y)
     if (index < 0)
         return false;
 
+    // Capture the doomed machine's own footprint before anything moves.
+    const int doomedX = machines[index].x;
+    const int doomedY = machines[index].y;
+    const int doomedWidth = machineInfo(machines[index].type).width;
+
     const int last = static_cast<int>(machines.size()) - 1;
 
     // Swap the doomed machine with the last, so the vector stays dense, then fix
-    // the moved machine's tile entry.
+    // EVERY tile the moved machine occupies - not just its origin, or a
+    // multi-tile machine relocated into the freed slot leaves a stale byTile
+    // entry on its second tile.
     if (index != last)
     {
         machines[index] = machines[last];
-        byTile[key(machines[index].x, machines[index].y)] = index;
+
+        const int movedWidth = machineInfo(machines[index].type).width;
+        for (int dx = 0; dx < movedWidth; ++dx)
+            byTile[key(machines[index].x + dx, machines[index].y)] = index;
     }
 
     machines.pop_back();
-    byTile.erase(key(x, y));
+
+    for (int dx = 0; dx < doomedWidth; ++dx)
+        byTile.erase(key(doomedX + dx, doomedY));
 
     return true;
 }
