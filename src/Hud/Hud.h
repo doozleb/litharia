@@ -36,6 +36,11 @@ public:
     static constexpr float CHEST_BUTTON_WIDTH = 76.0f;
     static constexpr float CHEST_BUTTON_HEIGHT = 36.0f;
 
+    // Crafting recipe buttons: one per row, wide enough for a name + cost
+    // string.
+    static constexpr float CRAFT_BUTTON_WIDTH = 240.0f;
+    static constexpr float CRAFT_BUTTON_HEIGHT = 40.0f;
+
     Hud();
 
     void draw(sf::RenderWindow& window, const Inventory& inventory, int selectedSlot);
@@ -70,6 +75,21 @@ public:
 
     // Screen position -> which chest button it lands on, or nullopt.
     std::optional<ChestButton> hitTestChestButton(sf::Vector2f screenPos, sf::Vector2f windowSize) const;
+
+    // The hand-crafting panel: one button per visible recipe (basic: just the
+    // Crafting Table; advanced: every recipe that requires one), each showing
+    // its name and ingredient cost. Every button renders dimmed/disabled while
+    // `crafting` is true (one craft at a time); the in-progress one additionally
+    // shows a fill bar for craftProgress / that recipe's seconds.
+    void drawCraftPanel(sf::RenderWindow& window, const Inventory& bag, bool advanced, bool crafting,
+                         int craftingRecipeIndex, float craftProgress);
+
+    // Screen position -> index into allCraftRecipes() for the button it lands
+    // on, filtered identically to drawCraftPanel (same order, same `advanced`
+    // split) so drawing and hit-testing can never disagree. nullopt if the
+    // point misses every button.
+    std::optional<int> hitTestCraftButton(sf::Vector2f screenPos, sf::Vector2f windowSize,
+                                           bool advanced) const;
 
     // A small info panel anchored near the cursor, describing one machine's
     // current state: name, input/output, power/fuel state, bar percentage, and

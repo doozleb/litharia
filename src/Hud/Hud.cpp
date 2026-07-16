@@ -133,6 +133,19 @@ sf::Vector2f chestButtonsOrigin(sf::Vector2f windowSize)
     return {x, chest.y};
 }
 
+// Where the crafting panel's first button sits: directly below the bag panel,
+// sharing its left edge - the same spot the chest panel would occupy (the two
+// are mutually exclusive, so there's no visual collision).
+sf::Vector2f craftPanelOrigin(sf::Vector2f windowSize)
+{
+    constexpr int BAG_ROWS = 3;
+    const sf::Vector2f bagOrigin = bagPanelOrigin(windowSize);
+    const float y =
+        bagOrigin.y + BAG_ROWS * Hud::SLOT_SIZE + (BAG_ROWS - 1) * Hud::SLOT_GAP + Hud::MARGIN;
+
+    return {bagOrigin.x, y};
+}
+
 // Draws one chest action button: a labeled rectangle, sharing the bag/
 // hotbar slot's dark background so it reads as part of the same UI family.
 void drawChestButton(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf::Vector2f pos,
@@ -513,4 +526,97 @@ void Hud::drawMachineTooltip(sf::RenderWindow& window,
     }
 
     window.setView(previous);
+}
+
+void Hud::drawCraftPanel(sf::RenderWindow& window, const Inventory& bag, bool advanced, bool crafting,
+                          int craftingRecipeIndex, float craftProgress)
+{
+    const sf::View previous = window.getView();
+    window.setView(currentWindowView(window));
+
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const sf::Vector2f origin = craftPanelOrigin(sf::Vector2f(window.getSize()));
+
+    int row = 0;
+    for (std::size_t i = 0; i < all.size(); ++i)
+    {
+        if (all[i].requiresCraftingTable != advanced)
+            continue;
+
+        const CraftRecipe& recipe = all[i];
+        const sf::Vector2f pos{origin.x, origin.y + row * (CRAFT_BUTTON_HEIGHT + SLOT_GAP)};
+        ++row;
+
+        bool affordable = true;
+        for (const CraftIngredient& ing : recipe.ingredients)
+            if (ing.item != ItemType::None && bag.count(ing.item) < ing.count)
+                affordable = false;
+
+        const bool disabled = crafting || !affordable;
+        const bool inProgress = crafting && static_cast<int>(i) == craftingRecipeIndex;
+
+        sf::RectangleShape button({CRAFT_BUTTON_WIDTH, CRAFT_BUTTON_HEIGHT});
+        button.setPosition(pos);
+        button.setFillColor(disabled ? sf::Color(40, 40, 46, 170) : BAG_SLOT_BACKGROUND);
+        button.setOutlineThickness(-1.0f);
+        button.setOutlineColor(sf::Color(90, 90, 105));
+        window.draw(button);
+
+        if (inProgress)
+        {
+            const float fraction = std::clamp(craftProgress / recipe.seconds, 0.0f, 1.0f);
+            sf::RectangleShape fill({CRAFT_BUTTON_WIDTH * fraction, CRAFT_BUTTON_HEIGHT});
+            fill.setPosition(pos);
+            fill.setFillColor(sf::Color(90, 200, 230, 120));
+            window.draw(fill);
+        }
+
+        if (!font)
+            continue;
+
+        std::string label = std::string(itemInfo(recipe.output).name) + " (";
+        bool firstIngredient = true;
+        for (const CraftIngredient& ing : recipe.ingredients)
+        {
+            if (ing.item == ItemType::None)
+                continue;
+
+            if (!firstIngredient)
+                label += ", ";
+            firstIngredient = false;
+
+            label += std::to_string(ing.count) + "x " + std::string(itemInfo(ing.item).name);
+        }
+        label += ")";
+
+        sf::Text text(*font, label, 13);
+        text.setFillColor(disabled ? sf::Color(150, 150, 150) : sf::Color::White);
+        text.setPosition({pos.x + 8.0f, pos.y + (CRAFT_BUTTON_HEIGHT - 13.0f) * 0.5f});
+        window.draw(text);
+    }
+
+    window.setView(previous);
+}
+
+std::optional<int> Hud::hitTestCraftButton(sf::Vector2f screenPos, sf::Vector2f windowSize,
+                                            bool advanced) const
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const sf::Vector2f origin = craftPanelOrigin(windowSize);
+
+    int row = 0;
+    for (std::size_t i = 0; i < all.size(); ++i)
+    {
+        if (all[i].requiresCraftingTable != advanced)
+            continue;
+
+        const sf::Vector2f pos{origin.x, origin.y + row * (CRAFT_BUTTON_HEIGHT + SLOT_GAP)};
+        ++row;
+
+        const sf::FloatRect rect(pos, {CRAFT_BUTTON_WIDTH, CRAFT_BUTTON_HEIGHT});
+        if (rect.contains(screenPos))
+            return static_cast<int>(i);
+    }
+
+    return std::nullopt;
 }
