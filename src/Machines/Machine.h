@@ -7,8 +7,9 @@
 #include "MachineType.h"
 
 // One placed machine. Plain data: all behaviour lives in Machines. A machine
-// occupies machineInfo(type).width tiles starting at (x, y) and growing
-// rightward - 1 for everything except the Crafting Table, which is 2.
+// occupies machineInfo(type).width x machineInfo(type).height tiles starting
+// at (x, y), growing right and down - 1x1 for everything except the
+// Crafting Table (2x1) and the Furnace (2x2).
 struct Machine
 {
     MachineType type = MachineType::None;

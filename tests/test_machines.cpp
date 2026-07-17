@@ -181,17 +181,28 @@ TEST_CASE("a machine placed after a removal still sorts last")
     CHECK(fresh > survivor);
 }
 
-TEST_CASE("the machine registry declares a footprint width, 1 for every type except the Crafting Table")
+TEST_CASE("the machine registry declares a footprint, 1x1 for every type except the Crafting Table (2x1) and the Furnace (2x2)")
 {
     for (int i = 1; i < static_cast<int>(MachineType::Count); ++i)
     {
         const MachineType type = static_cast<MachineType>(i);
-        const int width = machineInfo(type).width;
+        const MachineInfo& info = machineInfo(type);
 
         if (type == MachineType::CraftingTable)
-            CHECK(width == 2);
+        {
+            CHECK(info.width == 2);
+            CHECK(info.height == 1);
+        }
+        else if (type == MachineType::Furnace)
+        {
+            CHECK(info.width == 2);
+            CHECK(info.height == 2);
+        }
         else
-            CHECK(width == 1);
+        {
+            CHECK(info.width == 1);
+            CHECK(info.height == 1);
+        }
     }
 }
 
@@ -265,6 +276,71 @@ TEST_CASE("swap-and-pop relocates every tile of a multi-tile machine, not just i
     CHECK(machines.at(9, 8) == table);
 
     // The untouched survivor is still exactly where it was.
+    REQUIRE(machines.at(1, 0) != nullptr);
+    CHECK(machines.at(1, 0)->type == MachineType::Belt);
+}
+
+TEST_CASE("itemForMachine maps the Furnace to its own item")
+{
+    CHECK(itemForMachine(MachineType::Furnace) == ItemType::Furnace);
+}
+
+TEST_CASE("a 2x2 machine occupies all four tiles it spans")
+{
+    Machines machines;
+    Machine* furnace = machines.place(MachineType::Furnace, 10, 10, Direction::Right);
+
+    REQUIRE(furnace != nullptr);
+    CHECK(machines.at(10, 10) == furnace);
+    CHECK(machines.at(11, 10) == furnace);
+    CHECK(machines.at(10, 11) == furnace);
+    CHECK(machines.at(11, 11) == furnace);
+    CHECK(machines.at(12, 10) == nullptr);
+    CHECK(machines.at(10, 12) == nullptr);
+}
+
+TEST_CASE("a 2x2 machine cannot be placed if any of its four tiles is taken")
+{
+    Machines machines;
+    REQUIRE(machines.place(MachineType::Belt, 11, 11, Direction::Right) != nullptr);
+
+    // (10,10), (11,10), (10,11) are free but (11,11) is not - the whole
+    // placement must fail, not just settle for the tiles that were free.
+    CHECK(machines.place(MachineType::Furnace, 10, 10, Direction::Right) == nullptr);
+    CHECK(machines.count() == 1);
+    CHECK(machines.at(10, 10) == nullptr);
+}
+
+TEST_CASE("removing a 2x2 machine via any of its four tiles clears all of them")
+{
+    Machines machines;
+    machines.place(MachineType::Furnace, 10, 10, Direction::Right);
+
+    REQUIRE(machines.remove(11, 11)); // remove via the far corner, not the origin
+    CHECK(machines.count() == 0);
+    CHECK(machines.at(10, 10) == nullptr);
+    CHECK(machines.at(11, 10) == nullptr);
+    CHECK(machines.at(10, 11) == nullptr);
+    CHECK(machines.at(11, 11) == nullptr);
+}
+
+TEST_CASE("swap-and-pop relocates every tile of a 2x2 machine, including its vertical footprint")
+{
+    Machines machines;
+    machines.place(MachineType::Belt, 0, 0, Direction::Right);        // index 0, doomed
+    machines.place(MachineType::Belt, 1, 0, Direction::Right);        // index 1, untouched survivor
+    machines.place(MachineType::Furnace, 20, 20, Direction::Right);   // index 2 -> swapped into slot 0
+
+    REQUIRE(machines.count() == 3);
+    REQUIRE(machines.remove(0, 0));
+
+    Machine* furnace = machines.at(20, 20);
+    REQUIRE(furnace != nullptr);
+    CHECK(furnace->type == MachineType::Furnace);
+    CHECK(machines.at(21, 20) == furnace);
+    CHECK(machines.at(20, 21) == furnace);
+    CHECK(machines.at(21, 21) == furnace);
+
     REQUIRE(machines.at(1, 0) != nullptr);
     CHECK(machines.at(1, 0)->type == MachineType::Belt);
 }

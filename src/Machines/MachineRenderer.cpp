@@ -81,12 +81,12 @@ void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) c
         // Consumers dim when they have no power.
         const std::uint8_t alpha = (info.consumer && !m.powered) ? 120 : 255;
 
-        body.setSize({static_cast<float>(info.width * TILE_SIZE), static_cast<float>(TILE_SIZE)});
+        body.setSize({static_cast<float>(info.width * TILE_SIZE), static_cast<float>(info.height * TILE_SIZE)});
         body.setPosition({px, py});
         body.setFillColor(toColor(info.color, alpha));
         target.draw(body);
 
-        if (m.type == MachineType::CraftingTable)
+        if (m.type == MachineType::CraftingTable || m.type == MachineType::Furnace)
             continue;
 
         const MachineStatus status = barStatus(m);

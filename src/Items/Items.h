@@ -28,6 +28,7 @@ enum class ItemType : std::uint8_t
     Chute,
     Smelter,
     Chest,
+    Furnace,
 
     Count
 };

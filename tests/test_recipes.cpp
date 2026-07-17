@@ -53,6 +53,7 @@ TEST_CASE("every placeable machine has a matching craftable item")
     CHECK(itemInfo(ItemType::Chute).name == "Chute");
     CHECK(itemInfo(ItemType::Smelter).name == "Smelter");
     CHECK(itemInfo(ItemType::Chest).name == "Chest");
+    CHECK(itemInfo(ItemType::Furnace).name == "Furnace");
 }
 
 TEST_CASE("allCraftRecipes exposes every craftable item exactly once")

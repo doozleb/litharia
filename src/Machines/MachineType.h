@@ -32,6 +32,7 @@ enum class MachineType : std::uint8_t
     Smelter,
     Chest,
     CraftingTable,
+    Furnace,
 
     Count
 };
@@ -48,9 +49,11 @@ struct MachineInfo
     float powerRating; // supply if generator, demand if consumer
     float actionTime;  // drill: seconds per ore; transport: transfer interval
 
-    // Tile footprint along X, starting at the machine's placed (x, y) and
-    // growing rightward. 1 for every machine except the Crafting Table.
+    // Tile footprint starting at the machine's placed (x, y), growing right
+    // (width) and down (height). 1x1 for every machine except the Crafting
+    // Table (2x1) and the Furnace (2x2).
     int width;
+    int height;
 };
 
 const MachineInfo& machineInfo(MachineType type);

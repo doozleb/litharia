@@ -26,6 +26,7 @@ constexpr std::array<ItemInfo, static_cast<std::size_t>(ItemType::Count)> regist
     {"Chute",            50,  BlockType::Air,       ToolType::None,    { 70,  70,  80}},
     {"Smelter",          10,  BlockType::Air,       ToolType::None,    {200,  90,  70}},
     {"Chest",            10,  BlockType::Air,       ToolType::None,    {140,  95,  50}},
+    {"Furnace",          10,  BlockType::Air,       ToolType::None,    {110, 110, 115}},
 }};
 
 } // namespace
