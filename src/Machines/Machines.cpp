@@ -157,7 +157,7 @@ bool Machines::tryInsert(int x, int y, ItemType item, std::optional<Direction> f
         return true;
     }
 
-    if (m->type == MachineType::Chest)
+    if (m->type == MachineType::ItemAcceptor)
         return m->storage.add({item, 1}) == 0;
 
     if (m->type == MachineType::Smelter)
@@ -203,7 +203,7 @@ ItemStack Machines::tryExtract(int x, int y)
         return taken;
     }
 
-    if (m->type == MachineType::Chest)
+    if (m->type == MachineType::ItemAcceptor)
     {
         for (int i = 0; i < m->storage.slotCount(); ++i)
         {
@@ -230,7 +230,7 @@ void Machines::putBack(int x, int y, ItemStack stack)
     if (m == nullptr)
         return;
 
-    if (m->type == MachineType::Chest)
+    if (m->type == MachineType::ItemAcceptor)
     {
         m->storage.add(stack);
         return;

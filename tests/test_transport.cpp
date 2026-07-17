@@ -16,10 +16,10 @@ TEST_CASE("a belt accepts one item and then is full")
     CHECK(m.at(0, 0)->carried == ItemType::CopperOre);
 }
 
-TEST_CASE("a chest accepts items into multiple slots, not just one")
+TEST_CASE("an item acceptor accepts items into multiple slots, not just one")
 {
     Machines m;
-    m.place(MachineType::Chest, 0, 0, Direction::Right);
+    m.place(MachineType::ItemAcceptor, 0, 0, Direction::Right);
 
     const int max = itemInfo(ItemType::Stone).maxStack;
 
@@ -31,20 +31,38 @@ TEST_CASE("a chest accepts items into multiple slots, not just one")
     CHECK(m.at(0, 0)->storage.slot(1).count == 3);
 }
 
-TEST_CASE("a chest with every slot full refuses further items")
+TEST_CASE("an item acceptor with every slot full refuses further items")
 {
     Machines m;
-    m.place(MachineType::Chest, 0, 0, Direction::Right);
+    m.place(MachineType::ItemAcceptor, 0, 0, Direction::Right);
 
     const int max = itemInfo(ItemType::Dirt).maxStack;
-    Machine* chest = m.at(0, 0);
-    for (int i = 0; i < chest->storage.slotCount(); ++i)
-        chest->storage.exchange(i, {ItemType::Dirt, max});
+    Machine* acceptor = m.at(0, 0);
+    for (int i = 0; i < acceptor->storage.slotCount(); ++i)
+        acceptor->storage.exchange(i, {ItemType::Dirt, max});
 
     CHECK_FALSE(m.tryInsert(0, 0, ItemType::Dirt));
 }
 
-TEST_CASE("a belt delivers its carried item into a chest ahead of it")
+TEST_CASE("a belt delivers its carried item into an item acceptor ahead of it")
+{
+    World world;
+    Machines m;
+    m.place(MachineType::Belt, 0, 0, Direction::Right);
+    m.place(MachineType::ItemAcceptor, 1, 0, Direction::Right);
+
+    REQUIRE(m.tryInsert(0, 0, ItemType::IronOre));
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+    for (int i = 0; i < 40; ++i)
+        m.tick(world, step, mined);
+
+    CHECK(m.at(0, 0)->carried == ItemType::None);
+    CHECK(m.at(1, 0)->storage.count(ItemType::IronOre) == 1);
+}
+
+TEST_CASE("a belt cannot deliver into a chest: it just backs up")
 {
     World world;
     Machines m;
@@ -58,8 +76,10 @@ TEST_CASE("a belt delivers its carried item into a chest ahead of it")
     for (int i = 0; i < 40; ++i)
         m.tick(world, step, mined);
 
-    CHECK(m.at(0, 0)->carried == ItemType::None);
-    CHECK(m.at(1, 0)->storage.count(ItemType::IronOre) == 1);
+    // Nowhere to go: the belt is still holding it, and the chest never
+    // received anything.
+    CHECK(m.at(0, 0)->carried == ItemType::IronOre);
+    CHECK(m.at(1, 0)->storage.isEmpty());
 }
 
 TEST_CASE("a smelter accepts smeltable ore but not plates or stone")

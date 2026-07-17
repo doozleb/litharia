@@ -16,10 +16,10 @@ TEST_CASE("extracting from a drill takes its whole output and empties it")
     CHECK(m.at(0, 0)->output.empty());
 }
 
-TEST_CASE("extracting from a chest takes the first non-empty stack")
+TEST_CASE("extracting from an item acceptor takes the first non-empty stack")
 {
     Machines m;
-    m.place(MachineType::Chest, 0, 0, Direction::Right);
+    m.place(MachineType::ItemAcceptor, 0, 0, Direction::Right);
 
     REQUIRE(m.tryInsert(0, 0, ItemType::IronOre));
     REQUIRE(m.tryInsert(0, 0, ItemType::IronOre));
@@ -31,22 +31,46 @@ TEST_CASE("extracting from a chest takes the first non-empty stack")
     CHECK(m.at(0, 0)->storage.isEmpty());
 }
 
-TEST_CASE("extracting from an empty chest returns nothing")
+TEST_CASE("extracting from an empty item acceptor returns nothing")
 {
     Machines m;
-    m.place(MachineType::Chest, 0, 0, Direction::Right);
+    m.place(MachineType::ItemAcceptor, 0, 0, Direction::Right);
 
     CHECK(m.tryExtract(0, 0).empty());
 }
 
-TEST_CASE("putBack restores a stack into a chest rather than destroying it")
+TEST_CASE("putBack restores a stack into an item acceptor rather than destroying it")
 {
     Machines m;
-    m.place(MachineType::Chest, 0, 0, Direction::Right);
+    m.place(MachineType::ItemAcceptor, 0, 0, Direction::Right);
 
     m.putBack(0, 0, {ItemType::Coal, 4});
 
     CHECK(m.at(0, 0)->storage.count(ItemType::Coal) == 4);
+}
+
+TEST_CASE("a chest is no longer a network node: tryInsert refuses it")
+{
+    Machines m;
+    m.place(MachineType::Chest, 0, 0, Direction::Right);
+
+    CHECK_FALSE(m.tryInsert(0, 0, ItemType::IronOre));
+    CHECK(m.at(0, 0)->storage.isEmpty());
+}
+
+TEST_CASE("a chest is no longer a network node: tryExtract takes nothing from it")
+{
+    Machines m;
+    Machine* chest = m.place(MachineType::Chest, 0, 0, Direction::Right);
+    REQUIRE(chest != nullptr);
+
+    // Put contents in directly (bypassing tryInsert, which now refuses a
+    // chest) to prove tryExtract ignores existing contents too, not just
+    // that nothing can get in.
+    chest->storage.add({ItemType::IronOre, 3});
+
+    CHECK(m.tryExtract(0, 0).empty());
+    CHECK(m.at(0, 0)->storage.count(ItemType::IronOre) == 3);
 }
 
 TEST_CASE("extracting from a smelter takes the whole stacked output")
