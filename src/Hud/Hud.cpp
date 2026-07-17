@@ -288,6 +288,14 @@ void Hud::buildTextCaches()
     makeCount(hotbarCounts, Inventory::HOTBAR_SIZE, COUNT_FONT_SIZE);
     makeCount(bagCounts, Inventory::SIZE - Inventory::HOTBAR_SIZE, COUNT_FONT_SIZE);
     makeCount(storageCounts, CHEST_SLOTS, CHEST_COUNT_FONT_SIZE);
+
+    // No outline on tooltip rows, unlike the stack counts - the panel behind
+    // them already provides the contrast.
+    constexpr int TOOLTIP_MAX_LINES = 8;
+    tooltipLines.reserve(TOOLTIP_MAX_LINES);
+
+    for (int i = 0; i < TOOLTIP_MAX_LINES; ++i)
+        tooltipLines.emplace_back(*font, 14);
 }
 
 // Only ever moves and recolours the cached text - never re-sets its string,
@@ -622,9 +630,13 @@ void Hud::drawMachineTooltip(sf::RenderWindow& window,
 
     if (font)
     {
-        for (std::size_t i = 0; i < lines.size(); ++i)
+        // Guard rather than assume: a future tooltip row would otherwise run
+        // off the end of the cache built in buildTextCaches().
+        const std::size_t drawn = std::min(lines.size(), tooltipLines.size());
+
+        for (std::size_t i = 0; i < drawn; ++i)
         {
-            sf::Text text(*font, lines[i].text, 14);
+            sf::Text& text = tooltipLines[i].with(lines[i].text);
             text.setFillColor(lines[i].color);
             text.setPosition({pos.x + PADDING, pos.y + PADDING + static_cast<float>(i) * LINE_HEIGHT});
             window.draw(text);

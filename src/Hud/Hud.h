@@ -202,6 +202,11 @@ private:
     std::vector<CachedText> bagCounts;     // Inventory::SIZE - HOTBAR_SIZE entries
     std::vector<CachedText> storageCounts; // CHEST_SLOTS entries (an Item Acceptor uses the first 10)
 
+    // One per tooltip row. drawMachineTooltip emits at most 7 (name, recipe
+    // list, fuel/power, input, output, bar, idle reason); 8 leaves a row of
+    // slack. Rows the current machine doesn't need simply aren't drawn.
+    std::vector<CachedText> tooltipLines;
+
     void buildTextCaches();
 
     std::optional<sf::Font> font;
