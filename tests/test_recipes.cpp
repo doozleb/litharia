@@ -59,7 +59,39 @@ TEST_CASE("every placeable machine has a matching craftable item")
 TEST_CASE("allCraftRecipes exposes every craftable item exactly once")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
-    CHECK(all.size() == 7);
+    CHECK(all.size() == 8);
+}
+
+TEST_CASE("the Furnace recipe requires a table and costs 20 stone")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::Furnace; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Stone);
+    CHECK(it->ingredients[0].count == 20);
+    CHECK(it->seconds == doctest::Approx(4.0f));
+}
+
+TEST_CASE("allFurnaceRecipes exposes manual smelting for both ores, slower than the automated Smelter")
+{
+    const std::span<const FurnaceRecipe> all = allFurnaceRecipes();
+    REQUIRE(all.size() == 2);
+
+    CHECK(all[0].in == ItemType::CopperOre);
+    CHECK(all[0].out == ItemType::CopperPlate);
+    CHECK(all[0].seconds == doctest::Approx(5.0f));
+
+    CHECK(all[1].in == ItemType::IronOre);
+    CHECK(all[1].out == ItemType::IronPlate);
+    CHECK(all[1].seconds == doctest::Approx(7.5f));
+
+    // Manual smelting is deliberately slower than the automated Smelter's own
+    // SmeltRecipe timing, so building one is still worth it.
+    CHECK(all[0].seconds > smeltRecipeFor(ItemType::CopperOre)->seconds);
+    CHECK(all[1].seconds > smeltRecipeFor(ItemType::IronOre)->seconds);
 }
 
 TEST_CASE("the Crafting Table recipe costs 15 oak logs and needs no table")

@@ -10,7 +10,7 @@ constexpr std::array<SmeltRecipe, 2> recipes = {{
     {ItemType::IronOre,   ItemType::IronPlate,   3.5f},
 }};
 
-constexpr std::array<CraftRecipe, 7> craftRecipes = {{
+constexpr std::array<CraftRecipe, 8> craftRecipes = {{
     {ItemType::CraftingTable,   {{{ItemType::OakLog, 15}, {}}},                          3.0f, false},
     {ItemType::Chest,           {{{ItemType::OakLog, 8}, {}}},                           2.0f, true},
     {ItemType::Belt,            {{{ItemType::IronPlate, 1}, {ItemType::CopperPlate, 1}}}, 1.0f, true},
@@ -18,6 +18,12 @@ constexpr std::array<CraftRecipe, 7> craftRecipes = {{
     {ItemType::BurnerGenerator, {{{ItemType::Stone, 5}, {ItemType::IronPlate, 2}}},       3.0f, true},
     {ItemType::Drill,           {{{ItemType::IronPlate, 5}, {ItemType::CopperPlate, 2}}}, 4.0f, true},
     {ItemType::Smelter,         {{{ItemType::Stone, 5}, {ItemType::CopperPlate, 3}}},     4.0f, true},
+    {ItemType::Furnace,         {{{ItemType::Stone, 20}, {}}},                           4.0f, true},
+}};
+
+constexpr std::array<FurnaceRecipe, 2> furnaceRecipes = {{
+    {ItemType::CopperOre, ItemType::CopperPlate, 5.0f},
+    {ItemType::IronOre,   ItemType::IronPlate,   7.5f},
 }};
 
 } // namespace
@@ -39,6 +45,11 @@ std::span<const SmeltRecipe> allSmeltRecipes()
 std::span<const CraftRecipe> allCraftRecipes()
 {
     return craftRecipes;
+}
+
+std::span<const FurnaceRecipe> allFurnaceRecipes()
+{
+    return furnaceRecipes;
 }
 
 std::string formatSmeltRecipeList(std::span<const SmeltRecipe> list)

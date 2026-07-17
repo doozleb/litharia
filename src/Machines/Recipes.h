@@ -45,3 +45,17 @@ struct CraftRecipe
 
 // Every defined hand-craft recipe.
 std::span<const CraftRecipe> allCraftRecipes();
+
+// One manual-smelting recipe available at a placed Furnace: an input ore
+// becomes an output plate after `seconds`. Deliberately a separate table
+// from SmeltRecipe (the automated Smelter's own timing) - manual smelting is
+// slower on purpose, and the two must stay free to rebalance independently.
+struct FurnaceRecipe
+{
+    ItemType in;
+    ItemType out;
+    float seconds;
+};
+
+// Every defined manual-smelting recipe.
+std::span<const FurnaceRecipe> allFurnaceRecipes();
