@@ -152,8 +152,9 @@ sf::Vector2f craftPanelOrigin(sf::Vector2f windowSize)
 
 // Draws one chest action button: a labeled rectangle, sharing the bag/
 // hotbar slot's dark background so it reads as part of the same UI family.
-void drawChestButton(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf::Vector2f pos,
-                      const std::string& label)
+//
+// `label` is the caller's prebuilt text, or nullptr when no font loaded.
+void drawChestButton(sf::RenderWindow& window, sf::Text* label, sf::Vector2f pos)
 {
     sf::RectangleShape button({Hud::CHEST_BUTTON_WIDTH, Hud::CHEST_BUTTON_HEIGHT});
     button.setPosition(pos);
@@ -162,16 +163,13 @@ void drawChestButton(sf::RenderWindow& window, const std::optional<sf::Font>& fo
     button.setOutlineColor(sf::Color(90, 90, 105));
     window.draw(button);
 
-    if (!font)
+    if (label == nullptr)
         return;
 
-    sf::Text text(*font, label, 13);
-    text.setFillColor(sf::Color::White);
-
-    const sf::FloatRect bounds = text.getLocalBounds();
-    text.setPosition({pos.x + (Hud::CHEST_BUTTON_WIDTH - bounds.size.x) * 0.5f,
-                      pos.y + (Hud::CHEST_BUTTON_HEIGHT - bounds.size.y) * 0.5f});
-    window.draw(text);
+    const sf::FloatRect bounds = label->getLocalBounds();
+    label->setPosition({pos.x + (Hud::CHEST_BUTTON_WIDTH - bounds.size.x) * 0.5f,
+                        pos.y + (Hud::CHEST_BUTTON_HEIGHT - bounds.size.y) * 0.5f});
+    window.draw(*label);
 }
 
 // "5x Stone, 2x Iron Plate" - a recipe's cost, skipping its unused ingredient
@@ -296,6 +294,31 @@ void Hud::buildTextCaches()
 
     for (int i = 0; i < TOOLTIP_MAX_LINES; ++i)
         tooltipLines.emplace_back(*font, 14);
+
+    constexpr int PALETTE_VISIBLE = 5;
+    paletteCounts.reserve(PALETTE_VISIBLE);
+
+    for (int i = 0; i < PALETTE_VISIBLE; ++i)
+    {
+        paletteCounts.emplace_back(*font, 12);
+        paletteCounts.back().text().setOutlineThickness(2.0f);
+        paletteCounts.back().text().setOutlineColor(sf::Color(10, 10, 12));
+    }
+
+    paletteName.emplace(*font, 16);
+
+    dragCount.emplace(*font, 14);
+    dragCount->text().setOutlineThickness(2.0f);
+    dragCount->text().setOutlineColor(sf::Color(10, 10, 12));
+
+    depositLabel.emplace(*font, "Deposit All", 13);
+    depositLabel->setFillColor(sf::Color::White);
+
+    collectLabel.emplace(*font, "Collect All", 13);
+    collectLabel->setFillColor(sf::Color::White);
+
+    paletteHint.emplace(*font, "Left click: place    Right click: destroy", 14);
+    paletteHint->setFillColor(sf::Color(220, 220, 220));
 }
 
 // Only ever moves and recolours the cached text - never re-sets its string,
@@ -381,8 +404,9 @@ void Hud::drawChestButtons(sf::RenderWindow& window)
 
     const sf::Vector2f origin = chestButtonsOrigin(sf::Vector2f(window.getSize()));
 
-    drawChestButton(window, font, origin, "Deposit All");
-    drawChestButton(window, font, {origin.x, origin.y + CHEST_BUTTON_HEIGHT + SLOT_GAP}, "Collect All");
+    drawChestButton(window, depositLabel ? &*depositLabel : nullptr, origin);
+    drawChestButton(window, collectLabel ? &*collectLabel : nullptr,
+                     {origin.x, origin.y + CHEST_BUTTON_HEIGHT + SLOT_GAP});
 
     window.setView(previous);
 }
@@ -404,12 +428,10 @@ void Hud::drawDragGhost(sf::RenderWindow& window, const ItemStack& stack, sf::Ve
     icon.setOutlineColor(sf::Color(240, 240, 240));
     window.draw(icon);
 
-    if (font)
+    if (dragCount)
     {
-        sf::Text count(*font, std::to_string(stack.count), 14);
+        sf::Text& count = dragCount->with(std::to_string(stack.count));
         count.setFillColor(sf::Color::White);
-        count.setOutlineThickness(2.0f);
-        count.setOutlineColor(sf::Color(10, 10, 12));
         count.setPosition(screenPos + sf::Vector2f{8.0f, 8.0f});
         window.draw(count);
     }
@@ -533,10 +555,9 @@ void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected, const
 
         if (font)
         {
-            sf::Text count(*font, "x" + std::to_string(bag.count(itemForMachine(type))), 12);
+            sf::Text& count =
+                paletteCounts[static_cast<std::size_t>(slot)].with("x" + std::to_string(bag.count(itemForMachine(type))));
             count.setFillColor(sf::Color::White);
-            count.setOutlineThickness(2.0f);
-            count.setOutlineColor(sf::Color(10, 10, 12));
             const sf::FloatRect cb = count.getLocalBounds();
             count.setPosition({pos.x + SWATCH - cb.size.x - 3.0f, pos.y + SWATCH - cb.size.y - 6.0f});
             window.draw(count);
@@ -549,17 +570,15 @@ void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected, const
         return;
     }
 
-    sf::Text name(*font, std::string(machineInfo(displayed).name), 16);
+    sf::Text& name = paletteName->with(std::string(machineInfo(displayed).name));
     const sf::FloatRect nameBounds = name.getLocalBounds();
     name.setFillColor(sf::Color::White);
     name.setPosition({(windowSize.x - nameBounds.size.x) * 0.5f, y - 22.0f});
     window.draw(name);
 
-    sf::Text hint(*font, "Left click: place    Right click: destroy", 14);
-    const sf::FloatRect hintBounds = hint.getLocalBounds();
-    hint.setFillColor(sf::Color(220, 220, 220));
-    hint.setPosition({(windowSize.x - hintBounds.size.x) * 0.5f, y + SWATCH + 6.0f});
-    window.draw(hint);
+    const sf::FloatRect hintBounds = paletteHint->getLocalBounds();
+    paletteHint->setPosition({(windowSize.x - hintBounds.size.x) * 0.5f, y + SWATCH + 6.0f});
+    window.draw(*paletteHint);
 
     window.setView(previous);
 }

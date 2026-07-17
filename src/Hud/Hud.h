@@ -207,6 +207,17 @@ private:
     // slack. Rows the current machine doesn't need simply aren't drawn.
     std::vector<CachedText> tooltipLines;
 
+    // The build palette shows at most VISIBLE (5) swatches at once.
+    std::vector<CachedText> paletteCounts;
+    std::optional<CachedText> paletteName;
+    std::optional<CachedText> dragCount;
+
+    // Strings that never change: built once, drawn as-is. Nothing to compare,
+    // so these are plain texts rather than CachedText.
+    std::optional<sf::Text> depositLabel;
+    std::optional<sf::Text> collectLabel;
+    std::optional<sf::Text> paletteHint;
+
     void buildTextCaches();
 
     std::optional<sf::Font> font;
