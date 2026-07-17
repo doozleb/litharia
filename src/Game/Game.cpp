@@ -758,6 +758,7 @@ void Game::handleEvents()
             if (key->code == Key::F3) setBuildType(MachineType::Belt);
             if (key->code == Key::F4) setBuildType(MachineType::Chute);
             if (key->code == Key::F5) setBuildType(MachineType::Smelter);
+            if (key->code == Key::F6) setBuildType(MachineType::ItemAcceptor);
         }
         else if (const auto* mouse = event->getIf<sf::Event::MouseButtonPressed>())
         {

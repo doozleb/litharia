@@ -358,3 +358,35 @@ TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
     CHECK(isFurniture(MachineType::CraftingTable));
     CHECK(isFurniture(MachineType::Furnace));
 }
+
+TEST_CASE("the machine registry has a row for Item Acceptor: no power role, 1x1")
+{
+    const MachineInfo& info = machineInfo(MachineType::ItemAcceptor);
+    CHECK_FALSE(info.name.empty());
+    CHECK(info.name.compare("Item Acceptor") == 0);
+    CHECK_FALSE(info.generator);
+    CHECK_FALSE(info.consumer);
+    CHECK_FALSE(info.transport);
+    CHECK(info.width == 1);
+    CHECK(info.height == 1);
+}
+
+TEST_CASE("itemForMachine maps Item Acceptor to its own item")
+{
+    CHECK(itemForMachine(MachineType::ItemAcceptor) == ItemType::ItemAcceptor);
+}
+
+TEST_CASE("Item Acceptor is not furniture - it stays in build mode")
+{
+    CHECK_FALSE(isFurniture(MachineType::ItemAcceptor));
+}
+
+TEST_CASE("a placed Item Acceptor gets 10 empty storage slots")
+{
+    Machines machines;
+    Machine* acceptor = machines.place(MachineType::ItemAcceptor, 0, 0, Direction::Right);
+
+    REQUIRE(acceptor != nullptr);
+    CHECK(acceptor->storage.slotCount() == ITEM_ACCEPTOR_SLOTS);
+    CHECK(acceptor->storage.isEmpty());
+}

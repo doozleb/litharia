@@ -17,6 +17,7 @@ constexpr std::array<MachineInfo, static_cast<std::size_t>(MachineType::Count)> 
     {"Chest",             {140,  95,  50}, false, false, false, 0.0f,  0.0f,  1, 1},
     {"Crafting Table",    {120,  80,  40}, false, false, false, 0.0f,  0.0f,  2, 1},
     {"Furnace",           {110, 110, 115}, false, false, false, 0.0f,  0.0f,  2, 2},
+    {"Item Acceptor",     { 80, 140, 190}, false, false, false, 0.0f,  0.0f,  1, 1},
 }};
 
 } // namespace
@@ -58,6 +59,7 @@ ItemType itemForMachine(MachineType type)
         case MachineType::Chest:           return ItemType::Chest;
         case MachineType::CraftingTable:   return ItemType::CraftingTable;
         case MachineType::Furnace:         return ItemType::Furnace;
+        case MachineType::ItemAcceptor:    return ItemType::ItemAcceptor;
         default:                           return ItemType::None;
     }
 }

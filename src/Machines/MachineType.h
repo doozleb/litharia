@@ -18,6 +18,9 @@ inline constexpr int DRILL_REACH = 4;
 // How many item slots a chest holds (2 rows of 10 in the UI).
 inline constexpr int CHEST_SLOTS = 20;
 
+// How many item slots an Item Acceptor holds (1 row of 10 in the UI).
+inline constexpr int ITEM_ACCEPTOR_SLOTS = 10;
+
 // Ore item types a Drill can mine, in display order.
 inline constexpr std::array<ItemType, 3> DRILL_ORES = {
     ItemType::CopperOre, ItemType::IronOre, ItemType::Coal};
@@ -33,6 +36,7 @@ enum class MachineType : std::uint8_t
     Chest,
     CraftingTable,
     Furnace,
+    ItemAcceptor,
 
     Count
 };

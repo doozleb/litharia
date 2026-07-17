@@ -29,6 +29,7 @@ enum class ItemType : std::uint8_t
     Smelter,
     Chest,
     Furnace,
+    ItemAcceptor,
 
     Count
 };

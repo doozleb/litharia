@@ -73,6 +73,8 @@ Machine* Machines::place(MachineType type, int x, int y, Direction facing)
 
     if (type == MachineType::Chest)
         m.storage = Inventory(CHEST_SLOTS);
+    else if (type == MachineType::ItemAcceptor)
+        m.storage = Inventory(ITEM_ACCEPTOR_SLOTS);
 
     machines.push_back(m);
     const int index = static_cast<int>(machines.size()) - 1;
