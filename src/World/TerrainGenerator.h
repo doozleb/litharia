@@ -28,8 +28,18 @@ public:
     static constexpr int COPPER_MIN_Y = 200;
     static constexpr int COPPER_MAX_Y = 340;
 
+    // A much rarer deep band: copper is normally shallow, but a lucky dig
+    // can still turn up copper this far down.
+    static constexpr int COPPER_DEEP_MIN_Y = 341;
+    static constexpr int COPPER_DEEP_MAX_Y = 495;
+
     static constexpr int IRON_MIN_Y = 320;
     static constexpr int IRON_MAX_Y = 495;
+
+    // A much rarer shallow band: iron is normally deep, but a lucky dig can
+    // still turn up iron this high.
+    static constexpr int IRON_SHALLOW_MIN_Y = 90;
+    static constexpr int IRON_SHALLOW_MAX_Y = 319;
 
     static constexpr int COAL_MIN_Y = 180;
     static constexpr int COAL_MAX_Y = 300;

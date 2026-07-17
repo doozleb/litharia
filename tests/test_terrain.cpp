@@ -168,7 +168,7 @@ TEST_CASE("the base passes leave no ore behind at all")
             REQUIRE_FALSE(isOre(world.get(x, y)));
 }
 
-TEST_CASE("each ore stays inside its own depth band")
+TEST_CASE("each ore stays inside its own depth band, common or rare")
 {
     World world;
     TerrainGenerator(555).generate(world);
@@ -186,12 +186,12 @@ TEST_CASE("each ore stays inside its own depth band")
             {
                 ++copper;
                 REQUIRE(y >= TerrainGenerator::COPPER_MIN_Y);
-                REQUIRE(y <= TerrainGenerator::COPPER_MAX_Y);
+                REQUIRE(y <= TerrainGenerator::COPPER_DEEP_MAX_Y);
             }
             else if (type == BlockType::IronOre)
             {
                 ++iron;
-                REQUIRE(y >= TerrainGenerator::IRON_MIN_Y);
+                REQUIRE(y >= TerrainGenerator::IRON_SHALLOW_MIN_Y);
                 REQUIRE(y <= TerrainGenerator::IRON_MAX_Y);
             }
         }
@@ -200,6 +200,48 @@ TEST_CASE("each ore stays inside its own depth band")
     // Both ores exist, and copper is the commoner shallow one.
     CHECK(copper > 100);
     CHECK(iron > 100);
+}
+
+TEST_CASE("iron rarely appears shallow, copper rarely appears deep, but each stays rare")
+{
+    World world;
+    TerrainGenerator(2025).generate(world);
+
+    int shallowIron = 0;
+    int commonIron = 0;
+    int deepCopper = 0;
+    int commonCopper = 0;
+
+    for (int y = 0; y < WORLD_HEIGHT; ++y)
+    {
+        for (int x = 0; x < WORLD_WIDTH; ++x)
+        {
+            const BlockType type = world.get(x, y);
+
+            if (type == BlockType::IronOre)
+            {
+                if (y <= TerrainGenerator::IRON_SHALLOW_MAX_Y)
+                    ++shallowIron;
+                else
+                    ++commonIron;
+            }
+            else if (type == BlockType::CopperOre)
+            {
+                if (y >= TerrainGenerator::COPPER_DEEP_MIN_Y)
+                    ++deepCopper;
+                else
+                    ++commonCopper;
+            }
+        }
+    }
+
+    // The rare bands must exist at all...
+    CHECK(shallowIron > 0);
+    CHECK(deepCopper > 0);
+
+    // ...but stay clearly rarer than the common band they're paired with.
+    CHECK(shallowIron < commonIron / 2);
+    CHECK(deepCopper < commonCopper / 2);
 }
 
 TEST_CASE("iron sits deeper than copper on average")
