@@ -391,7 +391,12 @@ void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected, const
     const int visible = std::min(VISIBLE, total);
 
     const auto found = std::find(held.begin(), held.end(), selected);
-    const int selectedIndex = (found != held.end()) ? static_cast<int>(found - held.begin()) : 0;
+    const bool selectedHeld = found != held.end();
+    // If the selected type isn't held (e.g. its last unit was just placed, or
+    // it was chosen via an F-key before ever crafting one), fall back to
+    // index 0 purely to pick which window of the strip to center - but never
+    // let that substitution be mistaken for an actual selection below.
+    const int selectedIndex = selectedHeld ? static_cast<int>(found - held.begin()) : 0;
     const int half = visible / 2;
 
     const float totalWidth = visible * SWATCH + (visible - 1) * GAP;
@@ -399,14 +404,17 @@ void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected, const
     const float startX = (windowSize.x - totalWidth) * 0.5f;
     const float y = windowSize.y - SLOT_SIZE - MARGIN - SWATCH - MARGIN * 2.0f;
 
-    const MachineType displayed = held[selectedIndex];
+    // Always name the actual buildType, even when it isn't held - showing a
+    // different, arbitrary held type here (and gold-highlighting its swatch
+    // below) would lie about what a click will attempt to place.
+    const MachineType displayed = selected;
 
     for (int slot = 0; slot < visible; ++slot)
     {
         const int index = ((selectedIndex + slot - half) % total + total) % total;
         const MachineType type = held[index];
         const MachineInfo& info = machineInfo(type);
-        const bool isSelected = (index == selectedIndex);
+        const bool isSelected = selectedHeld && (index == selectedIndex);
 
         const sf::Vector2f pos{startX + slot * (SWATCH + GAP), y};
 
