@@ -58,6 +58,8 @@ private:
     void collectAllFromChest();
     void startCraft(int recipeIndex);
     void updateCrafting(float dt);
+    void startSmelt(int recipeIndex);
+    void updateSmelting(float dt);
     sf::Vector2i cursorTile() const;
     void drawMachineTooltip();
 
@@ -82,6 +84,11 @@ private:
     bool inventoryOpen = false;
     std::optional<sf::Vector2i> openChestTile;
     std::optional<sf::Vector2i> openCraftingTableTile;
+    std::optional<sf::Vector2i> openFurnaceTile;
+
+    bool smelting = false;
+    int smeltingRecipeIndex = -1;
+    float smeltProgress = 0.0f;
 
     bool crafting = false;
     int craftingRecipeIndex = -1;

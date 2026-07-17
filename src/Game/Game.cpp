@@ -256,6 +256,7 @@ void Game::toggleInventory()
         inventoryOpen = false;
         openChestTile.reset();
         openCraftingTableTile.reset();
+        openFurnaceTile.reset();
         return;
     }
 
@@ -264,11 +265,14 @@ void Game::toggleInventory()
 
     openChestTile.reset();
     openCraftingTableTile.reset();
+    openFurnaceTile.reset();
 
     if (machine != nullptr && machine->type == MachineType::Chest)
         openChestTile = tile;
     else if (machine != nullptr && machine->type == MachineType::CraftingTable)
         openCraftingTableTile = tile;
+    else if (machine != nullptr && machine->type == MachineType::Furnace)
+        openFurnaceTile = tile;
 
     inventoryOpen = true;
     buildMode = false;
@@ -294,12 +298,24 @@ void Game::drawInventoryPanels()
             openCraftingTableTile.reset();
     }
 
+    if (openFurnaceTile.has_value())
+    {
+        const Machine* furnace = machines.at(openFurnaceTile->x, openFurnaceTile->y);
+
+        if (furnace == nullptr || furnace->type != MachineType::Furnace)
+            openFurnaceTile.reset();
+    }
+
     hud.drawInventoryPanel(window, player.inventory());
 
     if (openChestTile.has_value())
     {
         hud.drawChestPanel(window, machines.at(openChestTile->x, openChestTile->y)->storage);
         hud.drawChestButtons(window);
+    }
+    else if (openFurnaceTile.has_value())
+    {
+        hud.drawSmeltPanel(window, player.inventory(), smelting, smeltingRecipeIndex, smeltProgress);
     }
     else
     {
@@ -464,6 +480,55 @@ void Game::updateCrafting(float dt)
     craftProgress = 0.0f;
 }
 
+void Game::startSmelt(int recipeIndex)
+{
+    if (smelting)
+        return;
+
+    const std::span<const FurnaceRecipe> recipes = allFurnaceRecipes();
+    if (recipeIndex < 0 || recipeIndex >= static_cast<int>(recipes.size()))
+        return;
+
+    const FurnaceRecipe& recipe = recipes[recipeIndex];
+    Inventory& bag = player.inventory();
+
+    if (bag.count(recipe.in) <= 0)
+        return;
+
+    bag.removeOne(recipe.in);
+
+    smelting = true;
+    smeltingRecipeIndex = recipeIndex;
+    smeltProgress = 0.0f;
+}
+
+void Game::updateSmelting(float dt)
+{
+    if (!smelting)
+        return;
+
+    const std::span<const FurnaceRecipe> recipes = allFurnaceRecipes();
+    const FurnaceRecipe& recipe = recipes[smeltingRecipeIndex];
+
+    smeltProgress += dt;
+    if (smeltProgress < recipe.seconds)
+        return;
+
+    Inventory& bag = player.inventory();
+    const int leftover = bag.add({recipe.out, 1});
+
+    if (leftover > 0)
+    {
+        const sf::Vector2f position =
+            player.center() - sf::Vector2f{ItemEntity::SIZE * 0.5f, ItemEntity::SIZE * 0.5f};
+        drops.emplace_back(ItemStack{recipe.out, leftover}, position, sf::Vector2f{0.0f, -60.0f});
+    }
+
+    smelting = false;
+    smeltingRecipeIndex = -1;
+    smeltProgress = 0.0f;
+}
+
 void Game::tickMachines(float dt)
 {
     std::vector<sf::Vector2i> mined;
@@ -613,6 +678,15 @@ void Game::handleEvents()
                     else
                         beginDrag();
                 }
+                else if (openFurnaceTile.has_value())
+                {
+                    const auto smeltHit = hud.hitTestSmeltButton(screenPos, windowSize);
+
+                    if (smeltHit.has_value())
+                        startSmelt(*smeltHit);
+                    else
+                        beginDrag();
+                }
                 else
                 {
                     const auto craftHit =
@@ -652,6 +726,7 @@ void Game::fixedUpdate(float dt)
     updateDrops(dt);
     tickMachines(dt);
     updateCrafting(dt);
+    updateSmelting(dt);
 
     camera.follow(player.center(), dt);
 
