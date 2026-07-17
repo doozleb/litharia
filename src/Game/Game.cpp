@@ -898,7 +898,7 @@ void Game::render()
 
     chunks.draw(window, camera.view());
 
-    machineRenderer.draw(window, machines);
+    machineRenderer.draw(window, machines, buildMode);
 
     drawMiningHighlight();
 

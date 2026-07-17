@@ -9,5 +9,8 @@ class Machines;
 class MachineRenderer
 {
 public:
-    void draw(sf::RenderTarget& target, const Machines& machines) const;
+    // showSideTicks draws the input/output side markers - build-time
+    // scaffolding, so the caller passes buildMode. The body, fuel/progress
+    // bar, and carried-item glyph always draw, in both modes.
+    void draw(sf::RenderTarget& target, const Machines& machines, bool showSideTicks) const;
 };

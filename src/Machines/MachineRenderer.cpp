@@ -54,7 +54,7 @@ bool isOutputSide(const Machine& m, Direction side)
 
 } // namespace
 
-void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) const
+void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines, bool showSideTicks) const
 {
     sf::RectangleShape body;
     body.setOutlineThickness(-1.0f);
@@ -120,16 +120,21 @@ void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) c
             target.draw(barFill);
         }
 
-        const float cx = px + TILE_SIZE * 0.5f - 2.0f;
-        const float cy = py + TILE_SIZE * 0.5f - 2.0f;
-
-        static constexpr std::array<Direction, 4> ALL_SIDES = {Direction::Up, Direction::Down,
-                                                                 Direction::Left, Direction::Right};
-        for (Direction side : ALL_SIDES)
+        // The input/output side markers are build-time scaffolding: shown while
+        // laying out a factory, hidden while watching one run.
+        if (showSideTicks)
         {
-            sf::RectangleShape& tick = isOutputSide(m, side) ? outputTick : inputTick;
-            tick.setPosition({cx + dirDX(side) * 5.0f, cy + dirDY(side) * 5.0f});
-            target.draw(tick);
+            const float cx = px + TILE_SIZE * 0.5f - 2.0f;
+            const float cy = py + TILE_SIZE * 0.5f - 2.0f;
+
+            static constexpr std::array<Direction, 4> ALL_SIDES = {Direction::Up, Direction::Down,
+                                                                     Direction::Left, Direction::Right};
+            for (Direction side : ALL_SIDES)
+            {
+                sf::RectangleShape& tick = isOutputSide(m, side) ? outputTick : inputTick;
+                tick.setPosition({cx + dirDX(side) * 5.0f, cy + dirDY(side) * 5.0f});
+                target.draw(tick);
+            }
         }
 
         // The carried transport item, or the output buffer's item.
