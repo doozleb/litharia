@@ -31,10 +31,7 @@ sf::Color itemColor(ItemType type)
 //  - Chute: always drops straight down regardless of facing, so Down is
 //    always its output side.
 //  - BurnerGenerator/ItemAcceptor: never push an item out on their own -
-//    every side is an input side. Chest renders the same four input ticks
-//    by default too, even though it no longer accepts a machine-network
-//    push on any side - only its player-facing E panel reaches its storage
-//    now. CraftingTable/Furnace skip this decoration entirely, below.
+//    every side is an input side.
 bool isOutputSide(const Machine& m, Direction side)
 {
     switch (m.type)
@@ -53,6 +50,7 @@ bool isOutputSide(const Machine& m, Direction side)
             return false;
     }
 }
+
 
 } // namespace
 
@@ -89,7 +87,13 @@ void MachineRenderer::draw(sf::RenderTarget& target, const Machines& machines) c
         body.setFillColor(toColor(info.color, alpha));
         target.draw(body);
 
-        if (m.type == MachineType::CraftingTable || m.type == MachineType::Furnace)
+        // Furniture is only a body. None of it takes part in the machine
+        // network, so the input/output side ticks would advertise a connection
+        // that Machines::tryInsert refuses - the Chest in particular kept
+        // showing four input ticks long after it stopped accepting anything.
+        // None of them has a bar or an output buffer to draw either. (A Chest's
+        // storage is still reachable, but only by the player via its E panel.)
+        if (isFurniture(m.type))
             continue;
 
         const MachineStatus status = barStatus(m);

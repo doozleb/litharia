@@ -3,6 +3,7 @@
 #include <SFML/Graphics.hpp>
 
 #include <optional>
+#include <vector>
 
 #include "../Machines/Machine.h"
 #include "../Machines/MachineStatus.h"
@@ -126,5 +127,29 @@ public:
     bool hasFont() const { return font.has_value(); }
 
 private:
+    // One recipe button's two rows of text, built once and redrawn every
+    // frame. Constructing an sf::Text forces SFML to rebuild its geometry on
+    // the next draw/getLocalBounds, which measures at ~2.7ms per text in a
+    // Debug build (~0.5ms in Release) - a fixed cost, independent of how long
+    // the string is. Rebuilding 16 of them per frame cost ~45ms and pinned the
+    // crafting menu at ~20fps. A text that isn't rebuilt draws for ~0.05ms, so
+    // these are cached: recipe names and costs are compile-time constants and
+    // never change. setPosition/setFillColor don't trigger a rebuild, so the
+    // per-frame work stays free.
+    struct RecipeLabel
+    {
+        sf::Text title;
+        sf::Text subtitle;
+    };
+
+    // Parallel to allCraftRecipes() / allFurnaceRecipes() by index. Empty if
+    // no font loaded, in which case nothing draws text anyway.
+    std::vector<RecipeLabel> craftLabels;
+    std::vector<RecipeLabel> smeltLabels;
+
+    void buildRecipeLabels();
+    void drawRecipeLabel(sf::RenderWindow& window, RecipeLabel& label, sf::Vector2f pos,
+                          bool disabled);
+
     std::optional<sf::Font> font;
 };
