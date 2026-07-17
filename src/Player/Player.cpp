@@ -83,10 +83,23 @@ void collectTreeBreak(World& world, int startX, int startY, std::vector<BrokenTi
 Player::Player(sf::Vector2f topLeft)
     : body{topLeft, {WIDTH, HEIGHT}}
 {
-    // There is no crafting system yet, so the player starts equipped rather
-    // than unable to mine anything at all.
+    // Mining is gated on holding the right tool, so the player starts with
+    // both rather than unable to break anything at all.
     bag.exchange(0, {ItemType::Pickaxe, 1});
     bag.exchange(1, {ItemType::Axe, 1});
+
+    // Testing convenience: one of each station, so a fresh world can exercise
+    // crafting, smelting and storage without first felling trees for 15 logs.
+    //
+    // Parked at the far end of the hotbar rather than next to the tools.
+    // Inventory::add() fills the first free slot, so the low slots are where
+    // tests implicitly put things: slot 2 takes the first add() (and mining's
+    // "nothing in hand" test wants it empty), slot 3 takes the second. Sitting
+    // in either silently displaces what a test meant to hold and fails it
+    // somewhere unrelated. Leaving 2-6 clear keeps that headroom.
+    bag.exchange(7, {ItemType::CraftingTable, 1});
+    bag.exchange(8, {ItemType::Chest, 1});
+    bag.exchange(9, {ItemType::Furnace, 1});
 }
 
 void Player::setSelectedSlot(int slot)
