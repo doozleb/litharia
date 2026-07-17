@@ -35,6 +35,19 @@ sf::Color itemColor(ItemType type)
     return toColor(itemInfo(type).iconColor);
 }
 
+// The item-to-machine reverse lookup only furniture placement needs -
+// itemForMachine() goes the other way and is used by everything else.
+MachineType furnitureMachineForItem(ItemType item)
+{
+    switch (item)
+    {
+        case ItemType::Chest:         return MachineType::Chest;
+        case ItemType::CraftingTable: return MachineType::CraftingTable;
+        case ItemType::Furnace:       return MachineType::Furnace;
+        default:                     return MachineType::None;
+    }
+}
+
 } // namespace
 
 Game::Game()
@@ -164,6 +177,44 @@ void Game::placeMachineAtCursor()
     player.inventory().removeOne(item);
 }
 
+void Game::placeFurnitureAtCursor(const PlayerInput& input)
+{
+    if (!input.place)
+        return;
+
+    const ItemStack& held = player.inventory().slot(player.selectedSlot());
+    const MachineType type = furnitureMachineForItem(held.type);
+
+    if (type == MachineType::None)
+        return;
+
+    const sf::Vector2i tile = cursorTile();
+
+    if (!player.inReach(tile.x, tile.y))
+        return;
+
+    const MachineInfo& info = machineInfo(type);
+
+    for (int dy = 0; dy < info.height; ++dy)
+        for (int dx = 0; dx < info.width; ++dx)
+        {
+            if (world.isSolid(tile.x + dx, tile.y + dy))
+                return;
+
+            const AABB tileBox{{static_cast<float>((tile.x + dx) * TILE_SIZE),
+                                static_cast<float>((tile.y + dy) * TILE_SIZE)},
+                               {static_cast<float>(TILE_SIZE), static_cast<float>(TILE_SIZE)}};
+
+            if (physics::overlaps(tileBox, player.box()))
+                return;
+        }
+
+    if (machines.place(type, tile.x, tile.y, Direction::Right) == nullptr)
+        return;
+
+    player.inventory().removeOne(held.type);
+}
+
 void Game::removeMachineAtCursor()
 {
     const sf::Vector2i tile = cursorTile();
@@ -198,6 +249,9 @@ void Game::cycleBuildType(int delta)
     {
         index = ((index + delta) % count + count) % count;
         const MachineType candidate = static_cast<MachineType>(first + index);
+
+        if (isFurniture(candidate))
+            continue;
 
         if (bag.count(itemForMachine(candidate)) > 0)
         {
@@ -653,8 +707,6 @@ void Game::handleEvents()
             if (key->code == Key::F3) setBuildType(MachineType::Belt);
             if (key->code == Key::F4) setBuildType(MachineType::Chute);
             if (key->code == Key::F5) setBuildType(MachineType::Smelter);
-            if (key->code == Key::F6) setBuildType(MachineType::Chest);
-            if (key->code == Key::F7) setBuildType(MachineType::CraftingTable);
         }
         else if (const auto* mouse = event->getIf<sf::Event::MouseButtonPressed>())
         {
@@ -709,7 +761,8 @@ void Game::handleEvents()
 
 void Game::fixedUpdate(float dt)
 {
-    const ActionResult result = player.update(readInput(), world, dt, &machines);
+    const PlayerInput input = readInput();
+    const ActionResult result = player.update(input, world, dt, &machines);
 
     if (result.broke)
     {
@@ -722,6 +775,8 @@ void Game::fixedUpdate(float dt)
 
     if (result.placed)
         chunks.markDirty(result.placedX, result.placedY);
+
+    placeFurnitureAtCursor(input);
 
     updateDrops(dt);
     tickMachines(dt);

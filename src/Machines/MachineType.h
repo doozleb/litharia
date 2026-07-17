@@ -62,6 +62,11 @@ const MachineInfo& machineInfo(MachineType type);
 // what placing consumes, what removing refunds. None for MachineType::None.
 ItemType itemForMachine(MachineType type);
 
+// True for machines placed/removed like a world block (hotbar-select,
+// right-click to place, mine to remove) instead of through the build-mode
+// palette: Chest, Crafting Table, Furnace.
+bool isFurniture(MachineType type);
+
 // "Copper Ore, Iron Ore, Coal" - one segment per entry, joined by ", ". An
 // empty span yields "".
 std::string formatDrillOreList(std::span<const ItemType> ores);

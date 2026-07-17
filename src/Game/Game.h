@@ -46,6 +46,7 @@ private:
 
     void tickMachines(float dt);
     void placeMachineAtCursor();
+    void placeFurnitureAtCursor(const PlayerInput& input);
     void removeMachineAtCursor();
     void cycleBuildType(int delta);
     void setBuildType(MachineType type);

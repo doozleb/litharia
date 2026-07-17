@@ -373,6 +373,10 @@ void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected, const
     for (int i = FIRST; i < static_cast<int>(MachineType::Count); ++i)
     {
         const MachineType type = static_cast<MachineType>(i);
+
+        if (isFurniture(type))
+            continue;
+
         if (bag.count(itemForMachine(type)) > 0)
             held.push_back(type);
     }

@@ -344,3 +344,17 @@ TEST_CASE("swap-and-pop relocates every tile of a 2x2 machine, including its ver
     REQUIRE(machines.at(1, 0) != nullptr);
     CHECK(machines.at(1, 0)->type == MachineType::Belt);
 }
+
+TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
+{
+    CHECK_FALSE(isFurniture(MachineType::None));
+    CHECK_FALSE(isFurniture(MachineType::BurnerGenerator));
+    CHECK_FALSE(isFurniture(MachineType::Drill));
+    CHECK_FALSE(isFurniture(MachineType::Belt));
+    CHECK_FALSE(isFurniture(MachineType::Chute));
+    CHECK_FALSE(isFurniture(MachineType::Smelter));
+
+    CHECK(isFurniture(MachineType::Chest));
+    CHECK(isFurniture(MachineType::CraftingTable));
+    CHECK(isFurniture(MachineType::Furnace));
+}

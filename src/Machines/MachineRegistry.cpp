@@ -61,3 +61,9 @@ ItemType itemForMachine(MachineType type)
         default:                           return ItemType::None;
     }
 }
+
+bool isFurniture(MachineType type)
+{
+    return type == MachineType::Chest || type == MachineType::CraftingTable
+        || type == MachineType::Furnace;
+}
