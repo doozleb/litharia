@@ -30,8 +30,11 @@ sf::Color itemColor(ItemType type)
 //    it (tryInsert doesn't care which side a push comes from).
 //  - Chute: always drops straight down regardless of facing, so Down is
 //    always its output side.
-//  - BurnerGenerator/Chest: never push an item out on their own - every side
-//    is an input side.
+//  - BurnerGenerator/ItemAcceptor: never push an item out on their own -
+//    every side is an input side. Chest renders the same four input ticks
+//    by default too, even though it no longer accepts a machine-network
+//    push on any side - only its player-facing E panel reaches its storage
+//    now. CraftingTable/Furnace skip this decoration entirely, below.
 bool isOutputSide(const Machine& m, Direction side)
 {
     switch (m.type)

@@ -30,9 +30,10 @@ public:
     static constexpr unsigned int CHEST_COUNT_FONT_SIZE =
         static_cast<unsigned int>(COUNT_FONT_SIZE * (CHEST_SLOT_SIZE / SLOT_SIZE) + 0.5f);
 
-    // The "Deposit All"/"Collect All" buttons sit to the chest panel's left,
-    // stacked so together they span the same height as its 2 rows
-    // (2 * CHEST_SLOT_SIZE + SLOT_GAP = 76px).
+    // The "Deposit All"/"Collect All" buttons sit to the storage panel's
+    // left, stacked to a fixed 76px (2 * CHEST_SLOT_SIZE + SLOT_GAP) tall -
+    // sized for the Chest's 2 rows; a 1-row Item Acceptor panel leaves them
+    // overhanging its bottom edge rather than resizing to match.
     static constexpr float CHEST_BUTTON_WIDTH = 76.0f;
     static constexpr float CHEST_BUTTON_HEIGHT = 36.0f;
 
@@ -49,7 +50,9 @@ public:
     // shown only while the player has the inventory open.
     void drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventory);
 
-    // A chest's own 20 slots, shown alongside the bag panel while a chest is open.
+    // A Chest's (20) or Item Acceptor's (10) own slots, shown alongside the
+    // bag panel while one of the two is open - drawn at chestStorage's own
+    // slotCount(), not a fixed size.
     void drawChestPanel(sf::RenderWindow& window, const Inventory& chestStorage);
 
     // The stack currently being dragged, drawn centered on the live cursor.

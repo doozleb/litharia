@@ -47,9 +47,11 @@ same semantics (accepts from any side, no directional restriction; extract
 takes the whole first non-empty slot's stack; putBack hands a stack into the
 first slot `exchange()` will accept). Chest no longer has a branch in any of
 the three, so it falls through to each function's default (`tryInsert`
-returns `false`, `tryExtract` returns an empty stack, `putBack` is a no-op
-on a machine type with 0-meaningful-purpose there — Chest is never a
-`putBack` target once `tryExtract` never takes from it).
+returns `false`; `tryExtract` returns an empty stack; `putBack` falls to its
+generic `m->output = stack` branch, which is not itself a no-op, but is
+unreachable for a Chest in practice — `putBack` is only ever called after a
+non-empty `tryExtract` at the same tile, and `tryExtract` on a Chest always
+returns empty, so nothing ever reaches it).
 
 This is the entire mechanism. Consequences fall out of it directly, not from
 any separate code path:
