@@ -244,9 +244,11 @@ void TerrainGenerator::carveTunnelPoint(World& world, int cx, int cy, float radi
 
             // A tunnel opens through solid ground only - it never punches
             // into a cave that's already open (nothing to do there) and
-            // there is no ore yet at this pass.
+            // there is no ore yet at this pass. Grass is included so an
+            // entrance carved right at the surface actually opens a visible
+            // mouth instead of leaving an intact grass lid over it.
             const BlockType current = world.get(x, y);
-            if (current != BlockType::Stone && current != BlockType::Dirt)
+            if (current != BlockType::Stone && current != BlockType::Dirt && current != BlockType::Grass)
                 continue;
 
             world.set(x, y, BlockType::Air);
