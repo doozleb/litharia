@@ -47,6 +47,8 @@ private:
     void tickMachines(float dt);
     void placeMachineAtCursor();
     void placeFurnitureAtCursor(const PlayerInput& input);
+    void mineFurnitureAtCursor(const PlayerInput& input, float dt);
+    void refundMachineItem(MachineType type);
     void removeMachineAtCursor();
     void cycleBuildType(int delta);
     void setBuildType(MachineType type);
@@ -90,6 +92,10 @@ private:
     bool smelting = false;
     int smeltingRecipeIndex = -1;
     float smeltProgress = 0.0f;
+
+    bool miningFurniture = false;
+    sf::Vector2i miningFurnitureTarget{0, 0};
+    float miningFurnitureProgress = 0.0f;
 
     bool crafting = false;
     int craftingRecipeIndex = -1;

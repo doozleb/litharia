@@ -23,6 +23,11 @@ constexpr float FIXED_STEP = 1.0f / 60.0f;
 // dropping the rest, rather than spiralling into an ever-growing catch-up.
 constexpr float MAX_FRAME_TIME = 0.25f;
 
+// How long mining down a placed Chest/Crafting Table/Furnace takes - flat,
+// no tool requirement, unlike world blocks: you built it, you can always
+// take it back down.
+constexpr float MINING_FURNITURE_SECONDS = 1.0f;
+
 sf::Color toColor(BlockColor c)
 {
     return sf::Color(c.r, c.g, c.b);
@@ -215,6 +220,41 @@ void Game::placeFurnitureAtCursor(const PlayerInput& input)
     player.inventory().removeOne(held.type);
 }
 
+void Game::mineFurnitureAtCursor(const PlayerInput& input, float dt)
+{
+    const sf::Vector2i tile = cursorTile();
+    const Machine* target = machines.at(tile.x, tile.y);
+    const bool validTarget = input.mine && target != nullptr && isFurniture(target->type)
+        && player.inReach(tile.x, tile.y);
+
+    if (!validTarget)
+    {
+        miningFurniture = false;
+        miningFurnitureProgress = 0.0f;
+        return;
+    }
+
+    if (!miningFurniture || miningFurnitureTarget.x != tile.x || miningFurnitureTarget.y != tile.y)
+    {
+        miningFurniture = true;
+        miningFurnitureTarget = tile;
+        miningFurnitureProgress = 0.0f;
+    }
+
+    miningFurnitureProgress += dt;
+    if (miningFurnitureProgress < MINING_FURNITURE_SECONDS)
+        return;
+
+    const MachineType type = target->type;
+    if (!machines.remove(tile.x, tile.y))
+        return;
+
+    refundMachineItem(type);
+
+    miningFurniture = false;
+    miningFurnitureProgress = 0.0f;
+}
+
 void Game::removeMachineAtCursor()
 {
     const sf::Vector2i tile = cursorTile();
@@ -226,6 +266,11 @@ void Game::removeMachineAtCursor()
     if (!machines.remove(tile.x, tile.y))
         return;
 
+    refundMachineItem(type);
+}
+
+void Game::refundMachineItem(MachineType type)
+{
     const ItemType item = itemForMachine(type);
     const int leftover = player.inventory().add({item, 1});
 
@@ -777,6 +822,7 @@ void Game::fixedUpdate(float dt)
         chunks.markDirty(result.placedX, result.placedY);
 
     placeFurnitureAtCursor(input);
+    mineFurnitureAtCursor(input, dt);
 
     updateDrops(dt);
     tickMachines(dt);
