@@ -91,6 +91,17 @@ public:
     std::optional<int> hitTestCraftButton(sf::Vector2f screenPos, sf::Vector2f windowSize,
                                            bool advanced) const;
 
+    // The Furnace's manual-smelting panel: one button per FurnaceRecipe
+    // (always both ore->plate conversions - no basic/advanced split, since
+    // there is only one view). Same dimmed-while-smelting/in-progress-fill-bar
+    // behavior as drawCraftPanel.
+    void drawSmeltPanel(sf::RenderWindow& window, const Inventory& bag, bool smelting,
+                         int smeltingRecipeIndex, float smeltProgress);
+
+    // Screen position -> index into allFurnaceRecipes() for the button it
+    // lands on. nullopt if the point misses every button.
+    std::optional<int> hitTestSmeltButton(sf::Vector2f screenPos, sf::Vector2f windowSize) const;
+
     // A small info panel anchored near the cursor, describing one machine's
     // current state: name, input/output, power/fuel state, bar percentage, and
     // (when idle/unpowered) a plain-English reason. Degrades like draw() does:

@@ -628,3 +628,71 @@ std::optional<int> Hud::hitTestCraftButton(sf::Vector2f screenPos, sf::Vector2f 
 
     return std::nullopt;
 }
+
+void Hud::drawSmeltPanel(sf::RenderWindow& window, const Inventory& bag, bool smelting,
+                          int smeltingRecipeIndex, float smeltProgress)
+{
+    const sf::View previous = window.getView();
+    window.setView(currentWindowView(window));
+
+    const std::span<const FurnaceRecipe> all = allFurnaceRecipes();
+    const sf::Vector2f origin = craftPanelOrigin(sf::Vector2f(window.getSize()));
+
+    for (std::size_t i = 0; i < all.size(); ++i)
+    {
+        const FurnaceRecipe& recipe = all[i];
+        const sf::Vector2f pos{origin.x,
+                               origin.y + static_cast<float>(i) * (CRAFT_BUTTON_HEIGHT + SLOT_GAP)};
+
+        const bool affordable = bag.count(recipe.in) > 0;
+        const bool disabled = smelting || !affordable;
+        const bool inProgress = smelting && static_cast<int>(i) == smeltingRecipeIndex;
+
+        sf::RectangleShape button({CRAFT_BUTTON_WIDTH, CRAFT_BUTTON_HEIGHT});
+        button.setPosition(pos);
+        button.setFillColor(disabled ? sf::Color(40, 40, 46, 170) : BAG_SLOT_BACKGROUND);
+        button.setOutlineThickness(-1.0f);
+        button.setOutlineColor(sf::Color(90, 90, 105));
+        window.draw(button);
+
+        if (inProgress)
+        {
+            const float fraction = std::clamp(smeltProgress / recipe.seconds, 0.0f, 1.0f);
+            sf::RectangleShape fill({CRAFT_BUTTON_WIDTH * fraction, CRAFT_BUTTON_HEIGHT});
+            fill.setPosition(pos);
+            fill.setFillColor(sf::Color(90, 200, 230, 120));
+            window.draw(fill);
+        }
+
+        if (!font)
+            continue;
+
+        const std::string label =
+            std::string(itemInfo(recipe.in).name) + " -> " + std::string(itemInfo(recipe.out).name);
+
+        sf::Text text(*font, label, 13);
+        text.setFillColor(disabled ? sf::Color(150, 150, 150) : sf::Color::White);
+        text.setPosition({pos.x + 8.0f, pos.y + (CRAFT_BUTTON_HEIGHT - 13.0f) * 0.5f});
+        window.draw(text);
+    }
+
+    window.setView(previous);
+}
+
+std::optional<int> Hud::hitTestSmeltButton(sf::Vector2f screenPos, sf::Vector2f windowSize) const
+{
+    const std::span<const FurnaceRecipe> all = allFurnaceRecipes();
+    const sf::Vector2f origin = craftPanelOrigin(windowSize);
+
+    for (std::size_t i = 0; i < all.size(); ++i)
+    {
+        const sf::Vector2f pos{origin.x,
+                               origin.y + static_cast<float>(i) * (CRAFT_BUTTON_HEIGHT + SLOT_GAP)};
+        const sf::FloatRect rect(pos, {CRAFT_BUTTON_WIDTH, CRAFT_BUTTON_HEIGHT});
+
+        if (rect.contains(screenPos))
+            return static_cast<int>(i);
+    }
+
+    return std::nullopt;
+}
