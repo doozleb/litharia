@@ -59,8 +59,8 @@ private:
     void drawInventoryPanels();
     void beginDrag();
     void endDrag();
-    void depositAllToChest();
-    void collectAllFromChest();
+    void depositAllToStorage();
+    void collectAllFromStorage();
     void startCraft(int recipeIndex);
     void updateCrafting(float dt);
     void startSmelt(int recipeIndex);
@@ -87,7 +87,7 @@ private:
     Direction buildFacing = Direction::Right;
 
     bool inventoryOpen = false;
-    std::optional<sf::Vector2i> openChestTile;
+    std::optional<sf::Vector2i> openStorageTile;
     std::optional<sf::Vector2i> openCraftingTableTile;
     std::optional<sf::Vector2i> openFurnaceTile;
 
@@ -103,7 +103,7 @@ private:
     int craftingRecipeIndex = -1;
     float craftProgress = 0.0f;
 
-    enum class InventoryPanel { Bag, Chest };
+    enum class InventoryPanel { Bag, Storage };
 
     bool dragging = false;
     ItemStack dragStack;

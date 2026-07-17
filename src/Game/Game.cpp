@@ -369,7 +369,7 @@ void Game::toggleInventory()
     if (inventoryOpen)
     {
         inventoryOpen = false;
-        openChestTile.reset();
+        openStorageTile.reset();
         openCraftingTableTile.reset();
         openFurnaceTile.reset();
         return;
@@ -378,12 +378,13 @@ void Game::toggleInventory()
     const sf::Vector2i tile = cursorTile();
     const Machine* machine = machines.at(tile.x, tile.y);
 
-    openChestTile.reset();
+    openStorageTile.reset();
     openCraftingTableTile.reset();
     openFurnaceTile.reset();
 
-    if (machine != nullptr && machine->type == MachineType::Chest)
-        openChestTile = tile;
+    if (machine != nullptr
+        && (machine->type == MachineType::Chest || machine->type == MachineType::ItemAcceptor))
+        openStorageTile = tile;
     else if (machine != nullptr && machine->type == MachineType::CraftingTable)
         openCraftingTableTile = tile;
     else if (machine != nullptr && machine->type == MachineType::Furnace)
@@ -395,14 +396,15 @@ void Game::toggleInventory()
 
 void Game::drawInventoryPanels()
 {
-    if (openChestTile.has_value())
+    if (openStorageTile.has_value())
     {
-        const Machine* chest = machines.at(openChestTile->x, openChestTile->y);
+        const Machine* storage = machines.at(openStorageTile->x, openStorageTile->y);
 
-        // The chest might have vanished by other means while the panel was
+        // The machine might have vanished by other means while the panel was
         // open; fall back to the bag-only view rather than touch a stale tile.
-        if (chest == nullptr || chest->type != MachineType::Chest)
-            openChestTile.reset();
+        if (storage == nullptr
+            || (storage->type != MachineType::Chest && storage->type != MachineType::ItemAcceptor))
+            openStorageTile.reset();
     }
 
     if (openCraftingTableTile.has_value())
@@ -423,9 +425,9 @@ void Game::drawInventoryPanels()
 
     hud.drawInventoryPanel(window, player.inventory());
 
-    if (openChestTile.has_value())
+    if (openStorageTile.has_value())
     {
-        hud.drawChestPanel(window, machines.at(openChestTile->x, openChestTile->y)->storage);
+        hud.drawChestPanel(window, machines.at(openStorageTile->x, openStorageTile->y)->storage);
         hud.drawChestButtons(window);
     }
     else if (openFurnaceTile.has_value())
@@ -444,12 +446,16 @@ void Game::beginDrag()
     const sf::Vector2f screenPos(sf::Mouse::getPosition(window));
     const sf::Vector2f windowSize(window.getSize());
 
-    const auto hit = hud.hitTestPanels(screenPos, windowSize, openChestTile.has_value());
+    const int openSlots = openStorageTile.has_value()
+        ? machines.at(openStorageTile->x, openStorageTile->y)->storage.slotCount()
+        : 0;
+
+    const auto hit = hud.hitTestPanels(screenPos, windowSize, openSlots);
     if (!hit.has_value())
         return;
 
-    Inventory& source = hit->isChest ? machines.at(openChestTile->x, openChestTile->y)->storage
-                                      : player.inventory();
+    Inventory& source = hit->isStorage ? machines.at(openStorageTile->x, openStorageTile->y)->storage
+                                        : player.inventory();
 
     const ItemStack taken = source.take(hit->index);
     if (taken.empty())
@@ -457,7 +463,7 @@ void Game::beginDrag()
 
     dragging = true;
     dragStack = taken;
-    dragSourcePanel = hit->isChest ? InventoryPanel::Chest : InventoryPanel::Bag;
+    dragSourcePanel = hit->isStorage ? InventoryPanel::Storage : InventoryPanel::Bag;
     dragSourceSlot = hit->index;
 }
 
@@ -466,11 +472,15 @@ void Game::endDrag()
     const sf::Vector2f screenPos(sf::Mouse::getPosition(window));
     const sf::Vector2f windowSize(window.getSize());
 
-    Inventory& sourceInventory = (dragSourcePanel == InventoryPanel::Chest)
-        ? machines.at(openChestTile->x, openChestTile->y)->storage
+    Inventory& sourceInventory = (dragSourcePanel == InventoryPanel::Storage)
+        ? machines.at(openStorageTile->x, openStorageTile->y)->storage
         : player.inventory();
 
-    const auto hit = hud.hitTestPanels(screenPos, windowSize, openChestTile.has_value());
+    const int openSlots = openStorageTile.has_value()
+        ? machines.at(openStorageTile->x, openStorageTile->y)->storage.slotCount()
+        : 0;
+
+    const auto hit = hud.hitTestPanels(screenPos, windowSize, openSlots);
 
     if (!hit.has_value())
     {
@@ -480,8 +490,8 @@ void Game::endDrag()
         return;
     }
 
-    Inventory& destInventory = hit->isChest ? machines.at(openChestTile->x, openChestTile->y)->storage
-                                             : player.inventory();
+    Inventory& destInventory = hit->isStorage ? machines.at(openStorageTile->x, openStorageTile->y)->storage
+                                               : player.inventory();
 
     const ItemStack leftover = destInventory.exchange(hit->index, dragStack);
 
@@ -491,12 +501,12 @@ void Game::endDrag()
     dragging = false;
 }
 
-void Game::depositAllToChest()
+void Game::depositAllToStorage()
 {
-    if (!openChestTile.has_value())
+    if (!openStorageTile.has_value())
         return;
 
-    Inventory& chest = machines.at(openChestTile->x, openChestTile->y)->storage;
+    Inventory& storage = machines.at(openStorageTile->x, openStorageTile->y)->storage;
     Inventory& bag = player.inventory();
 
     // Bag-panel slots only (HOTBAR_SIZE..slotCount()-1) - the hotbar is left
@@ -507,26 +517,26 @@ void Game::depositAllToChest()
         if (taken.empty())
             continue;
 
-        // Whatever doesn't fit in the chest goes right back into the slot it
-        // came from - take() already emptied it, so this can only refill it,
-        // never swap with something else.
-        const int leftover = chest.add(taken);
+        // Whatever doesn't fit goes right back into the slot it came from -
+        // take() already emptied it, so this can only refill it, never swap
+        // with something else.
+        const int leftover = storage.add(taken);
         if (leftover > 0)
             bag.exchange(i, {taken.type, leftover});
     }
 }
 
-void Game::collectAllFromChest()
+void Game::collectAllFromStorage()
 {
-    if (!openChestTile.has_value())
+    if (!openStorageTile.has_value())
         return;
 
-    Inventory& chest = machines.at(openChestTile->x, openChestTile->y)->storage;
+    Inventory& storage = machines.at(openStorageTile->x, openStorageTile->y)->storage;
     Inventory& bag = player.inventory();
 
-    for (int i = 0; i < chest.slotCount(); ++i)
+    for (int i = 0; i < storage.slotCount(); ++i)
     {
-        const ItemStack taken = chest.take(i);
+        const ItemStack taken = storage.take(i);
         if (taken.empty())
             continue;
 
@@ -534,7 +544,7 @@ void Game::collectAllFromChest()
         // Collect All destination.
         const int leftover = bag.add(taken, Inventory::HOTBAR_SIZE);
         if (leftover > 0)
-            chest.exchange(i, {taken.type, leftover});
+            storage.exchange(i, {taken.type, leftover});
     }
 }
 
@@ -731,7 +741,7 @@ void Game::handleEvents()
                 if (buildMode)
                 {
                     inventoryOpen = false;
-                    openChestTile.reset();
+                    openStorageTile.reset();
                 }
             }
 
@@ -771,14 +781,14 @@ void Game::handleEvents()
                 const sf::Vector2f screenPos(sf::Mouse::getPosition(window));
                 const sf::Vector2f windowSize(window.getSize());
 
-                if (openChestTile.has_value())
+                if (openStorageTile.has_value())
                 {
                     const auto chestButton = hud.hitTestChestButton(screenPos, windowSize);
 
                     if (chestButton == Hud::ChestButton::DepositAll)
-                        depositAllToChest();
+                        depositAllToStorage();
                     else if (chestButton == Hud::ChestButton::CollectAll)
-                        collectAllFromChest();
+                        collectAllFromStorage();
                     else
                         beginDrag();
                 }

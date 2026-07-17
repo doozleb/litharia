@@ -316,18 +316,18 @@ void Hud::drawDragGhost(sf::RenderWindow& window, const ItemStack& stack, sf::Ve
 }
 
 std::optional<Hud::SlotHit> Hud::hitTestPanels(sf::Vector2f screenPos, sf::Vector2f windowSize,
-                                                bool chestOpen) const
+                                                int openStorageSlots) const
 {
     constexpr int COLUMNS = Inventory::HOTBAR_SIZE;
     constexpr int BAG_ROWS = 3;
-    constexpr int CHEST_ROWS = 2;
 
-    if (chestOpen)
+    if (openStorageSlots > 0)
     {
-        const int chestIndex = hudLayout::hitTestGrid(screenPos, chestPanelOrigin(windowSize), COLUMNS,
-                                                        CHEST_ROWS, CHEST_SLOT_SIZE, SLOT_GAP);
-        if (chestIndex >= 0)
-            return SlotHit{true, chestIndex};
+        const int storageRows = (openStorageSlots + COLUMNS - 1) / COLUMNS;
+        const int storageIndex = hudLayout::hitTestGrid(screenPos, chestPanelOrigin(windowSize), COLUMNS,
+                                                          storageRows, CHEST_SLOT_SIZE, SLOT_GAP);
+        if (storageIndex >= 0 && storageIndex < openStorageSlots)
+            return SlotHit{true, storageIndex};
     }
 
     const int bagGridIndex = hudLayout::hitTestGrid(screenPos, bagPanelOrigin(windowSize), COLUMNS,

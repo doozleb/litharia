@@ -57,15 +57,17 @@ public:
 
     struct SlotHit
     {
-        bool isChest = false; // false: the player's bag; true: the open chest
-        int index = -1;       // index into that Inventory
+        bool isStorage = false; // false: the player's bag; true: the open chest/item acceptor
+        int index = -1;         // index into that Inventory
     };
 
     // Screen position -> which open panel/slot it lands on, or nullopt if
-    // neither. `chestOpen` must match whether drawChestPanel was actually
-    // called this frame, so hit-testing and drawing never disagree.
+    // neither. `openStorageSlots` is the slot count of whichever storage
+    // panel (chest or item acceptor) is currently drawn alongside the bag,
+    // or 0 if none is open - must match what drawChestPanel was actually
+    // called with this frame, so hit-testing and drawing never disagree.
     std::optional<SlotHit> hitTestPanels(sf::Vector2f screenPos, sf::Vector2f windowSize,
-                                          bool chestOpen) const;
+                                          int openStorageSlots) const;
 
     enum class ChestButton { DepositAll, CollectAll };
 
