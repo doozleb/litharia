@@ -59,8 +59,9 @@ public:
     // from ever bleeding into a neighbor tree.
     static constexpr int TREE_MIN_SPACING = 4;
 
-    // How far either side of a target x to search for the most elevated
-    // column when anchoring a hill cave.
+    // Starting search radius for findHillPeak - it expands from here (see
+    // findHillPeak's own comment) when the terrain's real peak lies further
+    // out than this.
     static constexpr int HILL_SEARCH_RADIUS = 30;
 
     // The 4 hill caves sit at spawnX +/- these offsets: 2 near, 2 far.
@@ -84,10 +85,14 @@ public:
 
     int surfaceHeight(int x) const;
 
-    // The most elevated column within HILL_SEARCH_RADIUS of targetX (smaller
-    // surfaceHeight = higher ground). Ties break toward the first x found.
-    // Public, like surfaceHeight, so it can be tested directly.
-    int findHillPeak(int targetX) const;
+    // The most elevated column near targetX (smaller surfaceHeight = higher
+    // ground). Starts searching a window of HILL_SEARCH_RADIUS and, if the
+    // best point found sits right on that window's edge - a sign the real
+    // peak lies further out, not that the window's edge genuinely is the
+    // peak - doubles the window and tries again, up to maxRadius. Ties
+    // break toward the first x found. Public, like surfaceHeight, so it can
+    // be tested directly.
+    int findHillPeak(int targetX, int maxRadius) const;
 
     std::uint32_t seed() const { return worldSeed; }
 

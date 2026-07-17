@@ -41,6 +41,16 @@ constexpr int BRANCH_MAX_COUNT = 6;
 constexpr int BRANCH_MIN_STEPS = 15;
 constexpr int BRANCH_MAX_STEPS = 40;
 
+// findHillPeak's search may expand well past HILL_SEARCH_RADIUS to find a
+// genuine peak, but never so far it could reach into a neighboring special
+// cave's own territory. The near pair sits 2*SPECIAL_CAVE_NEAR_OFFSET apart
+// (200 tiles); a near-to-far gap is SPECIAL_CAVE_FAR_OFFSET -
+// SPECIAL_CAVE_NEAR_OFFSET (250 tiles). Both caps stay comfortably under
+// half of the tighter gap that actually bounds each cave, so no two caves
+// can ever expand into the same hill.
+constexpr int NEAR_HILL_MAX_RADIUS = 90;
+constexpr int FAR_HILL_MAX_RADIUS = 120;
+
 constexpr std::uint32_t SALT_SPECIAL_CAVE = 0x8000u;
 
 // --- Pass 4: ore -------------------------------------------------------------
@@ -118,25 +128,38 @@ int TerrainGenerator::surfaceHeight(int x) const
     return std::clamp(static_cast<int>(std::lround(height)), SURFACE_MIN, SURFACE_MAX);
 }
 
-int TerrainGenerator::findHillPeak(int targetX) const
+int TerrainGenerator::findHillPeak(int targetX, int maxRadius) const
 {
-    const int lo = std::max(0, targetX - HILL_SEARCH_RADIUS);
-    const int hi = std::min(WORLD_WIDTH - 1, targetX + HILL_SEARCH_RADIUS);
+    int radius = HILL_SEARCH_RADIUS;
 
-    int bestX = lo;
-    int bestHeight = surfaceHeight(lo);
-
-    for (int x = lo + 1; x <= hi; ++x)
+    while (true)
     {
-        const int height = surfaceHeight(x);
-        if (height < bestHeight)
-        {
-            bestHeight = height;
-            bestX = x;
-        }
-    }
+        const int lo = std::max(0, targetX - radius);
+        const int hi = std::min(WORLD_WIDTH - 1, targetX + radius);
 
-    return bestX;
+        int bestX = lo;
+        int bestHeight = surfaceHeight(lo);
+
+        for (int x = lo + 1; x <= hi; ++x)
+        {
+            const int height = surfaceHeight(x);
+            if (height < bestHeight)
+            {
+                bestHeight = height;
+                bestX = x;
+            }
+        }
+
+        // Landing on the window's own edge means the terrain was still
+        // improving right up to where the scan stopped - the true peak is
+        // further out, not at this edge. Widen the search and try again
+        // rather than settling for a slope's shoulder.
+        const bool atWindowEdge = (bestX == lo || bestX == hi);
+        if (!atWindowEdge || radius >= maxRadius)
+            return bestX;
+
+        radius = std::min(radius * 2, maxRadius);
+    }
 }
 
 void TerrainGenerator::generate(World& world) const
@@ -277,13 +300,25 @@ std::vector<std::pair<int, int>> TerrainGenerator::carveTrunk(World& world,
         if (y >= IRON_MIN_Y)
             break;
 
-        // Mostly down, sometimes flat, rarely back up - a trunk that
+        // Mostly down, sometimes flat, sometimes back up - a trunk that
         // reliably descends but doesn't fall in a straight line.
         const float dyRoll = noise::hashFloat(step, 0, seed);
-        y += (dyRoll < 0.65f) ? 1 : (dyRoll < 0.85f ? 0 : -1);
+        y += (dyRoll < 0.50f) ? 1 : (dyRoll < 0.80f ? 0 : -1);
 
+        // A sideways step of up to 2 tiles, not just 1, gives the trunk
+        // noticeably more horizontal travel per tile of depth gained, so it
+        // reads as a winding path rather than a near-straight vertical shaft.
         const float dxRoll = noise::hashFloat(step, 1, seed);
-        x += (dxRoll < 1.0f / 3.0f) ? -1 : (dxRoll < 2.0f / 3.0f ? 0 : 1);
+        if (dxRoll < 0.2f)
+            x -= 2;
+        else if (dxRoll < 0.4f)
+            x -= 1;
+        else if (dxRoll < 0.6f)
+            x += 0;
+        else if (dxRoll < 0.8f)
+            x += 1;
+        else
+            x += 2;
     }
 
     return path;
@@ -329,10 +364,16 @@ void TerrainGenerator::carveSpecialCaves(World& world) const
         spawnX + SPECIAL_CAVE_NEAR_OFFSET,
         spawnX + SPECIAL_CAVE_FAR_OFFSET,
     };
+    const int maxRadii[4] = {
+        FAR_HILL_MAX_RADIUS,
+        NEAR_HILL_MAX_RADIUS,
+        NEAR_HILL_MAX_RADIUS,
+        FAR_HILL_MAX_RADIUS,
+    };
 
     for (int caveIndex = 0; caveIndex < 4; ++caveIndex)
     {
-        const int peakX = findHillPeak(targets[caveIndex]);
+        const int peakX = findHillPeak(targets[caveIndex], maxRadii[caveIndex]);
         const int startY = surfaceHeight(peakX) + 2;
 
         const std::vector<std::pair<int, int>> trunkPath =
@@ -441,6 +482,13 @@ void TerrainGenerator::scatterTrees(World& world) const
         if (x - lastTrunkX < TREE_MIN_SPACING)
             continue;
 
+        const int surface = surfaceHeight(x);
+
+        // A hill-cave entrance may have carved this column's surface open;
+        // a tree needs solid ground under it, not thin air over a cave mouth.
+        if (world.get(x, surface) != BlockType::Grass)
+            continue;
+
         const float forestFactor = noise::fbm1D(static_cast<float>(x) * FOREST_FREQUENCY,
                                                  worldSeed + SALT_FOREST,
                                                  FOREST_OCTAVES);
@@ -454,7 +502,7 @@ void TerrainGenerator::scatterTrees(World& world) const
         const int height =
             TREE_MIN_HEIGHT + static_cast<int>(heightRoll * (TREE_MAX_HEIGHT - TREE_MIN_HEIGHT + 1));
 
-        placeTree(world, x, surfaceHeight(x), height);
+        placeTree(world, x, surface, height);
 
         lastTrunkX = x;
     }

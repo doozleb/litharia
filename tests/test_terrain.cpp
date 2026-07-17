@@ -511,21 +511,68 @@ TEST_CASE("findHillPeak returns the most elevated column in its search window")
     const TerrainGenerator generator(2026);
 
     // These 4 x positions mirror where the hill caves will actually be
-    // placed in the next task (spawnX +/- 100 and +/- 350) - hardcoded here
-    // since the SPECIAL_CAVE_*_OFFSET constants don't exist until then.
+    // placed (spawnX +/- 100 and +/- 350) - hardcoded here rather than via
+    // SPECIAL_CAVE_*_OFFSET so this test doesn't drift if those change.
     const int spawnX = WORLD_WIDTH / 2;
     const int targets[] = {spawnX - 350, spawnX - 100, spawnX + 100, spawnX + 350};
 
     for (int target : targets)
     {
-        const int peak = generator.findHillPeak(target);
+        // A generous maxRadius: this test only checks the core "found the
+        // true minimum in some window" property, not the tighter per-cave
+        // caps carveSpecialCaves uses to keep the 4 real caves apart.
+        const int peak = generator.findHillPeak(target, 200);
 
+        // Whatever the search actually expanded to, it only ever replaces
+        // the best point with a strictly better (or equal) one over a
+        // widening window - so the peak is guaranteed at least as good as
+        // everything in the smallest window it started from.
         const int lo = target - TerrainGenerator::HILL_SEARCH_RADIUS;
         const int hi = target + TerrainGenerator::HILL_SEARCH_RADIUS;
 
         for (int x = lo; x <= hi; ++x)
             CHECK(generator.surfaceHeight(peak) <= generator.surfaceHeight(x));
     }
+}
+
+TEST_CASE("findHillPeak expands its search when the starting window's edge isn't a real peak")
+{
+    // Seed 1337 is the real game's fixed world seed (see Game.cpp). At the
+    // real far-right cave target, the starting HILL_SEARCH_RADIUS window's
+    // best point sits on the window's own edge - the true peak lies further
+    // out. This is the exact bug findHillPeak's expansion exists to fix:
+    // regression-guard that the returned peak is not simply sitting at
+    // startingRadius's edge for this seed/target.
+    const TerrainGenerator generator(1337u);
+
+    const int spawnX = WORLD_WIDTH / 2;
+    const int target = spawnX + TerrainGenerator::SPECIAL_CAVE_FAR_OFFSET;
+
+    const int startingLo = target - TerrainGenerator::HILL_SEARCH_RADIUS;
+    const int startingHi = target + TerrainGenerator::HILL_SEARCH_RADIUS;
+
+    int startingBestX = startingLo;
+    int startingBestHeight = generator.surfaceHeight(startingLo);
+    for (int x = startingLo + 1; x <= startingHi; ++x)
+    {
+        const int height = generator.surfaceHeight(x);
+        if (height < startingBestHeight)
+        {
+            startingBestHeight = height;
+            startingBestX = x;
+        }
+    }
+
+    // Confirm the premise: the naive, non-expanding window really does land
+    // on its own edge for this seed/target (otherwise this test would prove
+    // nothing about the expansion behavior).
+    REQUIRE((startingBestX == startingLo || startingBestX == startingHi));
+
+    const int peak = generator.findHillPeak(target, 120);
+
+    // The expanded search must find real higher ground than the
+    // edge-of-window artifact the narrow window settled for.
+    CHECK(generator.surfaceHeight(peak) < startingBestHeight);
 }
 
 TEST_CASE("each hill cave's trunk reaches down to at least the iron layer")
