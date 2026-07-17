@@ -162,12 +162,16 @@ doctest coverage, not just a manual check:
 - **New: rare-band ore exists but stays rare** — shallow iron count and deep
   copper count are both `> 0` but small relative to their common-band
   counts (e.g. under 1/2 of the common count, given a 5x density cut).
-- Existing "each ore stays inside its own depth band", "ore tiles only ever
-  replace stone", "iron sits deeper than copper on average", and "caves
-  carve air below the surface" all keep passing unmodified — `IRON_MIN_Y`/
-  `MAX_Y` and `COPPER_MIN_Y`/`MAX_Y` didn't move, and the special caves
-  only add more air, they don't remove any of the invariants those tests
-  check.
+- "Each ore stays inside its own depth band" must widen to check the union
+  of common + rare range per ore (`IRON_SHALLOW_MIN_Y..IRON_MAX_Y`,
+  `COPPER_MIN_Y..COPPER_DEEP_MAX_Y`) — the rare bands are deliberately
+  adjacent to the common ones (319/320, 340/341) with no gap, so this stays
+  a single contiguous range and the test's intent (ore never appears
+  outside its band) is unchanged, only its bound is widened.
+- "Ore tiles only ever replace stone", "iron sits deeper than copper on
+  average", and "caves carve air below the surface" all keep passing
+  unmodified — the special caves only add more air and the rare bands only
+  add more ore, neither removes any invariant those tests check.
 - 218 existing tests stay green throughout.
 
 ## Out of scope
