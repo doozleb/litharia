@@ -89,6 +89,15 @@ public:
 
     Hud();
 
+    // Every cached sf::Text (the recipe labels and the count/line caches
+    // below) holds a pointer into `font`, which is a member of this same Hud.
+    // Copying would leave the copy's texts pointing at the original's font,
+    // dangling the moment the original dies. Nothing copies a Hud today -
+    // Game owns an sf::RenderWindow and so is non-copyable itself - so this
+    // states the invariant rather than fixing a live bug.
+    Hud(const Hud&) = delete;
+    Hud& operator=(const Hud&) = delete;
+
     void draw(sf::RenderWindow& window, const Inventory& inventory, int selectedSlot);
 
     // The 3 rows of the bag beyond the hotbar (slots HOTBAR_SIZE..slotCount()-1),
@@ -207,7 +216,7 @@ private:
     // slack. Rows the current machine doesn't need simply aren't drawn.
     std::vector<CachedText> tooltipLines;
 
-    // The build palette shows at most VISIBLE (5) swatches at once.
+    // The build palette shows at most PALETTE_VISIBLE (5) swatches at once.
     std::vector<CachedText> paletteCounts;
     std::optional<CachedText> paletteName;
     std::optional<CachedText> dragCount;

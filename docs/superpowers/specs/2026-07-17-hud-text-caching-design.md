@@ -39,7 +39,9 @@ only that.
 
 ### 1. `CachedText`: a text that only rebuilds when its content changes
 
-A small helper, private to `Hud`:
+A small helper, at namespace scope in `Hud.h` (not nested in `Hud`): `drawSlot`
+is a free function in `Hud.cpp`'s anonymous namespace and needs to name the
+type, which a private nested class would not allow.
 
 ```cpp
 // Rebuilding an sf::Text's geometry costs a fixed ~2.8ms (Debug) / ~0.5ms
@@ -56,8 +58,14 @@ public:
     // rebuild - only happens when content actually differs from last time.
     sf::Text& with(const std::string& content);
 
+    // Direct access, for one-time setup at build time (outline thickness).
+    // Public: build-time code sets outline thickness once through here,
+    // rather than every frame via `with()`, which would dirty the geometry -
+    // the exact cost this cache exists to avoid.
+    sf::Text& text();
+
 private:
-    sf::Text text;
+    sf::Text cached;
     std::string current;
 };
 ```
@@ -135,8 +143,9 @@ build-verified rather than doctest-covered, plus:
 
 - **A before/after measurement**, using the same temporary instrumentation
   that produced the numbers above: a full bag + inventory + chest open, timing
-  the frame breakdown. The claim "173ms -> ~11ms" must be demonstrated, not
-  asserted. The instrumentation is removed before the work is committed.
+  the frame breakdown. Measured: **168.7ms -> ~3.0ms** (hotbar 27.4ms ->
+  0.49ms, bag+chest panels 141.3ms -> 2.52ms). The instrumentation is removed
+  before the work is committed.
 - **Manual visual check** by the human: the hotbar, bag, chest, crafting,
   smelting, build palette and machine tooltip must all look exactly as they
   did.
@@ -146,9 +155,10 @@ build-verified rather than doctest-covered, plus:
 ## Out of scope
 
 - Batching the HUD's ~120 slot/icon rectangles into a single `VertexArray`.
-  They cost ~4ms of the projected ~11ms Debug frame; 60fps is met without it,
-  and it is a far more invasive change. Worth revisiting only if more headroom
-  is wanted later.
+  This spec projected they'd cost ~4ms of the projected ~11ms Debug frame; the
+  measured post-fix frame came in at ~3.0ms total, so that ~4ms did not
+  materialise. 60fps is met without batching, and it is a far more invasive
+  change. Worth revisiting only if more headroom is wanted later.
 - The simulation, chunk renderer, and `updatePower()`'s per-tick allocations -
   measured above and fast.
 - Any change to what the HUD draws, its layout, or its behaviour.

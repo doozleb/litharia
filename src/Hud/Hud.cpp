@@ -201,6 +201,17 @@ constexpr unsigned int LABEL_SUBTITLE_SIZE = 11;
 constexpr float LABEL_TITLE_Y = 4.0f;
 constexpr float LABEL_SUBTITLE_Y = 21.0f; // TITLE_Y + TITLE_SIZE + a 4px breather
 
+// The build palette shows at most this many swatches at once. Sizes
+// Hud::paletteCounts and bounds drawBuildPalette's slot index - one symbol,
+// so the two can never disagree.
+constexpr int PALETTE_VISIBLE = 5;
+
+// Rows drawMachineTooltip may emit at most (name, recipe list, fuel/power,
+// input, output, bar, idle reason); sizes Hud::tooltipLines. The draw loop's
+// std::min guard means a desync here silently drops a row rather than
+// corrupting memory, but there's still only one symbol to keep in sync.
+constexpr int TOOLTIP_MAX_LINES = 8;
+
 struct TooltipLine
 {
     std::string text;
@@ -289,13 +300,11 @@ void Hud::buildTextCaches()
 
     // No outline on tooltip rows, unlike the stack counts - the panel behind
     // them already provides the contrast.
-    constexpr int TOOLTIP_MAX_LINES = 8;
     tooltipLines.reserve(TOOLTIP_MAX_LINES);
 
     for (int i = 0; i < TOOLTIP_MAX_LINES; ++i)
         tooltipLines.emplace_back(*font, 14);
 
-    constexpr int PALETTE_VISIBLE = 5;
     paletteCounts.reserve(PALETTE_VISIBLE);
 
     for (int i = 0; i < PALETTE_VISIBLE; ++i)
@@ -511,12 +520,11 @@ void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected, const
         return;
     }
 
-    constexpr int VISIBLE = 5;
     constexpr float SWATCH = 40.0f;
     constexpr float GAP = 6.0f;
 
     const int total = static_cast<int>(held.size());
-    const int visible = std::min(VISIBLE, total);
+    const int visible = std::min(PALETTE_VISIBLE, total);
 
     const auto found = std::find(held.begin(), held.end(), selected);
     const bool selectedHeld = found != held.end();
@@ -555,8 +563,8 @@ void Hud::drawBuildPalette(sf::RenderWindow& window, MachineType selected, const
 
         if (font)
         {
-            sf::Text& count =
-                paletteCounts[static_cast<std::size_t>(slot)].with("x" + std::to_string(bag.count(itemForMachine(type))));
+            sf::Text& count = paletteCounts[static_cast<std::size_t>(slot)].with(
+                "x" + std::to_string(bag.count(itemForMachine(type))));
             count.setFillColor(sf::Color::White);
             const sf::FloatRect cb = count.getLocalBounds();
             count.setPosition({pos.x + SWATCH - cb.size.x - 3.0f, pos.y + SWATCH - cb.size.y - 6.0f});
