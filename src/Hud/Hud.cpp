@@ -133,9 +133,11 @@ sf::Vector2f chestButtonsOrigin(sf::Vector2f windowSize)
     return {x, chest.y};
 }
 
-// Where the crafting panel's first button sits: directly below the bag panel,
-// sharing its left edge - the same spot the chest panel would occupy (the two
-// are mutually exclusive, so there's no visual collision).
+// Where the crafting/smelting panel's first button sits: directly below the
+// bag panel, sharing its left edge. This deliberately sits to the LEFT of
+// where the chest panel would be (which hugs the right border instead) - the
+// two are mutually exclusive, so they never collide, and storage reads on the
+// right while crafting/smelting reads on the left.
 sf::Vector2f craftPanelOrigin(sf::Vector2f windowSize)
 {
     constexpr int BAG_ROWS = 3;
@@ -168,6 +170,54 @@ void drawChestButton(sf::RenderWindow& window, const std::optional<sf::Font>& fo
     text.setPosition({pos.x + (Hud::CHEST_BUTTON_WIDTH - bounds.size.x) * 0.5f,
                       pos.y + (Hud::CHEST_BUTTON_HEIGHT - bounds.size.y) * 0.5f});
     window.draw(text);
+}
+
+// "5x Stone, 2x Iron Plate" - a recipe's cost, skipping its unused ingredient
+// slots. Kept separate from the recipe's name so the two can occupy their own
+// rows of a button (see drawRecipeLabel).
+std::string formatIngredientCost(const CraftRecipe& recipe)
+{
+    std::string cost;
+
+    for (const CraftIngredient& ing : recipe.ingredients)
+    {
+        if (ing.item == ItemType::None)
+            continue;
+
+        if (!cost.empty())
+            cost += ", ";
+
+        cost += std::to_string(ing.count) + "x " + std::string(itemInfo(ing.item).name);
+    }
+
+    return cost;
+}
+
+// One recipe button's text: `title` on the first row, `subtitle` on a second,
+// smaller row beneath it. Both the craft and smelt panels route their labels
+// through here, so their rows line up and neither can overrun the button the
+// way a single long line did.
+void drawRecipeLabel(sf::RenderWindow& window, const sf::Font& font, sf::Vector2f pos,
+                      const std::string& title, const std::string& subtitle, bool disabled)
+{
+    constexpr float PADDING = 8.0f;
+    constexpr unsigned int TITLE_SIZE = 13;
+    constexpr unsigned int SUBTITLE_SIZE = 11;
+    constexpr float TITLE_Y = 4.0f;
+    constexpr float SUBTITLE_Y = 21.0f; // TITLE_Y + TITLE_SIZE + a 4px breather
+
+    sf::Text titleText(font, title, TITLE_SIZE);
+    titleText.setFillColor(disabled ? sf::Color(150, 150, 150) : sf::Color::White);
+    titleText.setPosition({pos.x + PADDING, pos.y + TITLE_Y});
+    window.draw(titleText);
+
+    if (subtitle.empty())
+        return;
+
+    sf::Text subtitleText(font, subtitle, SUBTITLE_SIZE);
+    subtitleText.setFillColor(disabled ? sf::Color(120, 120, 120) : sf::Color(200, 200, 200));
+    subtitleText.setPosition({pos.x + PADDING, pos.y + SUBTITLE_Y});
+    window.draw(subtitleText);
 }
 
 struct TooltipLine
@@ -586,25 +636,12 @@ void Hud::drawCraftPanel(sf::RenderWindow& window, const Inventory& bag, bool ad
         if (!font)
             continue;
 
-        std::string label = std::string(itemInfo(recipe.output).name) + " (";
-        bool firstIngredient = true;
-        for (const CraftIngredient& ing : recipe.ingredients)
-        {
-            if (ing.item == ItemType::None)
-                continue;
-
-            if (!firstIngredient)
-                label += ", ";
-            firstIngredient = false;
-
-            label += std::to_string(ing.count) + "x " + std::string(itemInfo(ing.item).name);
-        }
-        label += ")";
-
-        sf::Text text(*font, label, 13);
-        text.setFillColor(disabled ? sf::Color(150, 150, 150) : sf::Color::White);
-        text.setPosition({pos.x + 8.0f, pos.y + (CRAFT_BUTTON_HEIGHT - 13.0f) * 0.5f});
-        window.draw(text);
+        // Two rows: what you get, then what it costs. As one line, a recipe
+        // like "Burner Generator (5x Stone, 2x Iron Plate)" runs well past the
+        // button's right edge - the cost is what makes it long, so it wraps to
+        // its own row rather than being truncated or shrunk to fit.
+        drawRecipeLabel(window, *font, pos, std::string(itemInfo(recipe.output).name),
+                         formatIngredientCost(recipe), disabled);
     }
 
     window.setView(previous);
@@ -671,13 +708,10 @@ void Hud::drawSmeltPanel(sf::RenderWindow& window, const Inventory& bag, bool sm
         if (!font)
             continue;
 
-        const std::string label =
-            std::string(itemInfo(recipe.in).name) + " -> " + std::string(itemInfo(recipe.out).name);
-
-        sf::Text text(*font, label, 13);
-        text.setFillColor(disabled ? sf::Color(150, 150, 150) : sf::Color::White);
-        text.setPosition({pos.x + 8.0f, pos.y + (CRAFT_BUTTON_HEIGHT - 13.0f) * 0.5f});
-        window.draw(text);
+        // Same two-row shape as the craft panel: what you get, then what it
+        // costs - rather than one "Copper Ore -> Copper Plate" line.
+        drawRecipeLabel(window, *font, pos, std::string(itemInfo(recipe.out).name),
+                         "from " + std::string(itemInfo(recipe.in).name), disabled);
     }
 
     window.setView(previous);
