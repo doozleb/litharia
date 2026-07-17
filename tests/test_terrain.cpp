@@ -65,9 +65,12 @@ TEST_CASE("every column has a surface, inside the world bounds")
         CHECK(surface > 0);
         CHECK(surface < WORLD_HEIGHT);
 
-        // The surface tile itself is grass. Directly above it is open air,
-        // unless a tree's bottom log has grown there instead.
-        CHECK(world.get(x, surface) == BlockType::Grass);
+        // The surface tile itself is grass, except where a hill-cave
+        // entrance has carved it open (see "each hill cave's trunk reaches
+        // down to at least the iron layer" for that pass). Directly above
+        // it is open air, unless a tree's bottom log has grown there instead.
+        const BlockType surfaceTile = world.get(x, surface);
+        CHECK((surfaceTile == BlockType::Grass || surfaceTile == BlockType::Air));
 
         const BlockType above = world.get(x, surface - 1);
         CHECK((above == BlockType::Air || above == BlockType::OakLog));
