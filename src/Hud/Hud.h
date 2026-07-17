@@ -3,12 +3,56 @@
 #include <SFML/Graphics.hpp>
 
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "../Machines/Machine.h"
 #include "../Machines/MachineStatus.h"
 
 class Inventory;
+
+// An sf::Text that only rebuilds when its content actually changes.
+//
+// SFML rebuilds a text's geometry whenever its string is set, at a fixed cost
+// of ~2.8ms in a Debug build (~0.5ms in Release) - fixed meaning a
+// one-character string costs the same as a sixteen-character one. Drawing a
+// text that was NOT rebuilt costs ~0.05ms. A HUD that shows the same numbers
+// frame after frame must therefore never re-set a string it hasn't changed:
+// constructing 60 fresh texts a frame for the inventory measured at 168ms of
+// a 173ms frame (~6fps).
+//
+// setPosition/setFillColor/setOutlineColor do not rebuild, so callers stay
+// free to move and recolour the returned text every frame. setOutlineThickness
+// DOES rebuild when the value changes, so set it once via text(), at build
+// time, and never per frame.
+class CachedText
+{
+public:
+    CachedText(const sf::Font& font, unsigned int characterSize)
+        : cached(font, "", characterSize)
+    {
+    }
+
+    // The cached text, with `content` applied. The string - and so the
+    // rebuild - is only set when it actually differs from last time.
+    sf::Text& with(const std::string& content)
+    {
+        if (content != current)
+        {
+            current = content;
+            cached.setString(current);
+        }
+
+        return cached;
+    }
+
+    // Direct access, for one-time setup at build time (outline thickness).
+    sf::Text& text() { return cached; }
+
+private:
+    sf::Text cached;
+    std::string current;
+};
 
 // Draws the ten hotbar slots in screen space. If no font can be found the slots
 // and their contents still render - only the stack counts are missing, and the
@@ -150,6 +194,15 @@ private:
     void buildRecipeLabels();
     void drawRecipeLabel(sf::RenderWindow& window, RecipeLabel& label, sf::Vector2f pos,
                           bool disabled);
+
+    // Parallel to the slots each panel draws. Populated iff `font` has a
+    // value, so the existing `if (!font)` guards at each draw site are what
+    // keep these accesses safe.
+    std::vector<CachedText> hotbarCounts;  // Inventory::HOTBAR_SIZE entries
+    std::vector<CachedText> bagCounts;     // Inventory::SIZE - HOTBAR_SIZE entries
+    std::vector<CachedText> storageCounts; // CHEST_SLOTS entries (an Item Acceptor uses the first 10)
+
+    void buildTextCaches();
 
     std::optional<sf::Font> font;
 };

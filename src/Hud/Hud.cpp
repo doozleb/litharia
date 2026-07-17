@@ -45,9 +45,11 @@ sf::Color itemColor(ItemType type)
 // Draws one slot's background, item icon, and stack count - shared by the
 // hotbar and the bag/chest panels so they render identically (aside from
 // their own slot size and background color).
-void drawSlot(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf::Vector2f pos,
-              const ItemStack& stack, bool highlighted, float slotSize, sf::Color backgroundColor,
-              unsigned int countFontSize)
+//
+// `count` is the caller's cached text for this slot, or nullptr when no font
+// loaded (in which case the slot and icon still draw, just without a number).
+void drawSlot(sf::RenderWindow& window, CachedText* count, sf::Vector2f pos, const ItemStack& stack,
+              bool highlighted, float slotSize, sf::Color backgroundColor)
 {
     sf::RectangleShape slot({slotSize, slotSize});
     slot.setPosition(pos);
@@ -66,18 +68,18 @@ void drawSlot(sf::RenderWindow& window, const std::optional<sf::Font>& font, sf:
     icon.setOutlineColor(sf::Color(20, 16, 14));
     window.draw(icon);
 
-    if (!font)
+    if (count == nullptr)
         return;
 
-    sf::Text count(*font, std::to_string(stack.count), countFontSize);
-    count.setFillColor(sf::Color::White);
-    count.setOutlineThickness(2.0f);
-    count.setOutlineColor(sf::Color(10, 10, 12));
+    sf::Text& text = count->with(std::to_string(stack.count));
+    text.setFillColor(sf::Color::White);
 
-    const sf::FloatRect bounds = count.getLocalBounds();
-    count.setPosition({pos.x + slotSize - bounds.size.x - 5.0f,
-                       pos.y + slotSize - bounds.size.y - 10.0f});
-    window.draw(count);
+    // Free once the geometry is built: only the first getLocalBounds after a
+    // string change does any work.
+    const sf::FloatRect bounds = text.getLocalBounds();
+    text.setPosition({pos.x + slotSize - bounds.size.x - 5.0f,
+                      pos.y + slotSize - bounds.size.y - 10.0f});
+    window.draw(text);
 }
 
 // Where the hotbar's first slot sits: hugging the top-right corner. Shared by
@@ -243,6 +245,7 @@ Hud::Hud()
     : font(loadFont())
 {
     buildRecipeLabels();
+    buildTextCaches();
 }
 
 void Hud::buildRecipeLabels()
@@ -261,6 +264,30 @@ void Hud::buildRecipeLabels()
         smeltLabels.push_back(
             {sf::Text(*font, std::string(itemInfo(recipe.out).name), LABEL_TITLE_SIZE),
              sf::Text(*font, "from " + std::string(itemInfo(recipe.in).name), LABEL_SUBTITLE_SIZE)});
+}
+
+void Hud::buildTextCaches()
+{
+    if (!font)
+        return;
+
+    // Stack counts share one look: white with a dark outline. The outline is
+    // set here and never touched again - changing its thickness would dirty
+    // the geometry, which is the whole thing this cache exists to avoid.
+    const auto makeCount = [this](std::vector<CachedText>& into, int howMany, unsigned int size) {
+        into.reserve(static_cast<std::size_t>(howMany));
+
+        for (int i = 0; i < howMany; ++i)
+        {
+            into.emplace_back(*font, size);
+            into.back().text().setOutlineThickness(2.0f);
+            into.back().text().setOutlineColor(sf::Color(10, 10, 12));
+        }
+    };
+
+    makeCount(hotbarCounts, Inventory::HOTBAR_SIZE, COUNT_FONT_SIZE);
+    makeCount(bagCounts, Inventory::SIZE - Inventory::HOTBAR_SIZE, COUNT_FONT_SIZE);
+    makeCount(storageCounts, CHEST_SLOTS, CHEST_COUNT_FONT_SIZE);
 }
 
 // Only ever moves and recolours the cached text - never re-sets its string,
@@ -293,8 +320,8 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
     for (int i = 0; i < Inventory::HOTBAR_SIZE; ++i)
     {
         const sf::Vector2f pos = hudLayout::gridSlotPosition(origin, i, COLUMNS, SLOT_SIZE, SLOT_GAP);
-        drawSlot(window, font, pos, inventory.slot(i), i == selectedSlot, SLOT_SIZE, BAG_SLOT_BACKGROUND,
-                 COUNT_FONT_SIZE);
+        drawSlot(window, font ? &hotbarCounts[static_cast<std::size_t>(i)] : nullptr, pos,
+                 inventory.slot(i), i == selectedSlot, SLOT_SIZE, BAG_SLOT_BACKGROUND);
     }
 
     window.setView(previous);
@@ -313,8 +340,8 @@ void Hud::drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventor
         const int gridIndex = i - Inventory::HOTBAR_SIZE;
         const sf::Vector2f pos =
             hudLayout::gridSlotPosition(origin, gridIndex, COLUMNS, SLOT_SIZE, SLOT_GAP);
-        drawSlot(window, font, pos, inventory.slot(i), false, SLOT_SIZE, BAG_SLOT_BACKGROUND,
-                 COUNT_FONT_SIZE);
+        drawSlot(window, font ? &bagCounts[static_cast<std::size_t>(gridIndex)] : nullptr, pos,
+                 inventory.slot(i), false, SLOT_SIZE, BAG_SLOT_BACKGROUND);
     }
 
     window.setView(previous);
@@ -332,8 +359,8 @@ void Hud::drawChestPanel(sf::RenderWindow& window, const Inventory& chestStorage
     {
         const sf::Vector2f pos =
             hudLayout::gridSlotPosition(origin, i, COLUMNS, CHEST_SLOT_SIZE, SLOT_GAP);
-        drawSlot(window, font, pos, chestStorage.slot(i), false, CHEST_SLOT_SIZE, CHEST_SLOT_BACKGROUND,
-                 CHEST_COUNT_FONT_SIZE);
+        drawSlot(window, font ? &storageCounts[static_cast<std::size_t>(i)] : nullptr, pos,
+                 chestStorage.slot(i), false, CHEST_SLOT_SIZE, CHEST_SLOT_BACKGROUND);
     }
 
     window.setView(previous);
