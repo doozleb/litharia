@@ -50,6 +50,8 @@ private:
     void mineFurnitureAtCursor(const PlayerInput& input, float dt);
     void refundMachineItem(MachineType type);
     void removeMachineAtCursor();
+    void dropAtPlayer(ItemStack stack);
+    void spillInventoryToGround(const Inventory& inventory);
     void cycleBuildType(int delta);
     void setBuildType(MachineType type);
     void interactAtCursor();

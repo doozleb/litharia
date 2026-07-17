@@ -166,11 +166,12 @@ sf::Vector2i Game::cursorTile() const
 void Game::placeMachineAtCursor()
 {
     const sf::Vector2i tile = cursorTile();
-    const int width = machineInfo(buildType).width;
+    const MachineInfo& info = machineInfo(buildType);
 
-    for (int dx = 0; dx < width; ++dx)
-        if (world.isSolid(tile.x + dx, tile.y))
-            return;
+    for (int dy = 0; dy < info.height; ++dy)
+        for (int dx = 0; dx < info.width; ++dx)
+            if (world.isSolid(tile.x + dx, tile.y + dy))
+                return;
 
     const ItemType item = itemForMachine(buildType);
     if (player.inventory().count(item) <= 0)
@@ -246,10 +247,12 @@ void Game::mineFurnitureAtCursor(const PlayerInput& input, float dt)
         return;
 
     const MachineType type = target->type;
+    const Inventory storage = target->storage;
     if (!machines.remove(tile.x, tile.y))
         return;
 
     refundMachineItem(type);
+    spillInventoryToGround(storage);
 
     miningFurniture = false;
     miningFurnitureProgress = 0.0f;
@@ -263,10 +266,12 @@ void Game::removeMachineAtCursor()
         return;
 
     const MachineType type = target->type;
+    const Inventory storage = target->storage;
     if (!machines.remove(tile.x, tile.y))
         return;
 
     refundMachineItem(type);
+    spillInventoryToGround(storage);
 }
 
 void Game::refundMachineItem(MachineType type)
@@ -274,12 +279,23 @@ void Game::refundMachineItem(MachineType type)
     const ItemType item = itemForMachine(type);
     const int leftover = player.inventory().add({item, 1});
 
-    if (leftover > 0)
-    {
-        const sf::Vector2f position =
-            player.center() - sf::Vector2f{ItemEntity::SIZE * 0.5f, ItemEntity::SIZE * 0.5f};
-        drops.emplace_back(ItemStack{item, leftover}, position, sf::Vector2f{0.0f, -60.0f});
-    }
+    dropAtPlayer(ItemStack{item, leftover});
+}
+
+void Game::dropAtPlayer(ItemStack stack)
+{
+    if (stack.empty())
+        return;
+
+    const sf::Vector2f position =
+        player.center() - sf::Vector2f{ItemEntity::SIZE * 0.5f, ItemEntity::SIZE * 0.5f};
+    drops.emplace_back(stack, position, sf::Vector2f{0.0f, -60.0f});
+}
+
+void Game::spillInventoryToGround(const Inventory& inventory)
+{
+    for (int i = 0; i < inventory.slotCount(); ++i)
+        dropAtPlayer(inventory.slot(i));
 }
 
 void Game::cycleBuildType(int delta)
@@ -567,12 +583,7 @@ void Game::updateCrafting(float dt)
     Inventory& bag = player.inventory();
     const int leftover = bag.add({recipe.output, 1});
 
-    if (leftover > 0)
-    {
-        const sf::Vector2f position =
-            player.center() - sf::Vector2f{ItemEntity::SIZE * 0.5f, ItemEntity::SIZE * 0.5f};
-        drops.emplace_back(ItemStack{recipe.output, leftover}, position, sf::Vector2f{0.0f, -60.0f});
-    }
+    dropAtPlayer(ItemStack{recipe.output, leftover});
 
     crafting = false;
     craftingRecipeIndex = -1;
@@ -616,12 +627,7 @@ void Game::updateSmelting(float dt)
     Inventory& bag = player.inventory();
     const int leftover = bag.add({recipe.out, 1});
 
-    if (leftover > 0)
-    {
-        const sf::Vector2f position =
-            player.center() - sf::Vector2f{ItemEntity::SIZE * 0.5f, ItemEntity::SIZE * 0.5f};
-        drops.emplace_back(ItemStack{recipe.out, leftover}, position, sf::Vector2f{0.0f, -60.0f});
-    }
+    dropAtPlayer(ItemStack{recipe.out, leftover});
 
     smelting = false;
     smeltingRecipeIndex = -1;
