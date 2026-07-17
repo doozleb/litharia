@@ -20,16 +20,35 @@ costing plates) is otherwise untouched.
 
 ## Components
 
-### 1. `ItemType::Furnace` and `MachineType::Furnace`
+### 1. `ItemType::Furnace` and `MachineType::Furnace`, a 2x2 footprint
 
 Both enums gain one more entry, appended at the end (after `Chest` /
 `CraftingTable` respectively), following the exact pattern the original
 7 machine items/types already established: `ItemInfo{"Furnace", 10,
-BlockType::Air, ToolType::None, <color>}` and `MachineInfo{"Furnace", <color>,
-generator=false, consumer=false, transport=false, powerRating=0, actionTime=0,
-width=1}`. `itemForMachine(MachineType::Furnace)` returns `ItemType::Furnace`.
-Unlike the Crafting Table, the Furnace is a normal single-tile machine - there
-is no reason for it to be wider.
+BlockType::Air, ToolType::None, <color>}`. `itemForMachine(MachineType::
+Furnace)` returns `ItemType::Furnace`.
+
+The Furnace is **2x2** - the game's second multi-tile machine, and its first
+one taller than a single row. `Machines::place()`/`remove()` (built in the
+crafting-menu plan's Task 5) currently only understand a 1-D `MachineInfo::
+width`, growing rightward along one row - correct for the Crafting Table's
+2x1, but insufficient here. `MachineInfo` gains a second field, `height`
+(tile count along Y, growing downward from the placed `(x, y)`, default `1`
+for every existing type): `MachineInfo{"Furnace", <color>, generator=false,
+consumer=false, transport=false, powerRating=0, actionTime=0, width=2,
+height=2}`. The Crafting Table's own row changes from `width=2` (with no
+prior `height` field) to `width=2, height=1` - footprint unchanged, just
+now expressed in two dimensions instead of one.
+
+`Machines::place()`/`remove()`'s single `for (dx...)` footprint loops become
+nested `for (dy...) for (dx...)`, iterating `width * height` tiles instead of
+just `width`; the swap-and-pop fixup and the "validate the whole footprint
+before mutating anything" invariant both carry over unchanged, just checking
+more tiles. `MachineRenderer` sizes the body `{width * TILE_SIZE, height *
+TILE_SIZE}` instead of `{width * TILE_SIZE, TILE_SIZE}`. `Game::
+placeFurnitureAtCursor()` (this plan's own new placement path, see the
+furniture-placement-model spec) checks `world.isSolid` and player-overlap
+across the full `width x height` area, not just a single row.
 
 ### 2. Furnace joins the advanced (table) recipe list
 
@@ -138,8 +157,12 @@ smelt buttons → else hit-test craft buttons (unchanged).
 - `Recipes`: `allFurnaceRecipes()` returns exactly 2 entries with the
   specified in/out/seconds; the new Furnace `CraftRecipe` entry has
   `requiresCraftingTable == true` and costs exactly 20 Stone.
-- `MachineType`/`itemForMachine`: Furnace registers with `width == 1` and
-  maps to `ItemType::Furnace`.
+- `MachineType`/`itemForMachine`: Furnace registers with `width == 2`,
+  `height == 2`, and maps to `ItemType::Furnace`; the Crafting Table's
+  `width == 2, height == 1` is unchanged from before this spec.
+- `Machines`: a 2x2 footprint occupies all 4 of its tiles (place/canPlace/
+  remove/swap-and-pop-fixup), mirroring the existing 2x1 Crafting Table
+  tests now generalized to two dimensions.
 - `Hud`/`Game` changes (panel rendering/hit-testing, E-key four-way
   resolution, `startSmelt`/`updateSmelting`) get manual verification via the
   project's run/verify workflow, exactly as the original plan's equivalent
@@ -149,6 +172,9 @@ smelt buttons → else hit-test craft buttons (unchanged).
 
 - Any change to the existing Smelter/Drill/Belt/Burner Generator recipe
   costs - they stay exactly as already implemented and reviewed.
-- Multiple Furnace tiers, Furnace footprint changes, or Furnace ever needing
-  power.
+- Multiple Furnace tiers, further Furnace footprint changes, or Furnace ever
+  needing power.
+- Non-rectangular or rotated multi-tile footprints - `width`/`height` always
+  grow right/down from the placed `(x, y)`, matching the existing Crafting
+  Table convention.
 - Unifying the crafting and smelting state machines.
