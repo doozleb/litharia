@@ -54,6 +54,10 @@ public:
     // from ever bleeding into a neighbor tree.
     static constexpr int TREE_MIN_SPACING = 4;
 
+    // How far either side of a target x to search for the most elevated
+    // column when anchoring a hill cave.
+    static constexpr int HILL_SEARCH_RADIUS = 30;
+
     explicit TerrainGenerator(std::uint32_t seed);
 
     // Passes 1-4.
@@ -64,6 +68,11 @@ public:
     void generateBase(World& world) const;
 
     int surfaceHeight(int x) const;
+
+    // The most elevated column within HILL_SEARCH_RADIUS of targetX (smaller
+    // surfaceHeight = higher ground). Ties break toward the first x found.
+    // Public, like surfaceHeight, so it can be tested directly.
+    int findHillPeak(int targetX) const;
 
     std::uint32_t seed() const { return worldSeed; }
 

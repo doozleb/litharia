@@ -105,6 +105,27 @@ int TerrainGenerator::surfaceHeight(int x) const
     return std::clamp(static_cast<int>(std::lround(height)), SURFACE_MIN, SURFACE_MAX);
 }
 
+int TerrainGenerator::findHillPeak(int targetX) const
+{
+    const int lo = std::max(0, targetX - HILL_SEARCH_RADIUS);
+    const int hi = std::min(WORLD_WIDTH - 1, targetX + HILL_SEARCH_RADIUS);
+
+    int bestX = lo;
+    int bestHeight = surfaceHeight(lo);
+
+    for (int x = lo + 1; x <= hi; ++x)
+    {
+        const int height = surfaceHeight(x);
+        if (height < bestHeight)
+        {
+            bestHeight = height;
+            bestX = x;
+        }
+    }
+
+    return bestX;
+}
+
 void TerrainGenerator::generate(World& world) const
 {
     generateBase(world);

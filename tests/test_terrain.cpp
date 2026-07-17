@@ -502,3 +502,25 @@ TEST_CASE("forest density blends across the world rather than switching on and o
     // "the surface actually rolls rather than sitting flat" uses above.
     CHECK(highest - lowest > 5);
 }
+
+TEST_CASE("findHillPeak returns the most elevated column in its search window")
+{
+    const TerrainGenerator generator(2026);
+
+    // These 4 x positions mirror where the hill caves will actually be
+    // placed in the next task (spawnX +/- 100 and +/- 350) - hardcoded here
+    // since the SPECIAL_CAVE_*_OFFSET constants don't exist until then.
+    const int spawnX = WORLD_WIDTH / 2;
+    const int targets[] = {spawnX - 350, spawnX - 100, spawnX + 100, spawnX + 350};
+
+    for (int target : targets)
+    {
+        const int peak = generator.findHillPeak(target);
+
+        const int lo = target - TerrainGenerator::HILL_SEARCH_RADIUS;
+        const int hi = target + TerrainGenerator::HILL_SEARCH_RADIUS;
+
+        for (int x = lo; x <= hi; ++x)
+            CHECK(generator.surfaceHeight(peak) <= generator.surfaceHeight(x));
+    }
+}
