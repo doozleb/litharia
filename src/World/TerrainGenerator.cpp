@@ -30,7 +30,20 @@ constexpr float CAVE_THRESHOLD_DEEP = 0.60f;
 constexpr int CAVE_MIN_DEPTH = 4;   // no caves in the top few tiles of ground
 constexpr int CAVE_FADE_DEPTH = 45; // fully deep-threshold by this depth
 
-// --- Pass 3: ore -------------------------------------------------------------
+// --- Pass 3: hill caves --------------------------------------------------------
+constexpr float SPECIAL_CAVE_RADIUS = 2.5f;
+
+constexpr int TRUNK_MAX_STEPS = 3000; // loop-safety cap; the downward bias
+                                       // means this is never expected to bind
+
+constexpr int BRANCH_MIN_COUNT = 3;
+constexpr int BRANCH_MAX_COUNT = 6;
+constexpr int BRANCH_MIN_STEPS = 15;
+constexpr int BRANCH_MAX_STEPS = 40;
+
+constexpr std::uint32_t SALT_SPECIAL_CAVE = 0x8000u;
+
+// --- Pass 4: ore -------------------------------------------------------------
 // Candidate vein centres are hashed once per cell of this size.
 constexpr int VEIN_CELL = 10;
 
@@ -55,7 +68,7 @@ constexpr std::uint32_t SALT_IRON = 0x4000u;
 constexpr std::uint32_t SALT_IRON_SHALLOW = 0x4001u;
 constexpr std::uint32_t SALT_COAL = 0x5000u;
 
-// --- Pass 4: trees ------------------------------------------------------------
+// --- Pass 5: trees ------------------------------------------------------------
 // A wider wavelength than the surface noise, so forested and bare stretches
 // span many tens of tiles rather than flickering column to column.
 constexpr float FOREST_FREQUENCY = 0.006f;
@@ -129,6 +142,7 @@ int TerrainGenerator::findHillPeak(int targetX) const
 void TerrainGenerator::generate(World& world) const
 {
     generateBase(world);
+    carveSpecialCaves(world);
     scatterOre(world);
     scatterTrees(world);
 }
@@ -209,6 +223,135 @@ void TerrainGenerator::growVein(World& world,
                 continue;
 
             world.set(x, y, ore);
+        }
+    }
+}
+
+void TerrainGenerator::carveTunnelPoint(World& world, int cx, int cy, float radius) const
+{
+    const int reach = static_cast<int>(std::ceil(radius));
+    const float radiusSquared = radius * radius;
+
+    for (int dy = -reach; dy <= reach; ++dy)
+    {
+        for (int dx = -reach; dx <= reach; ++dx)
+        {
+            if (static_cast<float>(dx * dx + dy * dy) > radiusSquared)
+                continue;
+
+            const int x = cx + dx;
+            const int y = cy + dy;
+
+            // A tunnel opens through solid ground only - it never punches
+            // into a cave that's already open (nothing to do there) and
+            // there is no ore yet at this pass.
+            const BlockType current = world.get(x, y);
+            if (current != BlockType::Stone && current != BlockType::Dirt)
+                continue;
+
+            world.set(x, y, BlockType::Air);
+        }
+    }
+}
+
+std::vector<std::pair<int, int>> TerrainGenerator::carveTrunk(World& world,
+                                                               int caveIndex,
+                                                               int startX,
+                                                               int startY) const
+{
+    std::vector<std::pair<int, int>> path;
+
+    int x = startX;
+    int y = startY;
+
+    const std::uint32_t seed =
+        worldSeed + SALT_SPECIAL_CAVE + static_cast<std::uint32_t>(caveIndex) * 997u;
+
+    for (int step = 0; step < TRUNK_MAX_STEPS; ++step)
+    {
+        carveTunnelPoint(world, x, y, SPECIAL_CAVE_RADIUS);
+        path.push_back({x, y});
+
+        if (y >= IRON_MIN_Y)
+            break;
+
+        // Mostly down, sometimes flat, rarely back up - a trunk that
+        // reliably descends but doesn't fall in a straight line.
+        const float dyRoll = noise::hashFloat(step, 0, seed);
+        y += (dyRoll < 0.65f) ? 1 : (dyRoll < 0.85f ? 0 : -1);
+
+        const float dxRoll = noise::hashFloat(step, 1, seed);
+        x += (dxRoll < 1.0f / 3.0f) ? -1 : (dxRoll < 2.0f / 3.0f ? 0 : 1);
+    }
+
+    return path;
+}
+
+void TerrainGenerator::carveBranch(World& world,
+                                    int caveIndex,
+                                    int branchIndex,
+                                    int startX,
+                                    int startY) const
+{
+    const std::uint32_t seed = worldSeed + SALT_SPECIAL_CAVE +
+                                static_cast<std::uint32_t>(caveIndex) * 997u +
+                                static_cast<std::uint32_t>(branchIndex) * 131u;
+
+    const float lengthRoll = noise::hashFloat(branchIndex, 2, seed);
+    const int length =
+        BRANCH_MIN_STEPS + static_cast<int>(lengthRoll * (BRANCH_MAX_STEPS - BRANCH_MIN_STEPS + 1));
+
+    int x = startX;
+    int y = startY;
+
+    for (int step = 0; step < length; ++step)
+    {
+        carveTunnelPoint(world, x, y, SPECIAL_CAVE_RADIUS);
+
+        // No downward bias here - a branch wanders freely and simply stops
+        // when its length runs out. That stop is the dead end.
+        const float dyRoll = noise::hashFloat(step, 3, seed);
+        y += (dyRoll < 1.0f / 3.0f) ? -1 : (dyRoll < 2.0f / 3.0f ? 0 : 1);
+
+        const float dxRoll = noise::hashFloat(step, 4, seed);
+        x += (dxRoll < 1.0f / 3.0f) ? -1 : (dxRoll < 2.0f / 3.0f ? 0 : 1);
+    }
+}
+
+void TerrainGenerator::carveSpecialCaves(World& world) const
+{
+    const int spawnX = WORLD_WIDTH / 2;
+    const int targets[4] = {
+        spawnX - SPECIAL_CAVE_FAR_OFFSET,
+        spawnX - SPECIAL_CAVE_NEAR_OFFSET,
+        spawnX + SPECIAL_CAVE_NEAR_OFFSET,
+        spawnX + SPECIAL_CAVE_FAR_OFFSET,
+    };
+
+    for (int caveIndex = 0; caveIndex < 4; ++caveIndex)
+    {
+        const int peakX = findHillPeak(targets[caveIndex]);
+        const int startY = surfaceHeight(peakX) + 2;
+
+        const std::vector<std::pair<int, int>> trunkPath =
+            carveTrunk(world, caveIndex, peakX, startY);
+
+        const std::uint32_t caveSeed =
+            worldSeed + SALT_SPECIAL_CAVE + static_cast<std::uint32_t>(caveIndex) * 997u;
+
+        const float countRoll = noise::hashFloat(caveIndex, 5, caveSeed);
+        const int branchCount =
+            BRANCH_MIN_COUNT + static_cast<int>(countRoll * (BRANCH_MAX_COUNT - BRANCH_MIN_COUNT + 1));
+
+        for (int branchIndex = 0; branchIndex < branchCount; ++branchIndex)
+        {
+            const float pickRoll = noise::hashFloat(branchIndex, 6, caveSeed);
+            const std::size_t rawIndex =
+                static_cast<std::size_t>(pickRoll * static_cast<float>(trunkPath.size()));
+            const std::size_t pathIndex = std::min(rawIndex, trunkPath.size() - 1);
+
+            const auto [branchX, branchY] = trunkPath[pathIndex];
+            carveBranch(world, caveIndex, branchIndex, branchX, branchY);
         }
     }
 }

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <utility>
+#include <vector>
 
 #include "../Blocks/Blocks.h"
 
@@ -8,14 +10,17 @@ class World;
 
 // A pure function of the seed: the same seed always produces a byte-identical world.
 //
-// Four passes:
-//   1. Surface - fractal noise over x gives a rolling height; grass, then a dirt
+// Five passes:
+//   1. Surface    - fractal noise over x gives a rolling height; grass, then a dirt
 //      band, then stone all the way down.
-//   2. Caves   - 2D fractal noise crossing a threshold carves air. The threshold
+//   2. Caves      - 2D fractal noise crossing a threshold carves air. The threshold
 //      tightens near the surface so caves do not shred the landscape.
-//   3. Ore     - hashed candidate points inside a depth band grow small blobs, but
+//   3. Hill caves - 4 hand-placed cave systems, each a trunk (random walk down to
+//      the iron layer) plus a handful of dead-end branches, anchored on the
+//      most elevated column near a fixed offset from spawn.
+//   4. Ore        - hashed candidate points inside a depth band grow small blobs, but
 //      only ever overwrite stone, so ore never floats in a cave or sits in dirt.
-//   4. Trees   - a low-frequency noise channel gives each x position a "forest
+//   5. Trees      - a low-frequency noise channel gives each x position a "forest
 //      factor"; columns roll against it to grow an oak tree, spaced far enough
 //      apart that no two canopies ever touch.
 class TerrainGenerator
@@ -58,14 +63,24 @@ public:
     // column when anchoring a hill cave.
     static constexpr int HILL_SEARCH_RADIUS = 30;
 
+    // The 4 hill caves sit at spawnX +/- these offsets: 2 near, 2 far.
+    static constexpr int SPECIAL_CAVE_NEAR_OFFSET = 100; // ~7-12s run from spawn
+    static constexpr int SPECIAL_CAVE_FAR_OFFSET = 350;  // ~25-40s run from spawn
+
     explicit TerrainGenerator(std::uint32_t seed);
 
-    // Passes 1-4.
+    // Passes 1-5.
     void generate(World& world) const;
 
     // Passes 1-2 only: terrain with no ore in it. The ore pass is defined as
     // "stone becomes ore", and this is the world it is defined against.
     void generateBase(World& world) const;
+
+    // Pass 3: 4 hand-placed, hill-anchored cave systems (a trunk down to the
+    // iron layer, plus a handful of dead-end branches), layered onto
+    // generateBase's output. Public, like generateBase, so tests can
+    // isolate exactly what this pass adds.
+    void carveSpecialCaves(World& world) const;
 
     int surfaceHeight(int x) const;
 
@@ -91,6 +106,19 @@ private:
                   int maxY) const;
 
     void placeTree(World& world, int trunkX, int surface, int height) const;
+
+    void carveTunnelPoint(World& world, int cx, int cy, float radius) const;
+
+    std::vector<std::pair<int, int>> carveTrunk(World& world,
+                                                 int caveIndex,
+                                                 int startX,
+                                                 int startY) const;
+
+    void carveBranch(World& world,
+                      int caveIndex,
+                      int branchIndex,
+                      int startX,
+                      int startY) const;
 
     std::uint32_t worldSeed;
 };

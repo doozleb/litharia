@@ -524,3 +524,40 @@ TEST_CASE("findHillPeak returns the most elevated column in its search window")
             CHECK(generator.surfaceHeight(peak) <= generator.surfaceHeight(x));
     }
 }
+
+TEST_CASE("each hill cave's trunk reaches down to at least the iron layer")
+{
+    World world;
+    const TerrainGenerator generator(2026);
+    generator.generateBase(world);
+    generator.carveSpecialCaves(world);
+
+    const int spawnX = WORLD_WIDTH / 2;
+    const int targets[] = {
+        spawnX - TerrainGenerator::SPECIAL_CAVE_FAR_OFFSET,
+        spawnX - TerrainGenerator::SPECIAL_CAVE_NEAR_OFFSET,
+        spawnX + TerrainGenerator::SPECIAL_CAVE_NEAR_OFFSET,
+        spawnX + TerrainGenerator::SPECIAL_CAVE_FAR_OFFSET,
+    };
+
+    for (int target : targets)
+    {
+        bool reachedIronDepth = false;
+
+        for (int x = target - TerrainGenerator::HILL_SEARCH_RADIUS;
+             x <= target + TerrainGenerator::HILL_SEARCH_RADIUS && !reachedIronDepth;
+             ++x)
+        {
+            for (int y = TerrainGenerator::IRON_MIN_Y; y < WORLD_HEIGHT; ++y)
+            {
+                if (world.get(x, y) == BlockType::Air)
+                {
+                    reachedIronDepth = true;
+                    break;
+                }
+            }
+        }
+
+        CHECK(reachedIronDepth);
+    }
+}
