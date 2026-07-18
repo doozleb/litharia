@@ -212,9 +212,12 @@ TEST_CASE("a Copper Drill takes COPPER_TIER_SLOWDOWN times longer to mine than a
     std::vector<sf::Vector2i> mined;
     const float step = 1.0f / 60.0f;
 
-    // Just past the Iron-tier finish line: Iron is done, Copper is not yet.
-    const int ironTicks = static_cast<int>(machineInfo(MachineType::IronDrill).actionTime / step) + 1;
-    for (int i = 0; i < ironTicks; ++i)
+    // Comfortably past the Iron Drill's own cycle (with a full extra second of
+    // margin for the power-on lag and float accumulation), but still
+    // comfortably short of the Copper Drill's longer cycle.
+    const int phase1Ticks =
+        static_cast<int>((machineInfo(MachineType::IronDrill).actionTime + 1.0f) / step);
+    for (int i = 0; i < phase1Ticks; ++i)
     {
         ironMachines.tick(world, step, mined);
         copperMachines.tick(world, step, mined);
@@ -223,11 +226,10 @@ TEST_CASE("a Copper Drill takes COPPER_TIER_SLOWDOWN times longer to mine than a
     CHECK_FALSE(ironMachines.at(1, 0)->output.empty());
     CHECK(copperMachines.at(1, 0)->output.empty());
 
-    // Past its own (1.75x longer) time: now the Copper Drill is done too.
-    const int extraTicks = static_cast<int>(
-        (machineInfo(MachineType::CopperDrill).actionTime
-         - machineInfo(MachineType::IronDrill).actionTime) / step) + 1;
-    for (int i = 0; i < extraTicks; ++i)
+    // Comfortably past the Copper Drill's own (longer) cycle too.
+    const int totalTicksForCopper =
+        static_cast<int>((machineInfo(MachineType::CopperDrill).actionTime + 1.0f) / step);
+    for (int i = phase1Ticks; i < totalTicksForCopper; ++i)
         copperMachines.tick(world, step, mined);
 
     CHECK_FALSE(copperMachines.at(1, 0)->output.empty());
