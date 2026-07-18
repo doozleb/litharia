@@ -454,7 +454,7 @@ void Machines::tickTransport(float dt)
         m.carryTimer = 0.0f;
 
         // Chutes always drop down; belts move toward their facing.
-        const Direction dir = (m.type == MachineType::Chute) ? Direction::Down : m.facing;
+        const Direction dir = isChute(m.type) ? Direction::Down : m.facing;
         const int tx = m.x + dirDX(dir);
         const int ty = m.y + dirDY(dir);
 

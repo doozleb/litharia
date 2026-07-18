@@ -36,7 +36,8 @@ enum class MachineType : std::uint8_t
     IronDrill,
     CopperBelt,
     IronBelt,
-    Chute,
+    CopperChute,
+    IronChute,
     Smelter,
     Chest,
     CraftingTable,
@@ -81,6 +82,9 @@ bool isDrill(MachineType type);
 
 // True for CopperBelt or IronBelt - the two speed tiers of the same machine.
 bool isBelt(MachineType type);
+
+// True for CopperChute or IronChute - the two speed tiers of the same machine.
+bool isChute(MachineType type);
 
 // "Copper Ore, Iron Ore, Coal" - one segment per entry, joined by ", ". An
 // empty span yields "".

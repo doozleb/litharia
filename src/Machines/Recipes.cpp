@@ -10,12 +10,13 @@ constexpr std::array<SmeltRecipe, 2> recipes = {{
     {ItemType::IronOre,   ItemType::IronPlate,   3.5f},
 }};
 
-constexpr std::array<CraftRecipe, 11> craftRecipes = {{
+constexpr std::array<CraftRecipe, 12> craftRecipes = {{
     {ItemType::CraftingTable,   {{{ItemType::OakLog, 15}, {}}},                          3.0f, false},
     {ItemType::Chest,           {{{ItemType::OakLog, 8}, {ItemType::CopperPlate, 2}}},    2.0f, true},
     {ItemType::CopperBelt, {{{ItemType::CopperPlate, 2}, {ItemType::Stone, 2}}}, 1.0f, true},
     {ItemType::IronBelt,   {{{ItemType::IronPlate, 2}, {ItemType::Stone, 2}}},   1.0f, true},
-    {ItemType::Chute,           {{{ItemType::Stone, 2}, {}}},                            1.0f, true},
+    {ItemType::CopperChute, {{{ItemType::CopperPlate, 1}, {ItemType::Stone, 2}}}, 1.0f, true},
+    {ItemType::IronChute,   {{{ItemType::IronPlate, 1}, {ItemType::Stone, 2}}},    1.0f, true},
     {ItemType::BurnerGenerator, {{{ItemType::Stone, 5}, {ItemType::IronPlate, 2}}},       3.0f, true},
     {ItemType::CopperDrill, {{{ItemType::CopperPlate, 4}, {ItemType::Stone, 2}}}, 4.0f, true},
     {ItemType::IronDrill,   {{{ItemType::IronPlate, 4}, {ItemType::Stone, 2}}},   4.0f, true},

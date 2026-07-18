@@ -1,4 +1,4 @@
-#include "doctest.h"
+﻿#include "doctest.h"
 
 #include "Machines/Machines.h"
 #include "World/World.h"
@@ -196,7 +196,7 @@ TEST_CASE("a chute moves its item straight down regardless of facing")
 {
     World world;
     Machines m;
-    m.place(MachineType::Chute, 0, 0, Direction::Right); // facing ignored by chutes
+    m.place(MachineType::IronChute, 0, 0, Direction::Right); // facing ignored by chutes
     m.place(MachineType::IronBelt, 0, 1, Direction::Right);
 
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
@@ -339,4 +339,28 @@ TEST_CASE("a Copper Belt carries an item to the machine ahead, just slower than 
 
     CHECK(m.at(0, 0)->carried == ItemType::None);
     CHECK(m.at(1, 0)->carried == ItemType::Stone);
+}
+
+TEST_CASE("a Copper Chute drops its item straight down regardless of facing, just slower than an Iron Chute would")
+{
+    Machines m;
+    World world;
+    m.place(MachineType::CopperChute, 0, 0, Direction::Right); // facing ignored by chutes
+    m.place(MachineType::IronBelt, 0, 1, Direction::Right);
+
+    REQUIRE(m.tryInsert(0, 0, ItemType::Stone));
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+
+    // A full extra 0.2s of margin past the Copper Chute's own actionTime, not
+    // just +1 tick, so float accumulation over the run can never make this
+    // assertion flaky.
+    const int ticks =
+        static_cast<int>((machineInfo(MachineType::CopperChute).actionTime + 0.2f) / step);
+    for (int i = 0; i < ticks; ++i)
+        m.tick(world, step, mined);
+
+    CHECK(m.at(0, 0)->carried == ItemType::None);
+    CHECK(m.at(0, 1)->carried == ItemType::Stone);
 }
