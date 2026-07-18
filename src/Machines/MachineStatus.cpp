@@ -14,11 +14,10 @@ MachineStatus barStatus(const Machine& m)
         status.bar = MachineBar::Fuel;
         status.fraction = std::clamp(m.fuel / COAL_BURN_SECONDS, 0.0f, 1.0f);
     }
-    else if (m.type == MachineType::Drill)
+    else if (isDrill(m.type))
     {
         status.bar = MachineBar::Progress;
-        status.fraction =
-            std::clamp(m.progress / machineInfo(MachineType::Drill).actionTime, 0.0f, 1.0f);
+        status.fraction = std::clamp(m.progress / machineInfo(m.type).actionTime, 0.0f, 1.0f);
     }
     else if (m.type == MachineType::Smelter)
     {

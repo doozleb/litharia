@@ -606,7 +606,7 @@ void Hud::drawMachineTooltip(sf::RenderWindow& window,
 
     if (machine.type == MachineType::Smelter)
         lines.push_back({"Smelts: " + formatSmeltRecipeList(allSmeltRecipes()), sf::Color::White});
-    else if (machine.type == MachineType::Drill)
+    else if (isDrill(machine.type))
         lines.push_back({"Mines: " + formatDrillOreList(DRILL_ORES), sf::Color::White});
 
     if (info.generator)

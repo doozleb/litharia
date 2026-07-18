@@ -276,7 +276,7 @@ std::string Machines::idleReason(const Machine& m, const World& world) const
         return "No power: the adjacent burner has no fuel.";
     }
 
-    if (m.type == MachineType::Drill)
+    if (isDrill(m.type))
     {
         if (!m.output.empty())
             return "Output is full.";
@@ -494,7 +494,7 @@ void Machines::tickDrills(World& world, float dt, std::vector<sf::Vector2i>& min
 {
     for (Machine& m : machines)
     {
-        if (m.type != MachineType::Drill)
+        if (!isDrill(m.type))
             continue;
 
         // Always try to push any held output onto the machine ahead.

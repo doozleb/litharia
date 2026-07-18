@@ -36,7 +36,8 @@ bool isOutputSide(const Machine& m, Direction side)
 {
     switch (m.type)
     {
-        case MachineType::Drill:
+        case MachineType::CopperDrill:
+        case MachineType::IronDrill:
         case MachineType::Smelter:
             return side != m.facing;
 

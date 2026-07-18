@@ -41,8 +41,8 @@ TEST_CASE("fuel fraction never exceeds 1 even if fuel overshoots capacity")
 TEST_CASE("a drill mid-mining shows proportional progress")
 {
     Machine m;
-    m.type = MachineType::Drill;
-    m.progress = machineInfo(MachineType::Drill).actionTime * 0.25f;
+    m.type = MachineType::IronDrill;
+    m.progress = machineInfo(MachineType::IronDrill).actionTime * 0.25f;
 
     const MachineStatus status = barStatus(m);
 
@@ -80,4 +80,16 @@ TEST_CASE("a belt never shows a bar")
     m.type = MachineType::Belt;
 
     CHECK(barStatus(m).bar == MachineBar::None);
+}
+
+TEST_CASE("a Copper Drill mid-mining shows progress against its own (slower) actionTime")
+{
+    Machine m;
+    m.type = MachineType::CopperDrill;
+    m.progress = machineInfo(MachineType::CopperDrill).actionTime * 0.25f;
+
+    const MachineStatus status = barStatus(m);
+
+    CHECK(status.bar == MachineBar::Progress);
+    CHECK(status.fraction == doctest::Approx(0.25f));
 }

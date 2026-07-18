@@ -43,7 +43,8 @@ TEST_CASE("the machine registry has a valid row per type")
 
     // A generator supplies power; a drill and smelter draw it.
     CHECK(machineInfo(MachineType::BurnerGenerator).generator);
-    CHECK(machineInfo(MachineType::Drill).consumer);
+    CHECK(machineInfo(MachineType::CopperDrill).consumer);
+    CHECK(machineInfo(MachineType::IronDrill).consumer);
     CHECK(machineInfo(MachineType::Smelter).consumer);
 
     // Transport machines move items and are neither source nor sink of power.
@@ -90,10 +91,10 @@ TEST_CASE("placing a machine puts it on its tile and nowhere else")
     CHECK(machines.count() == 0);
     CHECK(machines.at(5, 5) == nullptr);
 
-    Machine* m = machines.place(MachineType::Drill, 5, 5, Direction::Down);
+    Machine* m = machines.place(MachineType::IronDrill, 5, 5, Direction::Down);
     REQUIRE(m != nullptr);
 
-    CHECK(m->type == MachineType::Drill);
+    CHECK(m->type == MachineType::IronDrill);
     CHECK(machines.count() == 1);
     CHECK(machines.at(5, 5) == m);
     CHECK(machines.at(6, 5) == nullptr);
@@ -158,8 +159,8 @@ TEST_CASE("machines are stamped with an increasing placement sequence")
 
     // Read the stamp straight off each returned pointer: place() may reallocate
     // the machine vector, so a pointer must not be held across the next place().
-    const std::uint32_t first = m.place(MachineType::Drill, 0, 0, Direction::Right)->placedSeq;
-    const std::uint32_t second = m.place(MachineType::Drill, 1, 0, Direction::Right)->placedSeq;
+    const std::uint32_t first = m.place(MachineType::IronDrill, 0, 0, Direction::Right)->placedSeq;
+    const std::uint32_t second = m.place(MachineType::IronDrill, 1, 0, Direction::Right)->placedSeq;
 
     CHECK(second > first);
 }
@@ -167,8 +168,8 @@ TEST_CASE("machines are stamped with an increasing placement sequence")
 TEST_CASE("a machine placed after a removal still sorts last")
 {
     Machines m;
-    m.place(MachineType::Drill, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Right);
+    m.place(MachineType::IronDrill, 0, 0, Direction::Right);
+    m.place(MachineType::IronDrill, 1, 0, Direction::Right);
 
     const std::uint32_t survivor = m.at(1, 0)->placedSeq;
 
@@ -176,7 +177,7 @@ TEST_CASE("a machine placed after a removal still sorts last")
 
     // remove() swap-and-pops, so this machine lands in the freed vector slot -
     // but the counter never rewinds, so it cannot jump the queue.
-    const std::uint32_t fresh = m.place(MachineType::Drill, 2, 0, Direction::Right)->placedSeq;
+    const std::uint32_t fresh = m.place(MachineType::IronDrill, 2, 0, Direction::Right)->placedSeq;
 
     CHECK(fresh > survivor);
 }
@@ -209,7 +210,8 @@ TEST_CASE("the machine registry declares a footprint, 1x1 for every type except 
 TEST_CASE("itemForMachine maps every placeable machine to its own item")
 {
     CHECK(itemForMachine(MachineType::BurnerGenerator) == ItemType::BurnerGenerator);
-    CHECK(itemForMachine(MachineType::Drill) == ItemType::Drill);
+    CHECK(itemForMachine(MachineType::CopperDrill) == ItemType::CopperDrill);
+    CHECK(itemForMachine(MachineType::IronDrill) == ItemType::IronDrill);
     CHECK(itemForMachine(MachineType::Belt) == ItemType::Belt);
     CHECK(itemForMachine(MachineType::Chute) == ItemType::Chute);
     CHECK(itemForMachine(MachineType::Smelter) == ItemType::Smelter);
@@ -349,7 +351,8 @@ TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
 {
     CHECK_FALSE(isFurniture(MachineType::None));
     CHECK_FALSE(isFurniture(MachineType::BurnerGenerator));
-    CHECK_FALSE(isFurniture(MachineType::Drill));
+    CHECK_FALSE(isFurniture(MachineType::CopperDrill));
+    CHECK_FALSE(isFurniture(MachineType::IronDrill));
     CHECK_FALSE(isFurniture(MachineType::Belt));
     CHECK_FALSE(isFurniture(MachineType::Chute));
     CHECK_FALSE(isFurniture(MachineType::Smelter));
@@ -389,4 +392,23 @@ TEST_CASE("a placed Item Acceptor gets 10 empty storage slots")
     REQUIRE(acceptor != nullptr);
     CHECK(acceptor->storage.slotCount() == ITEM_ACCEPTOR_SLOTS);
     CHECK(acceptor->storage.isEmpty());
+}
+
+TEST_CASE("a Copper Drill is COPPER_TIER_SLOWDOWN times slower than an Iron Drill")
+{
+    const float iron = machineInfo(MachineType::IronDrill).actionTime;
+    const float copper = machineInfo(MachineType::CopperDrill).actionTime;
+
+    CHECK(iron == doctest::Approx(3.0f));
+    CHECK(copper == doctest::Approx(iron * COPPER_TIER_SLOWDOWN));
+}
+
+TEST_CASE("isDrill is true for exactly Copper Drill and Iron Drill")
+{
+    CHECK(isDrill(MachineType::CopperDrill));
+    CHECK(isDrill(MachineType::IronDrill));
+    CHECK_FALSE(isDrill(MachineType::None));
+    CHECK_FALSE(isDrill(MachineType::BurnerGenerator));
+    CHECK_FALSE(isDrill(MachineType::Belt));
+    CHECK_FALSE(isDrill(MachineType::Smelter));
 }

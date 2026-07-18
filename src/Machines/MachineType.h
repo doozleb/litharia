@@ -15,6 +15,9 @@ inline constexpr float COAL_BURN_SECONDS = 20.0f;
 // How many tiles straight down a drill scans for ore to eat.
 inline constexpr int DRILL_REACH = 4;
 
+// Copper-tier machines run this much slower than their Iron-tier equivalent.
+inline constexpr float COPPER_TIER_SLOWDOWN = 1.75f;
+
 // How many item slots a chest holds (2 rows of 10 in the UI).
 inline constexpr int CHEST_SLOTS = 20;
 
@@ -29,7 +32,8 @@ enum class MachineType : std::uint8_t
 {
     None,
     BurnerGenerator,
-    Drill,
+    CopperDrill,
+    IronDrill,
     Belt,
     Chute,
     Smelter,
@@ -70,6 +74,9 @@ ItemType itemForMachine(MachineType type);
 // right-click to place, mine to remove) instead of through the build-mode
 // palette: Chest, Crafting Table, Furnace.
 bool isFurniture(MachineType type);
+
+// True for CopperDrill or IronDrill - the two speed tiers of the same machine.
+bool isDrill(MachineType type);
 
 // "Copper Ore, Iron Ore, Coal" - one segment per entry, joined by ", ". An
 // empty span yields "".

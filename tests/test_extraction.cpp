@@ -5,7 +5,7 @@
 TEST_CASE("extracting from a drill takes its whole output and empties it")
 {
     Machines m;
-    Machine* drill = m.place(MachineType::Drill, 0, 0, Direction::Right);
+    Machine* drill = m.place(MachineType::IronDrill, 0, 0, Direction::Right);
     REQUIRE(drill != nullptr);
     drill->output = {ItemType::CopperOre, 1};
 

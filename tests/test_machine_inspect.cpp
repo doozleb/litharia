@@ -27,7 +27,7 @@ TEST_CASE("a drill with no generator next to it says so")
     World world;
     world.fill(BlockType::Air);
 
-    m.place(MachineType::Drill, 0, 0, Direction::Right); // no generator
+    m.place(MachineType::IronDrill, 0, 0, Direction::Right); // no generator
 
     std::vector<sf::Vector2i> mined;
     m.tick(world, STEP, mined);
@@ -44,7 +44,7 @@ TEST_CASE("a drill next to an unfuelled burner blames the fuel")
     world.fill(BlockType::Air);
 
     m.place(MachineType::BurnerGenerator, 5, 5, Direction::Right);
-    m.place(MachineType::Drill, 6, 5, Direction::Right);
+    m.place(MachineType::IronDrill, 6, 5, Direction::Right);
     // No coal inserted: the burner is there, it just has nothing to burn.
 
     std::vector<sf::Vector2i> mined;
@@ -64,9 +64,9 @@ TEST_CASE("a drill whose burner is already spoken for says so")
     // Supply is 10 and each drill demands 5, so the third one placed loses out
     // even though it is touching the burner.
     m.place(MachineType::BurnerGenerator, 5, 5, Direction::Right);
-    m.place(MachineType::Drill, 6, 5, Direction::Right);
-    m.place(MachineType::Drill, 4, 5, Direction::Right);
-    m.place(MachineType::Drill, 5, 6, Direction::Right);
+    m.place(MachineType::IronDrill, 6, 5, Direction::Right);
+    m.place(MachineType::IronDrill, 4, 5, Direction::Right);
+    m.place(MachineType::IronDrill, 5, 6, Direction::Right);
     REQUIRE(m.tryInsert(5, 5, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;
@@ -85,7 +85,7 @@ TEST_CASE("a powered drill with no ore in reach reports that reason")
     world.fill(BlockType::Air); // nothing to mine anywhere
 
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Right);
+    m.place(MachineType::IronDrill, 1, 0, Direction::Right);
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;
@@ -105,7 +105,7 @@ TEST_CASE("a powered drill with ore in reach reports no reason")
     world.set(1, 1, BlockType::CopperOre); // directly beneath the drill
 
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Right);
+    m.place(MachineType::IronDrill, 1, 0, Direction::Right);
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;
@@ -125,7 +125,7 @@ TEST_CASE("a drill whose output cannot be pushed anywhere reports that its outpu
     world.set(1, 1, BlockType::CopperOre);
 
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Up); // faces open sky: nothing accepts its output
+    m.place(MachineType::IronDrill, 1, 0, Direction::Up); // faces open sky: nothing accepts its output
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;

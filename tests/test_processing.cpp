@@ -13,7 +13,7 @@ TEST_CASE("a generator converts a coal into burn time when a consumer needs it")
     World world;
     Machines m;
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Down); // creates demand
+    m.place(MachineType::IronDrill, 1, 0, Direction::Down); // creates demand
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;
@@ -51,7 +51,7 @@ TEST_CASE("a powered drill eats the ore below it and outputs onto a belt")
 
     Machines m;
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Right); // outputs to the right
+    m.place(MachineType::IronDrill, 1, 0, Direction::Right); // outputs to the right
     m.place(MachineType::Belt, 2, 0, Direction::Right);
     REQUIRE(m.at(1, 0) != nullptr);
 
@@ -87,7 +87,7 @@ TEST_CASE("a drill's vein never runs out: it mines the same tile again and again
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
     // Facing Up with nothing to receive output, so it fills and we can count how
     // many times it has mined without a downstream machine interfering.
-    m.place(MachineType::Drill, 1, 0, Direction::Up);
+    m.place(MachineType::IronDrill, 1, 0, Direction::Up);
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;
@@ -110,7 +110,7 @@ TEST_CASE("a drill with no ore in reach stays idle")
 
     Machines m;
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Right);
+    m.place(MachineType::IronDrill, 1, 0, Direction::Right);
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;
@@ -169,7 +169,7 @@ TEST_CASE("a generator supplying nothing does not burn, even next to a powered m
     // Both burners touch the drill, but its whole 5 comes from one of them.
     m.place(MachineType::BurnerGenerator, 5, 5, Direction::Right);
     m.place(MachineType::BurnerGenerator, 7, 5, Direction::Right);
-    m.place(MachineType::Drill, 6, 5, Direction::Down);
+    m.place(MachineType::IronDrill, 6, 5, Direction::Down);
 
     REQUIRE(m.tryInsert(5, 5, ItemType::Coal));
     REQUIRE(m.tryInsert(7, 5, ItemType::Coal));
@@ -191,4 +191,44 @@ TEST_CASE("a generator supplying nothing does not burn, even next to a powered m
         && left == doctest::Approx(COAL_BURN_SECONDS);
 
     CHECK((leftBurned || rightBurned));
+}
+
+TEST_CASE("a Copper Drill takes COPPER_TIER_SLOWDOWN times longer to mine than an Iron Drill")
+{
+    World world;
+    world.fill(BlockType::Air);
+    world.set(1, 1, BlockType::CopperOre);
+
+    Machines ironMachines;
+    ironMachines.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    ironMachines.place(MachineType::IronDrill, 1, 0, Direction::Up); // nothing to receive output
+    REQUIRE(ironMachines.tryInsert(0, 0, ItemType::Coal));
+
+    Machines copperMachines;
+    copperMachines.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    copperMachines.place(MachineType::CopperDrill, 1, 0, Direction::Up);
+    REQUIRE(copperMachines.tryInsert(0, 0, ItemType::Coal));
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+
+    // Just past the Iron-tier finish line: Iron is done, Copper is not yet.
+    const int ironTicks = static_cast<int>(machineInfo(MachineType::IronDrill).actionTime / step) + 1;
+    for (int i = 0; i < ironTicks; ++i)
+    {
+        ironMachines.tick(world, step, mined);
+        copperMachines.tick(world, step, mined);
+    }
+
+    CHECK_FALSE(ironMachines.at(1, 0)->output.empty());
+    CHECK(copperMachines.at(1, 0)->output.empty());
+
+    // Past its own (1.75x longer) time: now the Copper Drill is done too.
+    const int extraTicks = static_cast<int>(
+        (machineInfo(MachineType::CopperDrill).actionTime
+         - machineInfo(MachineType::IronDrill).actionTime) / step) + 1;
+    for (int i = 0; i < extraTicks; ++i)
+        copperMachines.tick(world, step, mined);
+
+    CHECK_FALSE(copperMachines.at(1, 0)->output.empty());
 }

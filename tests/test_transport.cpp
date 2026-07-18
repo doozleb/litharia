@@ -164,7 +164,7 @@ TEST_CASE("a generator accepts coal as fuel but nothing else")
 TEST_CASE("inserting into an empty tile or a drill is refused")
 {
     Machines m;
-    m.place(MachineType::Drill, 0, 0, Direction::Down);
+    m.place(MachineType::IronDrill, 0, 0, Direction::Down);
 
     CHECK_FALSE(m.tryInsert(0, 0, ItemType::CopperOre)); // drills are sources only
     CHECK_FALSE(m.tryInsert(9, 9, ItemType::CopperOre)); // nothing there

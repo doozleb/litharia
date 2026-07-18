@@ -19,7 +19,7 @@ TEST_CASE("a fuelled generator powers an adjacent consumer")
 {
     Machines m;
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Down);
+    m.place(MachineType::IronDrill, 1, 0, Direction::Down);
     fuel(m, 0, 0, 10.0f);
 
     m.updatePower();
@@ -30,7 +30,7 @@ TEST_CASE("a fuelled generator powers an adjacent consumer")
 TEST_CASE("a consumer with no generator is unpowered")
 {
     Machines m;
-    m.place(MachineType::Drill, 4, 4, Direction::Down);
+    m.place(MachineType::IronDrill, 4, 4, Direction::Down);
 
     m.updatePower();
 
@@ -41,7 +41,7 @@ TEST_CASE("an unfuelled generator supplies nothing")
 {
     Machines m;
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Drill, 1, 0, Direction::Down);
+    m.place(MachineType::IronDrill, 1, 0, Direction::Down);
     // No fuel set.
 
     m.updatePower();
@@ -54,7 +54,7 @@ TEST_CASE("power does not conduct through a belt")
     Machines m;
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
     m.place(MachineType::Belt, 1, 0, Direction::Right);
-    m.place(MachineType::Drill, 2, 0, Direction::Down); // two tiles from the generator
+    m.place(MachineType::IronDrill, 2, 0, Direction::Down); // two tiles from the generator
     fuel(m, 0, 0, 10.0f);
 
     m.updatePower();
@@ -69,9 +69,9 @@ TEST_CASE("a generator's supply caps how many neighbours it can run")
     // Supply is 10 and each drill demands 5, so only the first two placed run,
     // even though all three are touching the generator.
     m.place(MachineType::BurnerGenerator, 5, 5, Direction::Right);
-    m.place(MachineType::Drill, 6, 5, Direction::Down);
-    m.place(MachineType::Drill, 4, 5, Direction::Down);
-    m.place(MachineType::Drill, 5, 6, Direction::Down);
+    m.place(MachineType::IronDrill, 6, 5, Direction::Down);
+    m.place(MachineType::IronDrill, 4, 5, Direction::Down);
+    m.place(MachineType::IronDrill, 5, 6, Direction::Down);
     fuel(m, 5, 5, 10.0f);
 
     m.updatePower();
@@ -88,12 +88,12 @@ TEST_CASE("a consumer falls back to a second adjacent generator when the first i
     m.place(MachineType::BurnerGenerator, 7, 5, Direction::Right);
 
     // These two exhaust the first generator's whole 10.
-    m.place(MachineType::Drill, 5, 4, Direction::Down);
-    m.place(MachineType::Drill, 5, 6, Direction::Down);
+    m.place(MachineType::IronDrill, 5, 4, Direction::Down);
+    m.place(MachineType::IronDrill, 5, 6, Direction::Down);
 
     // This one touches both generators. The first has nothing left, so it runs
     // on the second.
-    m.place(MachineType::Drill, 6, 5, Direction::Down);
+    m.place(MachineType::IronDrill, 6, 5, Direction::Down);
 
     fuel(m, 5, 5, 10.0f);
     fuel(m, 7, 5, 10.0f);
@@ -111,10 +111,10 @@ TEST_CASE("power is claimed in placement order, even after a removal")
     m.place(MachineType::BurnerGenerator, 5, 5, Direction::Right);
 
     // Four drills around one generator; the first two placed win its 10.
-    m.place(MachineType::Drill, 5, 4, Direction::Down); // A
-    m.place(MachineType::Drill, 6, 5, Direction::Down); // B
-    m.place(MachineType::Drill, 4, 5, Direction::Down); // C
-    m.place(MachineType::Drill, 5, 6, Direction::Down); // D
+    m.place(MachineType::IronDrill, 5, 4, Direction::Down); // A
+    m.place(MachineType::IronDrill, 6, 5, Direction::Down); // B
+    m.place(MachineType::IronDrill, 4, 5, Direction::Down); // C
+    m.place(MachineType::IronDrill, 5, 6, Direction::Down); // D
     fuel(m, 5, 5, 10.0f);
 
     m.updatePower();

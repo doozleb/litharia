@@ -48,7 +48,8 @@ TEST_CASE("every placeable machine has a matching craftable item")
 {
     CHECK(itemInfo(ItemType::CraftingTable).name == "Crafting Table");
     CHECK(itemInfo(ItemType::BurnerGenerator).name == "Burner Generator");
-    CHECK(itemInfo(ItemType::Drill).name == "Drill");
+    CHECK(itemInfo(ItemType::CopperDrill).name == "Copper Drill");
+    CHECK(itemInfo(ItemType::IronDrill).name == "Iron Drill");
     CHECK(itemInfo(ItemType::Belt).name == "Belt");
     CHECK(itemInfo(ItemType::Chute).name == "Chute");
     CHECK(itemInfo(ItemType::Smelter).name == "Smelter");
@@ -60,7 +61,7 @@ TEST_CASE("every placeable machine has a matching craftable item")
 TEST_CASE("allCraftRecipes exposes every craftable item exactly once")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
-    CHECK(all.size() == 9);
+    CHECK(all.size() == 10);
 }
 
 TEST_CASE("the Chest recipe costs 8 oak logs and 2 copper plates")
@@ -155,4 +156,34 @@ TEST_CASE("every recipe costs a positive amount of at least one ingredient")
         CHECK(r.ingredients[0].count > 0);
         CHECK(r.seconds > 0.0f);
     }
+}
+
+TEST_CASE("the Copper Drill recipe costs 4 copper plates and 2 stone, no iron needed")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::CopperDrill; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::CopperPlate);
+    CHECK(it->ingredients[0].count == 4);
+    CHECK(it->ingredients[1].item == ItemType::Stone);
+    CHECK(it->ingredients[1].count == 2);
+    CHECK(it->seconds == doctest::Approx(4.0f));
+}
+
+TEST_CASE("the Iron Drill recipe costs 4 iron plates and 2 stone, no copper needed")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::IronDrill; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::IronPlate);
+    CHECK(it->ingredients[0].count == 4);
+    CHECK(it->ingredients[1].item == ItemType::Stone);
+    CHECK(it->ingredients[1].count == 2);
+    CHECK(it->seconds == doctest::Approx(4.0f));
 }
