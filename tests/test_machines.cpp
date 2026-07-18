@@ -413,6 +413,8 @@ TEST_CASE("isDrill is true for exactly Copper Drill and Iron Drill")
     CHECK_FALSE(isDrill(MachineType::None));
     CHECK_FALSE(isDrill(MachineType::BurnerGenerator));
     CHECK_FALSE(isDrill(MachineType::Smelter));
+    CHECK_FALSE(isDrill(MachineType::CopperBelt));
+    CHECK_FALSE(isDrill(MachineType::IronBelt));
 }
 
 TEST_CASE("a Copper Belt is COPPER_TIER_SLOWDOWN times slower than an Iron Belt")
