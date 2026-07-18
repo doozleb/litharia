@@ -764,7 +764,6 @@ void Game::handleEvents()
                 toggleInventory();
 
             if (key->code == Key::F1) setBuildType(MachineType::BurnerGenerator);
-            if (key->code == Key::F5) setBuildType(MachineType::Smelter);
             if (key->code == Key::F6) setBuildType(MachineType::ItemAcceptor);
         }
         else if (const auto* mouse = event->getIf<sf::Event::MouseButtonPressed>())

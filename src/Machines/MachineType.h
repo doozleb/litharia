@@ -38,7 +38,8 @@ enum class MachineType : std::uint8_t
     IronBelt,
     CopperChute,
     IronChute,
-    Smelter,
+    CopperSmelter,
+    IronSmelter,
     Chest,
     CraftingTable,
     Furnace,
@@ -64,6 +65,11 @@ struct MachineInfo
     // Table (2x1) and the Furnace (2x2).
     int width;
     int height;
+
+    // Smelter-family only: a Smelter's per-recipe seconds (from SmeltRecipe, not
+    // actionTime) are multiplied by this. Every other machine type leaves it at
+    // the default 1.0 and is unaffected.
+    float speedMultiplier = 1.0f;
 };
 
 const MachineInfo& machineInfo(MachineType type);
@@ -85,6 +91,9 @@ bool isBelt(MachineType type);
 
 // True for CopperChute or IronChute - the two speed tiers of the same machine.
 bool isChute(MachineType type);
+
+// True for CopperSmelter or IronSmelter - the two speed tiers of the same machine.
+bool isSmelter(MachineType type);
 
 // "Copper Ore, Iron Ore, Coal" - one segment per entry, joined by ", ". An
 // empty span yields "".

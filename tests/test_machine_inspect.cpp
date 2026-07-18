@@ -145,7 +145,7 @@ TEST_CASE("a smelter with no ore yet reports that it is waiting")
     World world;
 
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Smelter, 1, 0, Direction::Right);
+    m.place(MachineType::IronSmelter, 1, 0, Direction::Right);
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
 
     std::vector<sf::Vector2i> mined;

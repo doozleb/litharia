@@ -19,14 +19,15 @@ MachineStatus barStatus(const Machine& m)
         status.bar = MachineBar::Progress;
         status.fraction = std::clamp(m.progress / machineInfo(m.type).actionTime, 0.0f, 1.0f);
     }
-    else if (m.type == MachineType::Smelter)
+    else if (isSmelter(m.type))
     {
         const SmeltRecipe* recipe = m.input.empty() ? nullptr : smeltRecipeFor(m.input.type);
 
         if (recipe != nullptr)
         {
             status.bar = MachineBar::Progress;
-            status.fraction = std::clamp(m.progress / recipe->seconds, 0.0f, 1.0f);
+            status.fraction = std::clamp(
+                m.progress / (recipe->seconds * machineInfo(m.type).speedMultiplier), 0.0f, 1.0f);
         }
     }
 

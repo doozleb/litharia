@@ -1,6 +1,7 @@
 #include "doctest.h"
 
 #include "Machines/Machines.h"
+#include "Machines/Recipes.h"
 #include "World/World.h"
 
 namespace
@@ -127,7 +128,7 @@ TEST_CASE("a powered smelter turns copper ore into a copper plate")
     World world;
     Machines m;
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Smelter, 1, 0, Direction::Right);
+    m.place(MachineType::IronSmelter, 1, 0, Direction::Right);
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));   // power
     REQUIRE(m.tryInsert(1, 0, ItemType::CopperOre)); // work
 
@@ -148,7 +149,7 @@ TEST_CASE("an unpowered smelter makes no progress")
 {
     World world;
     Machines m;
-    m.place(MachineType::Smelter, 1, 0, Direction::Right); // no generator
+    m.place(MachineType::IronSmelter, 1, 0, Direction::Right); // no generator
     REQUIRE(m.tryInsert(1, 0, ItemType::CopperOre));
 
     std::vector<sf::Vector2i> mined;
@@ -229,6 +230,54 @@ TEST_CASE("a Copper Drill takes COPPER_TIER_SLOWDOWN times longer to mine than a
     // Comfortably past the Copper Drill's own (longer) cycle too.
     const int totalTicksForCopper =
         static_cast<int>((machineInfo(MachineType::CopperDrill).actionTime + 1.0f) / step);
+    for (int i = phase1Ticks; i < totalTicksForCopper; ++i)
+        copperMachines.tick(world, step, mined);
+
+    CHECK_FALSE(copperMachines.at(1, 0)->output.empty());
+}
+
+TEST_CASE("a Copper Smelter takes COPPER_TIER_SLOWDOWN times longer than an Iron Smelter on the same recipe")
+{
+    World world;
+
+    Machines ironMachines;
+    ironMachines.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    ironMachines.place(MachineType::IronSmelter, 1, 0, Direction::Right);
+    REQUIRE(ironMachines.tryInsert(0, 0, ItemType::Coal));
+    REQUIRE(ironMachines.tryInsert(1, 0, ItemType::CopperOre));
+
+    Machines copperMachines;
+    copperMachines.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    copperMachines.place(MachineType::CopperSmelter, 1, 0, Direction::Right);
+    REQUIRE(copperMachines.tryInsert(0, 0, ItemType::Coal));
+    REQUIRE(copperMachines.tryInsert(1, 0, ItemType::CopperOre));
+
+    const SmeltRecipe* recipe = smeltRecipeFor(ItemType::CopperOre);
+    REQUIRE(recipe != nullptr);
+
+    const float ironTime = recipe->seconds * machineInfo(MachineType::IronSmelter).speedMultiplier;
+    const float copperTime = recipe->seconds * machineInfo(MachineType::CopperSmelter).speedMultiplier;
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+
+    // Comfortably past the Iron Smelter's own cycle (a full extra second of
+    // margin for the power-on lag - Machines::tick() runs updatePower() before
+    // tickGenerators(), so a freshly-fuelled generator has a one-tick lag - and
+    // for float accumulation), but still comfortably short of the Copper
+    // Smelter's longer cycle.
+    const int phase1Ticks = static_cast<int>((ironTime + 1.0f) / step);
+    for (int i = 0; i < phase1Ticks; ++i)
+    {
+        ironMachines.tick(world, step, mined);
+        copperMachines.tick(world, step, mined);
+    }
+
+    CHECK_FALSE(ironMachines.at(1, 0)->output.empty());
+    CHECK(copperMachines.at(1, 0)->output.empty());
+
+    // Comfortably past the Copper Smelter's own (longer) cycle too.
+    const int totalTicksForCopper = static_cast<int>((copperTime + 1.0f) / step);
     for (int i = phase1Ticks; i < totalTicksForCopper; ++i)
         copperMachines.tick(world, step, mined);
 

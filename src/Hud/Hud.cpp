@@ -604,7 +604,7 @@ void Hud::drawMachineTooltip(sf::RenderWindow& window,
     std::vector<TooltipLine> lines;
     lines.push_back({std::string(info.name), sf::Color::White});
 
-    if (machine.type == MachineType::Smelter)
+    if (isSmelter(machine.type))
         lines.push_back({"Smelts: " + formatSmeltRecipeList(allSmeltRecipes()), sf::Color::White});
     else if (isDrill(machine.type))
         lines.push_back({"Mines: " + formatDrillOreList(DRILL_ORES), sf::Color::White});

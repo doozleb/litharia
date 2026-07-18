@@ -76,7 +76,7 @@ TEST_CASE("a chest is no longer a network node: tryExtract takes nothing from it
 TEST_CASE("extracting from a smelter takes the whole stacked output")
 {
     Machines m;
-    Machine* smelter = m.place(MachineType::Smelter, 0, 0, Direction::Right);
+    Machine* smelter = m.place(MachineType::IronSmelter, 0, 0, Direction::Right);
     REQUIRE(smelter != nullptr);
     smelter->output = {ItemType::CopperPlate, 5};
 
@@ -90,7 +90,7 @@ TEST_CASE("extracting from a smelter takes the whole stacked output")
 TEST_CASE("extracting from an empty output returns nothing")
 {
     Machines m;
-    m.place(MachineType::Smelter, 0, 0, Direction::Right);
+    m.place(MachineType::IronSmelter, 0, 0, Direction::Right);
 
     CHECK(m.tryExtract(0, 0).empty());
 }
@@ -143,7 +143,7 @@ TEST_CASE("extracting from an empty tile returns nothing")
 TEST_CASE("putBack restores a stack to a machine's output")
 {
     Machines m;
-    m.place(MachineType::Smelter, 0, 0, Direction::Right);
+    m.place(MachineType::IronSmelter, 0, 0, Direction::Right);
 
     m.putBack(0, 0, {ItemType::CopperPlate, 3});
 
@@ -164,7 +164,7 @@ TEST_CASE("putBack restores a single item to a belt's carried slot")
 TEST_CASE("putBack does nothing for an empty stack or an empty tile")
 {
     Machines m;
-    m.place(MachineType::Smelter, 0, 0, Direction::Right);
+    m.place(MachineType::IronSmelter, 0, 0, Direction::Right);
 
     m.putBack(0, 0, {});
     CHECK(m.at(0, 0)->output.empty());

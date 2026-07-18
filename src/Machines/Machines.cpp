@@ -160,7 +160,7 @@ bool Machines::tryInsert(int x, int y, ItemType item, std::optional<Direction> f
     if (m->type == MachineType::ItemAcceptor)
         return m->storage.add({item, 1}) == 0;
 
-    if (m->type == MachineType::Smelter)
+    if (isSmelter(m->type))
     {
         // Like a drill, a smelter has exactly one input side: its facing. A
         // caller with no directional context (fromSide unset - the player's F
@@ -288,7 +288,7 @@ std::string Machines::idleReason(const Machine& m, const World& world) const
         return "No ore within " + std::to_string(DRILL_REACH) + " tiles below.";
     }
 
-    if (m.type == MachineType::Smelter)
+    if (isSmelter(m.type))
     {
         if (m.input.empty())
             return "Waiting for ore.";
@@ -539,7 +539,7 @@ void Machines::tickSmelters(float dt)
 {
     for (Machine& m : machines)
     {
-        if (m.type != MachineType::Smelter)
+        if (!isSmelter(m.type))
             continue;
 
         insertOutput(m);
@@ -559,7 +559,7 @@ void Machines::tickSmelters(float dt)
 
         m.progress += dt;
 
-        if (m.progress >= recipe->seconds)
+        if (m.progress >= recipe->seconds * machineInfo(m.type).speedMultiplier)
         {
             --m.input.count;
             if (m.input.count == 0)

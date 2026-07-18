@@ -45,7 +45,8 @@ TEST_CASE("the machine registry has a valid row per type")
     CHECK(machineInfo(MachineType::BurnerGenerator).generator);
     CHECK(machineInfo(MachineType::CopperDrill).consumer);
     CHECK(machineInfo(MachineType::IronDrill).consumer);
-    CHECK(machineInfo(MachineType::Smelter).consumer);
+    CHECK(machineInfo(MachineType::CopperSmelter).consumer);
+    CHECK(machineInfo(MachineType::IronSmelter).consumer);
 
     // Transport machines move items and are neither source nor sink of power.
     CHECK(machineInfo(MachineType::CopperBelt).transport);
@@ -119,7 +120,7 @@ TEST_CASE("removing a machine frees its tile and keeps the rest intact")
 
     machines.place(MachineType::IronBelt, 1, 1, Direction::Right);
     machines.place(MachineType::IronBelt, 2, 1, Direction::Right);
-    machines.place(MachineType::Smelter, 3, 1, Direction::Right);
+    machines.place(MachineType::IronSmelter, 3, 1, Direction::Right);
 
     REQUIRE(machines.count() == 3);
     REQUIRE(machines.remove(2, 1));
@@ -131,7 +132,7 @@ TEST_CASE("removing a machine frees its tile and keeps the rest intact")
     REQUIRE(machines.at(1, 1) != nullptr);
     REQUIRE(machines.at(3, 1) != nullptr);
     CHECK(machines.at(1, 1)->type == MachineType::IronBelt);
-    CHECK(machines.at(3, 1)->type == MachineType::Smelter);
+    CHECK(machines.at(3, 1)->type == MachineType::IronSmelter);
 
     // Removing an empty tile reports nothing removed.
     CHECK_FALSE(machines.remove(9, 9));
@@ -218,7 +219,8 @@ TEST_CASE("itemForMachine maps every placeable machine to its own item")
     CHECK(itemForMachine(MachineType::IronBelt) == ItemType::IronBelt);
     CHECK(itemForMachine(MachineType::CopperChute) == ItemType::CopperChute);
     CHECK(itemForMachine(MachineType::IronChute) == ItemType::IronChute);
-    CHECK(itemForMachine(MachineType::Smelter) == ItemType::Smelter);
+    CHECK(itemForMachine(MachineType::CopperSmelter) == ItemType::CopperSmelter);
+    CHECK(itemForMachine(MachineType::IronSmelter) == ItemType::IronSmelter);
     CHECK(itemForMachine(MachineType::Chest) == ItemType::Chest);
     CHECK(itemForMachine(MachineType::CraftingTable) == ItemType::CraftingTable);
 }
@@ -367,7 +369,8 @@ TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
     CHECK_FALSE(isFurniture(MachineType::IronBelt));
     CHECK_FALSE(isFurniture(MachineType::CopperChute));
     CHECK_FALSE(isFurniture(MachineType::IronChute));
-    CHECK_FALSE(isFurniture(MachineType::Smelter));
+    CHECK_FALSE(isFurniture(MachineType::CopperSmelter));
+    CHECK_FALSE(isFurniture(MachineType::IronSmelter));
 
     CHECK(isFurniture(MachineType::Chest));
     CHECK(isFurniture(MachineType::CraftingTable));
@@ -421,7 +424,7 @@ TEST_CASE("isDrill is true for exactly Copper Drill and Iron Drill")
     CHECK(isDrill(MachineType::IronDrill));
     CHECK_FALSE(isDrill(MachineType::None));
     CHECK_FALSE(isDrill(MachineType::BurnerGenerator));
-    CHECK_FALSE(isDrill(MachineType::Smelter));
+    CHECK_FALSE(isDrill(MachineType::IronSmelter));
     CHECK_FALSE(isDrill(MachineType::CopperBelt));
     CHECK_FALSE(isDrill(MachineType::IronBelt));
 }
@@ -460,4 +463,30 @@ TEST_CASE("isChute is true for exactly Copper Chute and Iron Chute")
     CHECK(isChute(MachineType::IronChute));
     CHECK_FALSE(isChute(MachineType::None));
     CHECK_FALSE(isChute(MachineType::IronBelt));
+}
+
+TEST_CASE("Copper Smelter and Iron Smelter carry the expected speedMultiplier")
+{
+    CHECK(machineInfo(MachineType::IronSmelter).speedMultiplier == doctest::Approx(1.0f));
+    CHECK(machineInfo(MachineType::CopperSmelter).speedMultiplier == doctest::Approx(COPPER_TIER_SLOWDOWN));
+}
+
+TEST_CASE("every non-Smelter machine defaults to a speedMultiplier of 1.0")
+{
+    for (int i = 1; i < static_cast<int>(MachineType::Count); ++i)
+    {
+        const MachineType type = static_cast<MachineType>(i);
+        if (isSmelter(type))
+            continue;
+
+        CHECK(machineInfo(type).speedMultiplier == doctest::Approx(1.0f));
+    }
+}
+
+TEST_CASE("isSmelter is true for exactly Copper Smelter and Iron Smelter")
+{
+    CHECK(isSmelter(MachineType::CopperSmelter));
+    CHECK(isSmelter(MachineType::IronSmelter));
+    CHECK_FALSE(isSmelter(MachineType::None));
+    CHECK_FALSE(isSmelter(MachineType::IronDrill));
 }

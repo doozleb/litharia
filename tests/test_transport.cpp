@@ -85,7 +85,7 @@ TEST_CASE("a belt cannot deliver into a chest: it just backs up")
 TEST_CASE("a smelter accepts smeltable ore but not plates or stone")
 {
     Machines m;
-    m.place(MachineType::Smelter, 0, 0, Direction::Right);
+    m.place(MachineType::IronSmelter, 0, 0, Direction::Right);
 
     CHECK(m.tryInsert(0, 0, ItemType::CopperOre));
     CHECK(m.at(0, 0)->input.type == ItemType::CopperOre);
@@ -97,7 +97,7 @@ TEST_CASE("a smelter accepts smeltable ore but not plates or stone")
 
     // Non-smeltable input is refused.
     Machines m2;
-    m2.place(MachineType::Smelter, 0, 0, Direction::Right);
+    m2.place(MachineType::IronSmelter, 0, 0, Direction::Right);
     CHECK_FALSE(m2.tryInsert(0, 0, ItemType::Stone));
     CHECK_FALSE(m2.tryInsert(0, 0, ItemType::CopperPlate));
 }
@@ -105,7 +105,7 @@ TEST_CASE("a smelter accepts smeltable ore but not plates or stone")
 TEST_CASE("a smelter's automatic insert only accepts ore arriving from its facing side")
 {
     Machines m;
-    m.place(MachineType::Smelter, 0, 0, Direction::Left);
+    m.place(MachineType::IronSmelter, 0, 0, Direction::Left);
 
     // Arriving from the left (the facing/input side): accepted.
     CHECK(m.tryInsert(0, 0, ItemType::CopperOre, Direction::Left));
@@ -119,7 +119,7 @@ TEST_CASE("a smelter's automatic insert only accepts ore arriving from its facin
 TEST_CASE("tryInsert without a direction is unrestricted, e.g. the player's F key")
 {
     Machines m;
-    m.place(MachineType::Smelter, 0, 0, Direction::Left);
+    m.place(MachineType::IronSmelter, 0, 0, Direction::Left);
 
     // No fromSide given: works regardless of facing, same as before this change.
     CHECK(m.tryInsert(0, 0, ItemType::CopperOre));
@@ -131,7 +131,7 @@ TEST_CASE("a smelter only accepts belt-fed ore from its facing side")
     Machines m;
 
     // Facing Left: only a belt pushing in from the left may feed it.
-    m.place(MachineType::Smelter, 5, 5, Direction::Left);
+    m.place(MachineType::IronSmelter, 5, 5, Direction::Left);
     m.place(MachineType::IronBelt, 4, 5, Direction::Right); // feeds from the left: should work
     m.place(MachineType::IronBelt, 5, 4, Direction::Down);  // feeds from above: should be refused
 
@@ -237,7 +237,7 @@ TEST_CASE("a machine never outputs onto its own facing side, which is reserved f
 
     // Facing Down: that side is reserved for input (an ore vein, a feeder
     // belt) and must never receive output, even though a belt sits right there.
-    m.place(MachineType::Smelter, 5, 5, Direction::Down);
+    m.place(MachineType::IronSmelter, 5, 5, Direction::Down);
     m.place(MachineType::IronBelt, 5, 6, Direction::Right); // directly below: the facing side
 
     m.at(5, 5)->output = {ItemType::CopperPlate, 1};
@@ -255,7 +255,7 @@ TEST_CASE("a smelter alternates its output between two belts on non-facing sides
     World world;
     Machines m;
 
-    m.place(MachineType::Smelter, 5, 5, Direction::Down); // input side: nothing placed there
+    m.place(MachineType::IronSmelter, 5, 5, Direction::Down); // input side: nothing placed there
     m.place(MachineType::IronBelt, 6, 5, Direction::Right);   // right: a valid output side
     m.place(MachineType::IronBelt, 4, 5, Direction::Right);   // left: a valid output side
 
@@ -290,7 +290,7 @@ TEST_CASE("output waits when every non-facing side is already occupied")
     World world;
     Machines m;
 
-    m.place(MachineType::Smelter, 5, 5, Direction::Down);
+    m.place(MachineType::IronSmelter, 5, 5, Direction::Down);
     m.place(MachineType::IronBelt, 6, 5, Direction::Right);
     m.place(MachineType::IronBelt, 4, 5, Direction::Right);
     m.place(MachineType::IronBelt, 5, 4, Direction::Right);

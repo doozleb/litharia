@@ -53,7 +53,7 @@ TEST_CASE("a drill mid-mining shows proportional progress")
 TEST_CASE("a smelter with no input shows no bar at all")
 {
     Machine m;
-    m.type = MachineType::Smelter; // input left empty
+    m.type = MachineType::IronSmelter; // input left empty
 
     CHECK(barStatus(m).bar == MachineBar::None);
 }
@@ -61,12 +61,29 @@ TEST_CASE("a smelter with no input shows no bar at all")
 TEST_CASE("a smelter mid-smelt shows progress against its recipe's time")
 {
     Machine m;
-    m.type = MachineType::Smelter;
+    m.type = MachineType::IronSmelter;
     m.input = {ItemType::CopperOre, 1};
 
     const SmeltRecipe* recipe = smeltRecipeFor(ItemType::CopperOre);
     REQUIRE(recipe != nullptr);
     m.progress = recipe->seconds * 0.5f;
+
+    const MachineStatus status = barStatus(m);
+
+    CHECK(status.bar == MachineBar::Progress);
+    CHECK(status.fraction == doctest::Approx(0.5f));
+}
+
+TEST_CASE("a Copper Smelter mid-smelt shows progress against recipe seconds times its own multiplier")
+{
+    Machine m;
+    m.type = MachineType::CopperSmelter;
+    m.input = {ItemType::CopperOre, 1};
+
+    const SmeltRecipe* recipe = smeltRecipeFor(ItemType::CopperOre);
+    REQUIRE(recipe != nullptr);
+    const float fullTime = recipe->seconds * machineInfo(MachineType::CopperSmelter).speedMultiplier;
+    m.progress = fullTime * 0.5f;
 
     const MachineStatus status = barStatus(m);
 
