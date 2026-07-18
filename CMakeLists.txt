@@ -5,6 +5,13 @@ project(Litharia VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# MSBuild launches multiple CL.EXE processes against one .pdb when a broadly-
+# included header (e.g. MachineType.h) changes and forces many translation
+# units to recompile at once; without /FS that races and fails with C1041.
+if(MSVC)
+    add_compile_options(/FS)
+endif()
+
 set(SFML_DIR "${CMAKE_SOURCE_DIR}/libs/SFML/lib/cmake/SFML")
 
 find_package(SFML 3 REQUIRED COMPONENTS Graphics Window System)
