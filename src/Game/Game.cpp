@@ -330,7 +330,7 @@ void Game::setBuildType(MachineType type)
     // A conveyor belt only ever outputs sideways - chutes already own straight-
     // down movement - so a facing left over from another machine type must
     // never leave a freshly-selected belt pointed up or down.
-    if (buildType == MachineType::Belt
+    if (isBelt(buildType)
         && (buildFacing == Direction::Up || buildFacing == Direction::Down))
         buildFacing = Direction::Right;
 }
@@ -751,7 +751,7 @@ void Game::handleEvents()
                 // chutes already own straight-down movement, so a belt never
                 // gets to output up or down. Every other machine type still
                 // cycles through all 4.
-                if (buildType == MachineType::Belt)
+                if (isBelt(buildType))
                     buildFacing = (buildFacing == Direction::Right) ? Direction::Left : Direction::Right;
                 else
                     buildFacing = rotateCW(buildFacing);
@@ -764,7 +764,6 @@ void Game::handleEvents()
                 toggleInventory();
 
             if (key->code == Key::F1) setBuildType(MachineType::BurnerGenerator);
-            if (key->code == Key::F3) setBuildType(MachineType::Belt);
             if (key->code == Key::F4) setBuildType(MachineType::Chute);
             if (key->code == Key::F5) setBuildType(MachineType::Smelter);
             if (key->code == Key::F6) setBuildType(MachineType::ItemAcceptor);

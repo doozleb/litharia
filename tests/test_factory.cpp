@@ -32,7 +32,7 @@ TEST_CASE("a coal-fed drill-belt-smelter line produces plates on its own")
     // actually feeding it from the west.
     m.place(MachineType::BurnerGenerator, 9, 0, Direction::Right);
     m.place(MachineType::IronDrill,           10, 0, Direction::Down);
-    m.place(MachineType::Belt,            11, 0, Direction::Right);
+    m.place(MachineType::IronBelt,            11, 0, Direction::Right);
     m.place(MachineType::Smelter,         12, 0, Direction::Left);
     m.place(MachineType::BurnerGenerator, 13, 0, Direction::Left);
 

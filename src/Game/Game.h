@@ -83,7 +83,7 @@ private:
     MachineRenderer machineRenderer;
 
     bool buildMode = false;
-    MachineType buildType = MachineType::Belt;
+    MachineType buildType = MachineType::CopperBelt;
     Direction buildFacing = Direction::Right;
 
     bool inventoryOpen = false;

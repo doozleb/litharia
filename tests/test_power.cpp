@@ -53,7 +53,7 @@ TEST_CASE("power does not conduct through a belt")
 {
     Machines m;
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
-    m.place(MachineType::Belt, 1, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 1, 0, Direction::Right);
     m.place(MachineType::IronDrill, 2, 0, Direction::Down); // two tiles from the generator
     fuel(m, 0, 0, 10.0f);
 

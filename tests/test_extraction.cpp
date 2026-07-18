@@ -98,7 +98,7 @@ TEST_CASE("extracting from an empty output returns nothing")
 TEST_CASE("extracting from a stopped belt takes its carried item")
 {
     Machines m;
-    Machine* belt = m.place(MachineType::Belt, 0, 0, Direction::Right);
+    Machine* belt = m.place(MachineType::IronBelt, 0, 0, Direction::Right);
     REQUIRE(belt != nullptr);
     belt->carried = ItemType::Coal;
     belt->carryTimer = 0.0f; // finished waiting: stopped
@@ -113,7 +113,7 @@ TEST_CASE("extracting from a stopped belt takes its carried item")
 TEST_CASE("extracting from a belt mid-transfer is refused")
 {
     Machines m;
-    Machine* belt = m.place(MachineType::Belt, 0, 0, Direction::Right);
+    Machine* belt = m.place(MachineType::IronBelt, 0, 0, Direction::Right);
     REQUIRE(belt != nullptr);
     belt->carried = ItemType::Coal;
     belt->carryTimer = 0.3f; // still counting down: moving
@@ -154,7 +154,7 @@ TEST_CASE("putBack restores a stack to a machine's output")
 TEST_CASE("putBack restores a single item to a belt's carried slot")
 {
     Machines m;
-    m.place(MachineType::Belt, 0, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 0, 0, Direction::Right);
 
     m.putBack(0, 0, {ItemType::Coal, 1});
 

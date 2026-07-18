@@ -52,7 +52,7 @@ TEST_CASE("a powered drill eats the ore below it and outputs onto a belt")
     Machines m;
     m.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
     m.place(MachineType::IronDrill, 1, 0, Direction::Right); // outputs to the right
-    m.place(MachineType::Belt, 2, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 2, 0, Direction::Right);
     REQUIRE(m.at(1, 0) != nullptr);
 
     // Put the ore under the drill at (1,2) as well: drill at (1,0) scans down.

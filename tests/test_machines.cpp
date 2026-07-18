@@ -48,7 +48,8 @@ TEST_CASE("the machine registry has a valid row per type")
     CHECK(machineInfo(MachineType::Smelter).consumer);
 
     // Transport machines move items and are neither source nor sink of power.
-    CHECK(machineInfo(MachineType::Belt).transport);
+    CHECK(machineInfo(MachineType::CopperBelt).transport);
+    CHECK(machineInfo(MachineType::IronBelt).transport);
     CHECK(machineInfo(MachineType::Chute).transport);
 }
 
@@ -78,7 +79,7 @@ TEST_CASE("a chest is placed with 20 empty storage slots and no power role")
 TEST_CASE("a non-chest machine carries no storage overhead")
 {
     Machines machines;
-    Machine* belt = machines.place(MachineType::Belt, 0, 0, Direction::Right);
+    Machine* belt = machines.place(MachineType::IronBelt, 0, 0, Direction::Right);
 
     REQUIRE(belt != nullptr);
     CHECK(belt->storage.slotCount() == 0);
@@ -104,10 +105,10 @@ TEST_CASE("two machines cannot share a tile")
 {
     Machines machines;
 
-    REQUIRE(machines.place(MachineType::Belt, 3, 3, Direction::Right) != nullptr);
+    REQUIRE(machines.place(MachineType::IronBelt, 3, 3, Direction::Right) != nullptr);
 
     CHECK_FALSE(machines.canPlace(3, 3));
-    CHECK(machines.place(MachineType::Belt, 3, 3, Direction::Right) == nullptr);
+    CHECK(machines.place(MachineType::IronBelt, 3, 3, Direction::Right) == nullptr);
     CHECK(machines.count() == 1);
 }
 
@@ -115,8 +116,8 @@ TEST_CASE("removing a machine frees its tile and keeps the rest intact")
 {
     Machines machines;
 
-    machines.place(MachineType::Belt, 1, 1, Direction::Right);
-    machines.place(MachineType::Belt, 2, 1, Direction::Right);
+    machines.place(MachineType::IronBelt, 1, 1, Direction::Right);
+    machines.place(MachineType::IronBelt, 2, 1, Direction::Right);
     machines.place(MachineType::Smelter, 3, 1, Direction::Right);
 
     REQUIRE(machines.count() == 3);
@@ -128,7 +129,7 @@ TEST_CASE("removing a machine frees its tile and keeps the rest intact")
     // The others survive and are still reachable by tile.
     REQUIRE(machines.at(1, 1) != nullptr);
     REQUIRE(machines.at(3, 1) != nullptr);
-    CHECK(machines.at(1, 1)->type == MachineType::Belt);
+    CHECK(machines.at(1, 1)->type == MachineType::IronBelt);
     CHECK(machines.at(3, 1)->type == MachineType::Smelter);
 
     // Removing an empty tile reports nothing removed.
@@ -212,7 +213,8 @@ TEST_CASE("itemForMachine maps every placeable machine to its own item")
     CHECK(itemForMachine(MachineType::BurnerGenerator) == ItemType::BurnerGenerator);
     CHECK(itemForMachine(MachineType::CopperDrill) == ItemType::CopperDrill);
     CHECK(itemForMachine(MachineType::IronDrill) == ItemType::IronDrill);
-    CHECK(itemForMachine(MachineType::Belt) == ItemType::Belt);
+    CHECK(itemForMachine(MachineType::CopperBelt) == ItemType::CopperBelt);
+    CHECK(itemForMachine(MachineType::IronBelt) == ItemType::IronBelt);
     CHECK(itemForMachine(MachineType::Chute) == ItemType::Chute);
     CHECK(itemForMachine(MachineType::Smelter) == ItemType::Smelter);
     CHECK(itemForMachine(MachineType::Chest) == ItemType::Chest);
@@ -240,7 +242,7 @@ TEST_CASE("a 2-wide machine occupies both tiles it spans")
 TEST_CASE("a 2-wide machine cannot be placed if either tile is taken")
 {
     Machines machines;
-    REQUIRE(machines.place(MachineType::Belt, 5, 4, Direction::Right) != nullptr);
+    REQUIRE(machines.place(MachineType::IronBelt, 5, 4, Direction::Right) != nullptr);
 
     // (4,4) is free but (5,4) is not - the whole placement must fail, not
     // just settle for the tile that collided.
@@ -263,8 +265,8 @@ TEST_CASE("removing a 2-wide machine via either tile clears both")
 TEST_CASE("swap-and-pop relocates every tile of a multi-tile machine, not just its origin")
 {
     Machines machines;
-    machines.place(MachineType::Belt, 0, 0, Direction::Right);          // index 0, doomed
-    machines.place(MachineType::Belt, 1, 0, Direction::Right);          // index 1, untouched survivor
+    machines.place(MachineType::IronBelt, 0, 0, Direction::Right);          // index 0, doomed
+    machines.place(MachineType::IronBelt, 1, 0, Direction::Right);          // index 1, untouched survivor
     machines.place(MachineType::CraftingTable, 8, 8, Direction::Right); // index 2 -> swapped into slot 0
 
     REQUIRE(machines.count() == 3);
@@ -279,7 +281,7 @@ TEST_CASE("swap-and-pop relocates every tile of a multi-tile machine, not just i
 
     // The untouched survivor is still exactly where it was.
     REQUIRE(machines.at(1, 0) != nullptr);
-    CHECK(machines.at(1, 0)->type == MachineType::Belt);
+    CHECK(machines.at(1, 0)->type == MachineType::IronBelt);
 }
 
 TEST_CASE("itemForMachine maps the Furnace to its own item")
@@ -304,7 +306,7 @@ TEST_CASE("a 2x2 machine occupies all four tiles it spans")
 TEST_CASE("a 2x2 machine cannot be placed if any of its four tiles is taken")
 {
     Machines machines;
-    REQUIRE(machines.place(MachineType::Belt, 11, 11, Direction::Right) != nullptr);
+    REQUIRE(machines.place(MachineType::IronBelt, 11, 11, Direction::Right) != nullptr);
 
     // (10,10), (11,10), (10,11) are free but (11,11) is not - the whole
     // placement must fail, not just settle for the tiles that were free.
@@ -329,8 +331,8 @@ TEST_CASE("removing a 2x2 machine via any of its four tiles clears all of them")
 TEST_CASE("swap-and-pop relocates every tile of a 2x2 machine, including its vertical footprint")
 {
     Machines machines;
-    machines.place(MachineType::Belt, 0, 0, Direction::Right);        // index 0, doomed
-    machines.place(MachineType::Belt, 1, 0, Direction::Right);        // index 1, untouched survivor
+    machines.place(MachineType::IronBelt, 0, 0, Direction::Right);        // index 0, doomed
+    machines.place(MachineType::IronBelt, 1, 0, Direction::Right);        // index 1, untouched survivor
     machines.place(MachineType::Furnace, 20, 20, Direction::Right);   // index 2 -> swapped into slot 0
 
     REQUIRE(machines.count() == 3);
@@ -344,7 +346,7 @@ TEST_CASE("swap-and-pop relocates every tile of a 2x2 machine, including its ver
     CHECK(machines.at(21, 21) == furnace);
 
     REQUIRE(machines.at(1, 0) != nullptr);
-    CHECK(machines.at(1, 0)->type == MachineType::Belt);
+    CHECK(machines.at(1, 0)->type == MachineType::IronBelt);
 }
 
 TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
@@ -353,7 +355,8 @@ TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
     CHECK_FALSE(isFurniture(MachineType::BurnerGenerator));
     CHECK_FALSE(isFurniture(MachineType::CopperDrill));
     CHECK_FALSE(isFurniture(MachineType::IronDrill));
-    CHECK_FALSE(isFurniture(MachineType::Belt));
+    CHECK_FALSE(isFurniture(MachineType::CopperBelt));
+    CHECK_FALSE(isFurniture(MachineType::IronBelt));
     CHECK_FALSE(isFurniture(MachineType::Chute));
     CHECK_FALSE(isFurniture(MachineType::Smelter));
 
@@ -409,6 +412,23 @@ TEST_CASE("isDrill is true for exactly Copper Drill and Iron Drill")
     CHECK(isDrill(MachineType::IronDrill));
     CHECK_FALSE(isDrill(MachineType::None));
     CHECK_FALSE(isDrill(MachineType::BurnerGenerator));
-    CHECK_FALSE(isDrill(MachineType::Belt));
     CHECK_FALSE(isDrill(MachineType::Smelter));
+}
+
+TEST_CASE("a Copper Belt is COPPER_TIER_SLOWDOWN times slower than an Iron Belt")
+{
+    const float iron = machineInfo(MachineType::IronBelt).actionTime;
+    const float copper = machineInfo(MachineType::CopperBelt).actionTime;
+
+    CHECK(iron == doctest::Approx(0.5f));
+    CHECK(copper == doctest::Approx(iron * COPPER_TIER_SLOWDOWN));
+}
+
+TEST_CASE("isBelt is true for exactly Copper Belt and Iron Belt")
+{
+    CHECK(isBelt(MachineType::CopperBelt));
+    CHECK(isBelt(MachineType::IronBelt));
+    CHECK_FALSE(isBelt(MachineType::None));
+    CHECK_FALSE(isBelt(MachineType::Chute));
+    CHECK_FALSE(isBelt(MachineType::IronDrill));
 }

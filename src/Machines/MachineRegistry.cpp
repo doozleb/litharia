@@ -12,7 +12,8 @@ constexpr std::array<MachineInfo, static_cast<std::size_t>(MachineType::Count)> 
     {"Burner Generator",  {190, 120,  60}, true,  false, false, 10.0f, 0.0f,  1, 1},
     {"Copper Drill",      {176, 133, 108}, false, true,  false, 5.0f,  3.0f * COPPER_TIER_SLOWDOWN, 1, 1},
     {"Iron Drill",        {158, 162, 175}, false, true,  false, 5.0f,  3.0f,                         1, 1},
-    {"Belt",              { 90,  90, 100}, false, false, true,  0.0f,  0.5f,  1, 1},
+    {"Copper Belt",       {146, 103,  78}, false, false, true,  0.0f,  0.5f * COPPER_TIER_SLOWDOWN, 1, 1},
+    {"Iron Belt",         {128, 132, 145}, false, false, true,  0.0f,  0.5f,                         1, 1},
     {"Chute",             { 70,  70,  80}, false, false, true,  0.0f,  0.5f,  1, 1},
     {"Smelter",           {200,  90,  70}, false, true,  false, 5.0f,  0.0f,  1, 1},
     {"Chest",             {140,  95,  50}, false, false, false, 0.0f,  0.0f,  1, 1},
@@ -55,7 +56,8 @@ ItemType itemForMachine(MachineType type)
         case MachineType::BurnerGenerator: return ItemType::BurnerGenerator;
         case MachineType::CopperDrill:     return ItemType::CopperDrill;
         case MachineType::IronDrill:       return ItemType::IronDrill;
-        case MachineType::Belt:            return ItemType::Belt;
+        case MachineType::CopperBelt:      return ItemType::CopperBelt;
+        case MachineType::IronBelt:        return ItemType::IronBelt;
         case MachineType::Chute:           return ItemType::Chute;
         case MachineType::Smelter:         return ItemType::Smelter;
         case MachineType::Chest:           return ItemType::Chest;
@@ -75,4 +77,9 @@ bool isFurniture(MachineType type)
 bool isDrill(MachineType type)
 {
     return type == MachineType::CopperDrill || type == MachineType::IronDrill;
+}
+
+bool isBelt(MachineType type)
+{
+    return type == MachineType::CopperBelt || type == MachineType::IronBelt;
 }

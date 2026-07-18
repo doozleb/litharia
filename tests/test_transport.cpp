@@ -6,7 +6,7 @@
 TEST_CASE("a belt accepts one item and then is full")
 {
     Machines m;
-    m.place(MachineType::Belt, 0, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 0, 0, Direction::Right);
 
     CHECK(m.tryInsert(0, 0, ItemType::CopperOre));
     CHECK(m.at(0, 0)->carried == ItemType::CopperOre);
@@ -48,7 +48,7 @@ TEST_CASE("a belt delivers its carried item into an item acceptor ahead of it")
 {
     World world;
     Machines m;
-    m.place(MachineType::Belt, 0, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 0, 0, Direction::Right);
     m.place(MachineType::ItemAcceptor, 1, 0, Direction::Right);
 
     REQUIRE(m.tryInsert(0, 0, ItemType::IronOre));
@@ -66,7 +66,7 @@ TEST_CASE("a belt cannot deliver into a chest: it just backs up")
 {
     World world;
     Machines m;
-    m.place(MachineType::Belt, 0, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 0, 0, Direction::Right);
     m.place(MachineType::Chest, 1, 0, Direction::Right);
 
     REQUIRE(m.tryInsert(0, 0, ItemType::IronOre));
@@ -132,8 +132,8 @@ TEST_CASE("a smelter only accepts belt-fed ore from its facing side")
 
     // Facing Left: only a belt pushing in from the left may feed it.
     m.place(MachineType::Smelter, 5, 5, Direction::Left);
-    m.place(MachineType::Belt, 4, 5, Direction::Right); // feeds from the left: should work
-    m.place(MachineType::Belt, 5, 4, Direction::Down);  // feeds from above: should be refused
+    m.place(MachineType::IronBelt, 4, 5, Direction::Right); // feeds from the left: should work
+    m.place(MachineType::IronBelt, 5, 4, Direction::Down);  // feeds from above: should be refused
 
     REQUIRE(m.tryInsert(4, 5, ItemType::CopperOre));
     REQUIRE(m.tryInsert(5, 4, ItemType::CopperOre));
@@ -175,8 +175,8 @@ TEST_CASE("an item rides a belt to the next belt after the interval")
 {
     World world;
     Machines m;
-    m.place(MachineType::Belt, 0, 0, Direction::Right);
-    m.place(MachineType::Belt, 1, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 0, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 1, 0, Direction::Right);
 
     REQUIRE(m.tryInsert(0, 0, ItemType::IronOre));
 
@@ -197,7 +197,7 @@ TEST_CASE("a chute moves its item straight down regardless of facing")
     World world;
     Machines m;
     m.place(MachineType::Chute, 0, 0, Direction::Right); // facing ignored by chutes
-    m.place(MachineType::Belt, 0, 1, Direction::Right);
+    m.place(MachineType::IronBelt, 0, 1, Direction::Right);
 
     REQUIRE(m.tryInsert(0, 0, ItemType::Coal));
 
@@ -214,8 +214,8 @@ TEST_CASE("a belt backs up when the tile ahead is full")
 {
     World world;
     Machines m;
-    m.place(MachineType::Belt, 0, 0, Direction::Right);
-    m.place(MachineType::Belt, 1, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 0, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 1, 0, Direction::Right);
 
     REQUIRE(m.tryInsert(0, 0, ItemType::Stone));
     REQUIRE(m.tryInsert(1, 0, ItemType::Stone)); // tile ahead already occupied
@@ -238,7 +238,7 @@ TEST_CASE("a machine never outputs onto its own facing side, which is reserved f
     // Facing Down: that side is reserved for input (an ore vein, a feeder
     // belt) and must never receive output, even though a belt sits right there.
     m.place(MachineType::Smelter, 5, 5, Direction::Down);
-    m.place(MachineType::Belt, 5, 6, Direction::Right); // directly below: the facing side
+    m.place(MachineType::IronBelt, 5, 6, Direction::Right); // directly below: the facing side
 
     m.at(5, 5)->output = {ItemType::CopperPlate, 1};
 
@@ -256,8 +256,8 @@ TEST_CASE("a smelter alternates its output between two belts on non-facing sides
     Machines m;
 
     m.place(MachineType::Smelter, 5, 5, Direction::Down); // input side: nothing placed there
-    m.place(MachineType::Belt, 6, 5, Direction::Right);   // right: a valid output side
-    m.place(MachineType::Belt, 4, 5, Direction::Right);   // left: a valid output side
+    m.place(MachineType::IronBelt, 6, 5, Direction::Right);   // right: a valid output side
+    m.place(MachineType::IronBelt, 4, 5, Direction::Right);   // left: a valid output side
 
     std::vector<sf::Vector2i> mined;
     const float step = 1.0f / 60.0f;
@@ -291,9 +291,9 @@ TEST_CASE("output waits when every non-facing side is already occupied")
     Machines m;
 
     m.place(MachineType::Smelter, 5, 5, Direction::Down);
-    m.place(MachineType::Belt, 6, 5, Direction::Right);
-    m.place(MachineType::Belt, 4, 5, Direction::Right);
-    m.place(MachineType::Belt, 5, 4, Direction::Right);
+    m.place(MachineType::IronBelt, 6, 5, Direction::Right);
+    m.place(MachineType::IronBelt, 4, 5, Direction::Right);
+    m.place(MachineType::IronBelt, 5, 4, Direction::Right);
 
     // Fill all three non-facing belts so none of them can take anything more.
     REQUIRE(m.tryInsert(6, 5, ItemType::Stone));
@@ -309,4 +309,34 @@ TEST_CASE("output waits when every non-facing side is already occupied")
     // stalls behind it (mirrors the existing output-full backpressure).
     CHECK(m.at(5, 5)->output.type == ItemType::CopperPlate);
     CHECK(m.at(5, 5)->output.count == 1);
+}
+
+TEST_CASE("a Copper Belt carries an item to the machine ahead, just slower than an Iron Belt would")
+{
+    Machines m;
+    World world;
+    m.place(MachineType::CopperBelt, 0, 0, Direction::Right);
+    m.place(MachineType::IronBelt, 1, 0, Direction::Right); // just needs to accept the handoff
+
+    REQUIRE(m.tryInsert(0, 0, ItemType::Stone));
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+
+    // Shorter than the Iron Belt's actionTime: neither belt has moved its item yet.
+    const int ironTicks = static_cast<int>(machineInfo(MachineType::IronBelt).actionTime / step);
+    for (int i = 0; i < ironTicks; ++i)
+        m.tick(world, step, mined);
+    CHECK(m.at(0, 0)->carried == ItemType::Stone);
+
+    // Comfortably past the Copper Belt's own (slower) actionTime - a full extra
+    // 0.2s of margin, not just +1 tick, so float accumulation over the run can
+    // never make this assertion flaky.
+    const int totalTicksForCopper =
+        static_cast<int>((machineInfo(MachineType::CopperBelt).actionTime + 0.2f) / step);
+    for (int i = ironTicks; i < totalTicksForCopper; ++i)
+        m.tick(world, step, mined);
+
+    CHECK(m.at(0, 0)->carried == ItemType::None);
+    CHECK(m.at(1, 0)->carried == ItemType::Stone);
 }

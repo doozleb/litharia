@@ -77,7 +77,7 @@ TEST_CASE("a smelter mid-smelt shows progress against its recipe's time")
 TEST_CASE("a belt never shows a bar")
 {
     Machine m;
-    m.type = MachineType::Belt;
+    m.type = MachineType::IronBelt;
 
     CHECK(barStatus(m).bar == MachineBar::None);
 }
@@ -92,4 +92,12 @@ TEST_CASE("a Copper Drill mid-mining shows progress against its own (slower) act
 
     CHECK(status.bar == MachineBar::Progress);
     CHECK(status.fraction == doctest::Approx(0.25f));
+}
+
+TEST_CASE("a copper belt never shows a bar")
+{
+    Machine m;
+    m.type = MachineType::CopperBelt;
+
+    CHECK(barStatus(m).bar == MachineBar::None);
 }

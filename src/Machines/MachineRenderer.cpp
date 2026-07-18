@@ -41,7 +41,8 @@ bool isOutputSide(const Machine& m, Direction side)
         case MachineType::Smelter:
             return side != m.facing;
 
-        case MachineType::Belt:
+        case MachineType::CopperBelt:
+        case MachineType::IronBelt:
             return side == m.facing;
 
         case MachineType::Chute:

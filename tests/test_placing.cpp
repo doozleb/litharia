@@ -144,7 +144,7 @@ TEST_CASE("a block cannot be placed onto a tile a machine occupies")
     player.setSelectedSlot(2);
 
     Machines machines;
-    machines.place(MachineType::Belt, 13, 29, Direction::Right);
+    machines.place(MachineType::IronBelt, 13, 29, Direction::Right);
 
     const ActionResult result = player.update(placingAt(13, 29), world, STEP, &machines);
 
