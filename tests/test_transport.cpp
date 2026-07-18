@@ -1,4 +1,4 @@
-﻿#include "doctest.h"
+#include "doctest.h"
 
 #include "Machines/Machines.h"
 #include "World/World.h"
