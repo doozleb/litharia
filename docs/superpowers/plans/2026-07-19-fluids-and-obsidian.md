@@ -412,10 +412,12 @@ TEST_CASE("a fluid tile falls straight down into open air")
     CHECK(world.get(10, 11) == BlockType::Water8);
 }
 
-TEST_CASE("a fluid tile does not fall through solid ground")
+TEST_CASE("a fully-enclosed fluid tile does not fall through solid ground")
 {
     World world;
-    world.set(10, 11, BlockType::Stone);
+    world.set(10, 11, BlockType::Stone); // floor below
+    world.set(9, 10, BlockType::Stone);  // walls on both sides, so the only
+    world.set(11, 10, BlockType::Stone); // possible move left is falling down
     world.set(10, 10, BlockType::Water8);
 
     FluidSim sim;
@@ -424,6 +426,11 @@ TEST_CASE("a fluid tile does not fall through solid ground")
     std::vector<sf::Vector2i> changed;
     sim.tick(world, FLUID_STEP, changed);
 
+    // Nowhere to fall (Stone below) and nowhere to spread (Stone both sides):
+    // the tile stays put rather than draining through the solid floor. The
+    // sideways-open case is exercised separately by the spread test below - it
+    // must NOT share this test's setup, or the two would assert opposite
+    // outcomes for identical input.
     CHECK(world.get(10, 10) == BlockType::Water8);
     CHECK(world.get(10, 11) == BlockType::Stone);
 }
@@ -522,12 +529,16 @@ TEST_CASE("a full lava wall meeting a full water wall along a 10-tile contact yi
         world.set(11, y, BlockType::Water8);
     }
 
+    // Activate only the lava front. This is a single-step reaction test: if the
+    // water column were also activated this tick, each water tile - after being
+    // drained one level by its lava neighbor's reaction - would independently
+    // fall/spread later in the SAME step (it's still in the active batch),
+    // obscuring the clean "-1 level" outcome. That broader multi-tick flow is
+    // already exercised by the fall/spread tests above; here we isolate the
+    // reaction itself.
     FluidSim sim;
     for (int y = 0; y < 10; ++y)
-    {
         sim.activate(10, y);
-        sim.activate(11, y);
-    }
 
     std::vector<sf::Vector2i> changed;
     sim.tick(world, FLUID_STEP, changed);
