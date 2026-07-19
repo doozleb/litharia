@@ -14,6 +14,7 @@
 #include "../Machines/Recipes.h"
 #include "../Player/Player.h"
 #include "../World/Chunks.h"
+#include "../World/FluidSim.h"
 #include "../World/TerrainGenerator.h"
 #include "../World/World.h"
 
@@ -88,6 +89,7 @@ private:
 
     Machines machines;
     MachineRenderer machineRenderer;
+    FluidSim fluids;
 
     bool buildMode = false;
     MachineType buildType = MachineType::CopperBelt;

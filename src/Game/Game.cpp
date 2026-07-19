@@ -68,6 +68,7 @@ Game::Game()
     chunks.markAllDirty();
 
     spawnSharpRocks();
+    fluids.activateAll(world);
 
     player = Player(findSpawn());
     camera.snapTo(player.center());
@@ -861,14 +862,22 @@ void Game::fixedUpdate(float dt)
     if (result.broke)
     {
         // The player mutated one or more tiles; the renderer has to be told.
+        // A newly-opened tile might let a neighboring fluid tile fall or
+        // spread into it, so reactivate around it too.
         for (const BrokenTile& tile : result.broken)
+        {
             chunks.markDirty(tile.x, tile.y);
+            fluids.activateAround(tile.x, tile.y);
+        }
 
         spawnDrop(result);
     }
 
     if (result.placed)
+    {
         chunks.markDirty(result.placedX, result.placedY);
+        fluids.activateAround(result.placedX, result.placedY);
+    }
 
     placeFurnitureAtCursor(input);
     mineFurnitureAtCursor(input, dt);
@@ -878,6 +887,11 @@ void Game::fixedUpdate(float dt)
     tickMachines(dt);
     updateCrafting(dt);
     updateSmelting(dt);
+
+    std::vector<sf::Vector2i> fluidChanges;
+    fluids.tick(world, dt, fluidChanges);
+    for (const sf::Vector2i& t : fluidChanges)
+        chunks.markDirty(t.x, t.y);
 
     camera.follow(player.center(), dt);
 
