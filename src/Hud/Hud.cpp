@@ -372,6 +372,36 @@ void Hud::draw(sf::RenderWindow& window, const Inventory& inventory, int selecte
     window.setView(previous);
 }
 
+void Hud::drawHealth(sf::RenderWindow& window, int health, int maxHealth)
+{
+    const sf::View previous = window.getView();
+    window.setView(currentWindowView(window));
+
+    constexpr float BAR_WIDTH = 200.0f;
+    constexpr float BAR_HEIGHT = 18.0f;
+
+    const float frac = maxHealth > 0
+        ? std::clamp(static_cast<float>(health) / static_cast<float>(maxHealth), 0.0f, 1.0f)
+        : 0.0f;
+
+    sf::RectangleShape back({BAR_WIDTH, BAR_HEIGHT});
+    back.setPosition({MARGIN, MARGIN});
+    back.setFillColor(sf::Color(40, 20, 20));
+    back.setOutlineThickness(2.0f);
+    back.setOutlineColor(sf::Color(15, 8, 8));
+    window.draw(back);
+
+    if (frac > 0.0f)
+    {
+        sf::RectangleShape fill({BAR_WIDTH * frac, BAR_HEIGHT});
+        fill.setPosition({MARGIN, MARGIN});
+        fill.setFillColor(sf::Color(200, 50, 50));
+        window.draw(fill);
+    }
+
+    window.setView(previous);
+}
+
 void Hud::drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventory)
 {
     const sf::View previous = window.getView();

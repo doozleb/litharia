@@ -100,6 +100,11 @@ public:
 
     void draw(sf::RenderWindow& window, const Inventory& inventory, int selectedSlot);
 
+    // A fixed health bar in the top-left corner: a red fill proportional to
+    // health/maxHealth over a dark back. Shapes only, so it renders even with no
+    // font loaded.
+    void drawHealth(sf::RenderWindow& window, int health, int maxHealth);
+
     // The 3 rows of the bag beyond the hotbar (slots HOTBAR_SIZE..slotCount()-1),
     // shown only while the player has the inventory open.
     void drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventory);

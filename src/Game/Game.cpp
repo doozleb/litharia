@@ -864,6 +864,12 @@ void Game::fixedUpdate(float dt)
     const PlayerInput input = readInput();
     const ActionResult result = player.update(input, world, dt, &machines);
 
+    if (player.isDead())
+    {
+        player.respawn(findSpawn());
+        camera.snapTo(player.center());
+    }
+
     if (result.broke)
     {
         // The player mutated one or more tiles; the renderer has to be told.
@@ -977,6 +983,7 @@ void Game::render()
     window.draw(body);
 
     hud.draw(window, player.inventory(), player.selectedSlot());
+    hud.drawHealth(window, player.health(), Player::MAX_HEALTH);
 
     if (buildMode)
         hud.drawBuildPalette(window, buildType, player.inventory());
