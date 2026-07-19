@@ -186,55 +186,62 @@ bool FluidSim::fallAt(World& world, int x, int y, BlockType type, std::vector<sf
     return false;
 }
 
+bool FluidSim::tileRests(const World& world, int cx, int y, BlockType type) const
+{
+    const BlockType t = world.get(cx, y);
+    if (!sameFluid(type, t))
+        return false;
+    const BlockType below = world.get(cx, y + 1);
+    return !(below == BlockType::Air && world.inBounds(cx, y + 1));
+}
+
+FluidSim::RunScan FluidSim::scanRun(const World& world, int x, int y, BlockType type) const
+{
+    // Gather the maximal contiguous run of resting same-fluid tiles.
+    int xL = x;
+    int xR = x;
+    while (xL - 1 >= 0 && tileRests(world, xL - 1, y, type))
+        --xL;
+    while (xR + 1 < WORLD_WIDTH && tileRests(world, xR + 1, y, type))
+        ++xR;
+
+    // Scan for the run's highest and lowest cell (not just adjacent cells) so
+    // callers can tell a staircase like 6,5,4,4 (every neighbour differs by
+    // only one, yet the surface is not flat) apart from an actually flat run.
+    // Ties go to the leftmost cell.
+    int maxX = xL;
+    int minX = xL;
+    int maxLevel = fluidLevel(world.get(xL, y));
+    int minLevel = maxLevel;
+    for (int cx = xL + 1; cx <= xR; ++cx)
+    {
+        const int lvl = fluidLevel(world.get(cx, y));
+        if (lvl > maxLevel) { maxLevel = lvl; maxX = cx; }
+        if (lvl < minLevel) { minLevel = lvl; minX = cx; }
+    }
+
+    return RunScan{xL, xR, maxX, minX, maxLevel, minLevel};
+}
+
 bool FluidSim::equalizeAt(World& world, int x, int y, BlockType type,
                           std::vector<sf::Vector2i>& changed)
 {
-    // A tile "rests" if it cannot fall: the tile below is not open in-bounds
-    // air. Only resting same-fluid tiles form a levelling run.
-    auto rests = [&](int cx) {
-        const BlockType t = world.get(cx, y);
-        if (!sameFluid(type, t))
-            return false;
-        const BlockType below = world.get(cx, y + 1);
-        return !(below == BlockType::Air && world.inBounds(cx, y + 1));
-    };
-
-    if (rests(x))
+    if (tileRests(world, x, y, type))
     {
-        // Gather the maximal contiguous run of resting same-fluid tiles.
-        int xL = x;
-        int xR = x;
-        while (xL - 1 >= 0 && rests(xL - 1))
-            --xL;
-        while (xR + 1 < WORLD_WIDTH && rests(xR + 1))
-            ++xR;
-
         // Slosh one unit per step from the run's highest cell to its lowest, so
         // the surface visibly settles instead of snapping flat in one tick.
-        // Using the whole run's max and min (not just adjacent cells) avoids
-        // stalling on a staircase like 6,5,4,4 where every neighbour differs by
-        // only one yet the surface is not flat. Moving exactly one unit is
-        // exactly conservative and strictly shrinks the run's spread, so it
-        // reaches flat-within-one-level and then stops.
-        int maxX = xL;
-        int minX = xL;
-        int maxLevel = fluidLevel(world.get(xL, y));
-        int minLevel = maxLevel;
-        for (int cx = xL + 1; cx <= xR; ++cx)
-        {
-            const int lvl = fluidLevel(world.get(cx, y));
-            if (lvl > maxLevel) { maxLevel = lvl; maxX = cx; }
-            if (lvl < minLevel) { minLevel = lvl; minX = cx; }
-        }
+        // Moving exactly one unit is exactly conservative and strictly shrinks
+        // the run's spread, so it reaches flat-within-one-level and then stops.
+        const RunScan r = scanRun(world, x, y, type);
 
-        if (maxLevel - minLevel >= 2)
+        if (r.maxLevel - r.minLevel >= 2)
         {
-            world.set(maxX, y, fluidAtLevel(type, maxLevel - 1));
-            world.set(minX, y, fluidAtLevel(type, minLevel + 1));
-            activateAround(maxX, y);
-            activateAround(minX, y);
-            changed.push_back({maxX, y});
-            changed.push_back({minX, y});
+            world.set(r.maxX, y, fluidAtLevel(type, r.maxLevel - 1));
+            world.set(r.minX, y, fluidAtLevel(type, r.minLevel + 1));
+            activateAround(r.maxX, y);
+            activateAround(r.minX, y);
+            changed.push_back({r.maxX, y});
+            changed.push_back({r.minX, y});
             return true;
         }
     }
@@ -314,33 +321,11 @@ bool FluidSim::canMove(const World& world, int x, int y, BlockType type) const
 
     // Can level: mirror equalizeAt's run scan - a resting run whose highest and
     // lowest cells differ by at least 2 still has a unit to slosh.
-    auto rests = [&](int cx) {
-        const BlockType t = world.get(cx, y);
-        if (!sameFluid(type, t))
-            return false;
-        const BlockType b = world.get(cx, y + 1);
-        return !(b == BlockType::Air && world.inBounds(cx, y + 1));
-    };
-
-    if (rests(x))
+    if (tileRests(world, x, y, type))
     {
-        int xL = x;
-        int xR = x;
-        while (xL - 1 >= 0 && rests(xL - 1))
-            --xL;
-        while (xR + 1 < WORLD_WIDTH && rests(xR + 1))
-            ++xR;
+        const RunScan r = scanRun(world, x, y, type);
 
-        int maxLevel = fluidLevel(world.get(xL, y));
-        int minLevel = maxLevel;
-        for (int cx = xL + 1; cx <= xR; ++cx)
-        {
-            const int lvl = fluidLevel(world.get(cx, y));
-            maxLevel = std::max(maxLevel, lvl);
-            minLevel = std::min(minLevel, lvl);
-        }
-
-        if (maxLevel - minLevel >= 2)
+        if (r.maxLevel - r.minLevel >= 2)
             return true;
     }
 

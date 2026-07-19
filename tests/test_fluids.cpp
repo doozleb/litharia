@@ -69,6 +69,7 @@ TEST_CASE("every fluid block is non-solid, unmineable, and drops nothing")
 
 #include "Core/Constants.h"
 #include "World/FluidSim.h"
+#include "World/FluidSurface.h"
 #include "World/World.h"
 #include "World/TerrainGenerator.h"
 
@@ -663,8 +664,6 @@ TEST_CASE("every generated world's fluids settle to a full stop")
     }
 }
 
-#include "World/FluidSurface.h"
-
 TEST_CASE("fluidSurfaceHeight reports one flat height across a within-one-level run")
 {
     World world;
@@ -697,4 +696,27 @@ TEST_CASE("fluidSurfaceHeight stops a run at a solid gap and at a different flui
     CHECK(fluidSurfaceHeight(world, 8, 10) == doctest::Approx(1.0f));
     // The run through x=10 is just {10} (stone left, lava right): 2/8.
     CHECK(fluidSurfaceHeight(world, 10, 10) == doctest::Approx(2.0f / 8.0f));
+}
+
+TEST_CASE("fluidSurfaceHeight on a submerged tile reports its own level, not the run")
+{
+    World world;
+    world.set(8, 11, BlockType::Stone);
+    // A two-tall column: surface Water4 on top of a full Water8 (submerged).
+    world.set(8, 9, BlockType::Water4);
+    world.set(8, 10, BlockType::Water8);
+
+    // The submerged tile (fluid directly above) is not a surface run member, so
+    // it reports its own level (8/8 = 1.0), not an average.
+    CHECK(fluidSurfaceHeight(world, 8, 10) == doctest::Approx(1.0f));
+    // The surface tile above it reports its own level (lone run).
+    CHECK(fluidSurfaceHeight(world, 8, 9) == doctest::Approx(4.0f / 8.0f));
+}
+
+TEST_CASE("fluidSurfaceHeight returns 0 for a non-fluid tile")
+{
+    World world;
+    world.set(8, 10, BlockType::Stone);
+    CHECK(fluidSurfaceHeight(world, 8, 10) == doctest::Approx(0.0f));
+    CHECK(fluidSurfaceHeight(world, 5, 5) == doctest::Approx(0.0f)); // air
 }
