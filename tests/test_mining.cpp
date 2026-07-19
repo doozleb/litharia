@@ -178,6 +178,12 @@ TEST_CASE("harder blocks take longer")
 
         Player player = standingAt(world, 10.0f, 30);
 
+        // A Copper Pickaxe meets every tier used below (Iron Ore now requires
+        // Copper), so the comparison stays a pure hardness comparison rather
+        // than tripping the tier gate.
+        player.inventory().exchange(2, {ItemType::CopperPickaxe, 1});
+        player.setSelectedSlot(2);
+
         PlayerInput input;
         input.mine = true;
         input.cursor = cursorOn(12, 29);
@@ -627,13 +633,12 @@ TEST_CASE("a felled tree's logs are the only thing an axe drops")
     }
 }
 
-TEST_CASE("Copper Ore requires at least Stone tier; everything else still defaults to Wood tier")
+TEST_CASE("Copper Ore requires at least Stone tier; non-ore terrain still defaults to Wood tier")
 {
     CHECK(blockInfo(BlockType::CopperOre).requiredTier == ToolTier::Stone);
 
     CHECK(blockInfo(BlockType::Stone).requiredTier == ToolTier::Wood);
     CHECK(blockInfo(BlockType::Coal).requiredTier == ToolTier::Wood);
-    CHECK(blockInfo(BlockType::IronOre).requiredTier == ToolTier::Wood);
     CHECK(blockInfo(BlockType::OakLog).requiredTier == ToolTier::Wood);
     CHECK(blockInfo(BlockType::Dirt).requiredTier == ToolTier::Wood);
     CHECK(blockInfo(BlockType::Grass).requiredTier == ToolTier::Wood);
@@ -681,6 +686,58 @@ TEST_CASE("stick, sharp rock, and the stone tools are correctly typed items")
 
     CHECK(itemInfo(ItemType::StoneAxe).toolType == ToolType::Axe);
     CHECK(itemInfo(ItemType::StoneAxe).tier == ToolTier::Stone);
+}
+
+TEST_CASE("the copper tools are correctly typed items")
+{
+    CHECK(itemInfo(ItemType::CopperPickaxe).toolType == ToolType::Pickaxe);
+    CHECK(itemInfo(ItemType::CopperPickaxe).tier == ToolTier::Copper);
+
+    CHECK(itemInfo(ItemType::CopperAxe).toolType == ToolType::Axe);
+    CHECK(itemInfo(ItemType::CopperAxe).tier == ToolTier::Copper);
+}
+
+TEST_CASE("iron ore now requires at least Copper tier")
+{
+    CHECK(blockInfo(BlockType::IronOre).requiredTier == ToolTier::Copper);
+}
+
+TEST_CASE("a stone pickaxe cannot mine iron ore, but a copper pickaxe can")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(12, 29, BlockType::IronOre);
+    world.set(13, 29, BlockType::IronOre);
+
+    Player player = standingAt(world, 10.0f, 30);
+
+    player.inventory().exchange(2, {ItemType::StonePickaxe, 1});
+    player.setSelectedSlot(2);
+
+    PlayerInput stoneInput;
+    stoneInput.mine = true;
+    stoneInput.cursor = cursorOn(12, 29);
+
+    for (int i = 0; i < 300; ++i)
+    {
+        const ActionResult result = player.update(stoneInput, world, STEP);
+        REQUIRE_FALSE(result.broke);
+    }
+    CHECK(world.get(12, 29) == BlockType::IronOre);
+
+    player.inventory().exchange(3, {ItemType::CopperPickaxe, 1});
+    player.setSelectedSlot(3);
+
+    PlayerInput copperInput;
+    copperInput.mine = true;
+    copperInput.cursor = cursorOn(13, 29);
+
+    ActionResult result;
+    for (int i = 0; i < 300 && !result.broke; ++i)
+        result = player.update(copperInput, world, STEP);
+
+    REQUIRE(result.broke);
+    CHECK(world.get(13, 29) == BlockType::Air);
 }
 
 TEST_CASE("a stone pickaxe can mine copper ore, at Stone tier's own speed")

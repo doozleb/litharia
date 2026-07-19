@@ -64,7 +64,7 @@ TEST_CASE("every placeable machine has a matching craftable item")
 TEST_CASE("allCraftRecipes exposes every craftable item exactly once")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
-    CHECK(all.size() == 16);
+    CHECK(all.size() == 18);
 }
 
 TEST_CASE("the Chest recipe costs 8 oak logs and 2 copper plates")
@@ -328,4 +328,32 @@ TEST_CASE("the Stone Axe recipe costs 2 sticks and 1 sharp rock")
     CHECK(it->ingredients[0].count == 2);
     CHECK(it->ingredients[1].item == ItemType::SharpRock);
     CHECK(it->ingredients[1].count == 1);
+}
+
+TEST_CASE("the Copper Pickaxe recipe costs 2 sticks and 4 copper plates")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::CopperPickaxe; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Stick);
+    CHECK(it->ingredients[0].count == 2);
+    CHECK(it->ingredients[1].item == ItemType::CopperPlate);
+    CHECK(it->ingredients[1].count == 4);
+}
+
+TEST_CASE("the Copper Axe recipe costs 2 sticks and 2 copper plates")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::CopperAxe; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Stick);
+    CHECK(it->ingredients[0].count == 2);
+    CHECK(it->ingredients[1].item == ItemType::CopperPlate);
+    CHECK(it->ingredients[1].count == 2);
 }

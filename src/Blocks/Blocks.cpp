@@ -13,7 +13,7 @@ constexpr std::array<BlockInfo, static_cast<std::size_t>(BlockType::Count)> regi
     {"Dirt",        {134,  89,  52}, true,  0.35f, BlockType::Dirt,      ToolType::Pickaxe},
     {"Stone",       {112, 112, 118}, true,  0.90f, BlockType::Stone,     ToolType::Pickaxe},
     {"Copper Ore",  {201, 116,  56}, true,  1.40f, BlockType::CopperOre, ToolType::Pickaxe, ToolTier::Stone},
-    {"Iron Ore",    {166, 174, 190}, true,  2.00f, BlockType::IronOre,   ToolType::Pickaxe},
+    {"Iron Ore",    {166, 174, 190}, true,  2.00f, BlockType::IronOre,   ToolType::Pickaxe, ToolTier::Copper},
     {"Coal",        { 44,  44,  50}, true,  1.10f, BlockType::Coal,      ToolType::Pickaxe},
     {"Oak Log",     {101,  67,  33}, false, 0.60f, BlockType::OakLog,    ToolType::Axe},
     {"Oak Leaves",  { 60, 140,  50}, false, 0.15f, BlockType::Air,       ToolType::Axe},

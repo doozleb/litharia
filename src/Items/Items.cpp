@@ -20,6 +20,8 @@ constexpr std::array<ItemInfo, static_cast<std::size_t>(ItemType::Count)> regist
     {"Wood Axe",          1,  BlockType::Air,       ToolType::Axe,     {160,  90,  50}, ToolTier::Wood},
     {"Stone Pickaxe",     1,  BlockType::Air,       ToolType::Pickaxe, {130, 130, 135}, ToolTier::Stone},
     {"Stone Axe",         1,  BlockType::Air,       ToolType::Axe,     {120, 100,  80}, ToolTier::Stone},
+    {"Copper Pickaxe",    1,  BlockType::Air,       ToolType::Pickaxe, {195, 120,  70}, ToolTier::Copper},
+    {"Copper Axe",        1,  BlockType::Air,       ToolType::Axe,     {190, 115,  65}, ToolTier::Copper},
     {"Oak Log",          99,  BlockType::Air,       ToolType::None,    {101,  67,  33}},
     {"Stick",             99,  BlockType::Air,       ToolType::None,    {170, 140,  90}},
     {"Sharp Rock",        99,  BlockType::Air,       ToolType::None,    {150, 145, 140}},
