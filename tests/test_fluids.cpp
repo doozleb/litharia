@@ -63,6 +63,7 @@ TEST_CASE("every fluid block is non-solid, unmineable, and drops nothing")
     }
 }
 
+#include <algorithm>
 #include <vector>
 
 #include "Core/Constants.h"
@@ -216,7 +217,7 @@ TEST_CASE("a fully-enclosed fluid tile does not fall through solid ground")
     CHECK(world.get(10, 11) == BlockType::Stone);
 }
 
-TEST_CASE("a resting, uneven row of water levels itself flat in a single step")
+TEST_CASE("a resting, uneven row of water settles flat and conserves its total")
 {
     World world;
 
@@ -236,16 +237,26 @@ TEST_CASE("a resting, uneven row of water levels itself flat in a single step")
     for (int x = 8; x <= 11; ++x)
         sim.activate(x, 10);
 
+    // Gradual slosh: run to a full stop rather than a single snap.
     std::vector<sf::Vector2i> changed;
-    sim.tick(world, FLUID_STEP, changed);
+    int emptyRun = 0;
+    for (int i = 0; i < 200 && emptyRun < 3; ++i)
+    {
+        changed.clear();
+        sim.tick(world, FLUID_STEP, changed);
+        emptyRun = changed.empty() ? emptyRun + 1 : 0;
+    }
 
-    // 20 over 4 columns levels to exactly 5 each in one step - a flat surface,
-    // immediately, and conserving the total.
+    // 20 over 4 columns settles to exactly 5 each, conserving the total.
+    int total = 0;
+    for (int x = 8; x <= 11; ++x)
+        total += fluidLevelAt(world, x, 10);
+    CHECK(total == 20);
     for (int x = 8; x <= 11; ++x)
         CHECK(world.get(x, 10) == BlockType::Water5);
 }
 
-TEST_CASE("an uneven run rounds to the nearest level and stores it uniformly")
+TEST_CASE("an uneven run settles flat within one level and conserves exactly")
 {
     World world;
 
@@ -254,9 +265,9 @@ TEST_CASE("an uneven run rounds to the nearest level and stores it uniformly")
     world.set(7, 10, BlockType::Stone);
     world.set(12, 10, BlockType::Stone);
 
-    // Total 6 + 6 + 6 + 1 = 19 over 4 columns -> average 4.75, which rounds to
-    // level 5 and is stored in every cell. It is NOT exactly conserving (19 in,
-    // 20 out): the nearest whole level is chosen so the surface is dead flat.
+    // Total 6 + 6 + 6 + 1 = 19 over 4 columns. Conservative settling keeps the
+    // total at 19 (three cells at 5, one at 4) - flat within a single level -
+    // rather than rounding to 20.
     world.set(8, 10, BlockType::Water6);
     world.set(9, 10, BlockType::Water6);
     world.set(10, 10, BlockType::Water6);
@@ -267,10 +278,26 @@ TEST_CASE("an uneven run rounds to the nearest level and stores it uniformly")
         sim.activate(x, 10);
 
     std::vector<sf::Vector2i> changed;
-    sim.tick(world, FLUID_STEP, changed);
+    int emptyRun = 0;
+    for (int i = 0; i < 200 && emptyRun < 3; ++i)
+    {
+        changed.clear();
+        sim.tick(world, FLUID_STEP, changed);
+        emptyRun = changed.empty() ? emptyRun + 1 : 0;
+    }
 
+    int total = 0;
+    int minLevel = 8;
+    int maxLevel = 1;
     for (int x = 8; x <= 11; ++x)
-        CHECK(world.get(x, 10) == BlockType::Water5);
+    {
+        const int lvl = fluidLevelAt(world, x, 10);
+        total += lvl;
+        minLevel = std::min(minLevel, lvl);
+        maxLevel = std::max(maxLevel, lvl);
+    }
+    CHECK(total == 19);            // conserved exactly
+    CHECK(maxLevel - minLevel <= 1); // flat within one level
 }
 
 TEST_CASE("water widens into open, supported space beside it")
@@ -523,4 +550,74 @@ TEST_CASE("tick does nothing until a full TICK_INTERVAL has accumulated")
     // of) - so the tile falls.
     CHECK(world.get(10, 10) == BlockType::Air);
     CHECK(world.get(10, 11) == BlockType::Water8);
+}
+
+TEST_CASE("equalize leaves a one-level surface difference alone (no flicker)")
+{
+    World world;
+    world.set(8, 11, BlockType::Stone);
+    world.set(9, 11, BlockType::Stone);
+    world.set(7, 10, BlockType::Stone);
+    world.set(10, 10, BlockType::Stone);
+    world.set(8, 10, BlockType::Water5);
+    world.set(9, 10, BlockType::Water4);
+
+    FluidSim sim;
+    sim.activate(8, 10);
+    sim.activate(9, 10);
+
+    std::vector<sf::Vector2i> changed;
+    sim.tick(world, FLUID_STEP, changed);
+
+    // A difference of one is the stable remainder: nothing moves.
+    CHECK(world.get(8, 10) == BlockType::Water5);
+    CHECK(world.get(9, 10) == BlockType::Water4);
+    CHECK(changed.empty());
+}
+
+TEST_CASE("equalize moves floor(diff/2) toward a strictly lower neighbour and conserves")
+{
+    World world;
+    world.set(8, 11, BlockType::Stone);
+    world.set(9, 11, BlockType::Stone);
+    world.set(7, 10, BlockType::Stone);
+    world.set(10, 10, BlockType::Stone);
+    world.set(8, 10, BlockType::Water8);
+    world.set(9, 10, BlockType::Water2);
+
+    FluidSim sim;
+    sim.activate(8, 10);
+    sim.activate(9, 10);
+
+    std::vector<sf::Vector2i> changed;
+    sim.tick(world, FLUID_STEP, changed);
+
+    // (8 - 2) / 2 = 3 moves right: 8 -> 5, 2 -> 5. Total conserved at 10.
+    CHECK(world.get(8, 10) == BlockType::Water5);
+    CHECK(world.get(9, 10) == BlockType::Water5);
+    CHECK(fluidLevelAt(world, 8, 10) + fluidLevelAt(world, 9, 10) == 10);
+}
+
+TEST_CASE("a settled pool produces no further changes (fully quiescent)")
+{
+    World world;
+    for (int x = 8; x <= 11; ++x)
+        world.set(x, 11, BlockType::Stone);
+    world.set(7, 10, BlockType::Stone);
+    world.set(12, 10, BlockType::Stone);
+    for (int x = 8; x <= 11; ++x)
+        world.set(x, 10, BlockType::Water5);
+
+    FluidSim sim;
+    for (int x = 8; x <= 11; ++x)
+        sim.activate(x, 10);
+
+    std::vector<sf::Vector2i> changed;
+    for (int i = 0; i < 5; ++i)
+        sim.tick(world, FLUID_STEP, changed);
+
+    // Already flat and conserved: an equal, resting row never churns.
+    CHECK(changed.empty());
+    for (int x = 8; x <= 11; ++x)
+        CHECK(world.get(x, 10) == BlockType::Water5);
 }

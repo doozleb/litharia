@@ -21,10 +21,9 @@ class World;
 // scan - only tiles that changed (or are adjacent to a change) tick, and a
 // tile with nowhere left to move goes quiescent.
 //
-// Falling, spilling and the world edges are exactly conservative (no fluid is
-// lost off the edges). Levelling instead rounds a run to the nearest whole
-// level so a settled surface is dead flat, which can nudge a pool's total by a
-// fraction of a level either way. The Obsidian reaction is the only thing that
+// Falling, levelling, spilling and the world edges are all exactly conservative
+// (no fluid is lost off the edges, and no fluid is created or destroyed by
+// levelling a resting run flat). The Obsidian reaction is the only thing that
 // deliberately consumes fluid.
 class FluidSim
 {
@@ -65,8 +64,14 @@ private:
     // try the next rule on the same tile this tick).
     bool reactAt(World& world, int x, int y, std::vector<sf::Vector2i>& changed);
     bool fallAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
-    bool flattenAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
-    bool spreadAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
+    // Conservative horizontal levelling. Runs only when the cell cannot fall
+    // (rests on full support). Levels the whole contiguous resting run of
+    // same-fluid tiles at once (base level everywhere, remainder in the centre
+    // cells) so it settles flat within one level in a single call; if the run
+    // is already flat, widens one step into open, resting air beside it
+    // instead. Every move is an exact split of the existing total, so no fluid
+    // is ever created or lost.
+    bool equalizeAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
     bool cascadeAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
 
     // True if the tile at (x, y) has anywhere to fall, level, spread or spill.
