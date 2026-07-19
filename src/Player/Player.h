@@ -113,12 +113,14 @@ private:
     void place(const PlayerInput& input, World& world, const Machines* machines,
                ActionResult& result);
     void applyDamage(int amount);
+    void applyLavaDamage(const World& world, float dt);
 
     AABB body;
     sf::Vector2f speed{0.0f, 0.0f};
 
     bool grounded = false;
     int hp = MAX_HEALTH;
+    float lavaTimer = 0.0f;
 
     bool mining = false;
     sf::Vector2i target{0, 0};

@@ -29,6 +29,10 @@ constexpr int FALL_SAFE_TILES = 7;
 const float FALL_SAFE_SPEED = std::sqrt(2.0f * GRAVITY * FALL_SAFE_TILES * TILE_SIZE);
 const float FALL_DAMAGE_SCALE = Player::MAX_HEALTH / (TERMINAL_VELOCITY - FALL_SAFE_SPEED);
 
+// Lava: 20 damage per 0.5 s of contact, so three hits (0.5 / 1.0 / 1.5 s) kill.
+constexpr int LAVA_DAMAGE = 20;
+constexpr float LAVA_DAMAGE_INTERVAL = 0.5f;
+
 float applyFriction(float speed, float amount)
 {
     if (speed > 0.0f)
@@ -160,6 +164,7 @@ ActionResult Player::update(const PlayerInput& input, World& world, float dt,
     ActionResult result;
 
     move(input, world, dt);
+    applyLavaDamage(world, dt);
 
     mine(input, world, result, dt);
     place(input, world, machines, result);
@@ -296,12 +301,31 @@ void Player::applyDamage(int amount)
     hp = std::max(0, hp - amount);
 }
 
+void Player::applyLavaDamage(const World& world, float dt)
+{
+    if (physics::overlapsLava(body, world))
+    {
+        lavaTimer += dt;
+
+        while (lavaTimer >= LAVA_DAMAGE_INTERVAL)
+        {
+            applyDamage(LAVA_DAMAGE);
+            lavaTimer -= LAVA_DAMAGE_INTERVAL;
+        }
+    }
+    else
+    {
+        lavaTimer = 0.0f;
+    }
+}
+
 void Player::respawn(sf::Vector2f topLeft)
 {
     body.position = topLeft;
     speed = {0.0f, 0.0f};
     grounded = false;
     hp = MAX_HEALTH;
+    lavaTimer = 0.0f;
 }
 
 void Player::place(const PlayerInput& input, World& world, const Machines* machines,

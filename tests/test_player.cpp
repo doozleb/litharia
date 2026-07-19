@@ -1,5 +1,7 @@
 #include "doctest.h"
 
+#include <cmath>
+
 #include "Blocks/Blocks.h"
 #include "Core/Constants.h"
 #include "Player/Player.h"
@@ -279,4 +281,67 @@ TEST_CASE("respawn restores full health and position, and zeroes velocity")
     CHECK_FALSE(player.isDead());
     CHECK(player.position() == spawn);
     CHECK(player.velocity() == sf::Vector2f{0.0f, 0.0f});
+}
+
+TEST_CASE("standing in lava deals 20 damage every half second, three hits kill")
+{
+    World world;
+    for (int x = 8; x <= 12; ++x)
+        for (int y = 10; y <= 16; ++y)
+            world.set(x, y, BlockType::Lava8);
+    for (int x = 8; x <= 12; ++x)
+        world.set(x, 17, BlockType::Stone); // a floor to rest on (lava is not solid)
+
+    Player player({10 * TILE_SIZE, 12 * TILE_SIZE});
+
+    auto tickFor = [&](float seconds) {
+        const int n = static_cast<int>(std::lround(seconds / STEP));
+        for (int i = 0; i < n; ++i)
+            player.update({}, world, STEP);
+    };
+
+    tickFor(0.4f); // under one interval: charging, no hit yet
+    CHECK(player.health() == Player::MAX_HEALTH);
+
+    tickFor(0.2f); // total 0.6 s: first hit landed
+    CHECK(player.health() == 30);
+
+    tickFor(0.5f); // total 1.1 s: second hit
+    CHECK(player.health() == 10);
+
+    tickFor(0.5f); // total 1.6 s: third hit -> dead
+    CHECK(player.isDead());
+    CHECK(player.health() == 0);
+}
+
+TEST_CASE("stepping out of lava resets the damage timer (no carryover)")
+{
+    World world;
+    auto fillLava = [&](BlockType b) {
+        for (int x = 8; x <= 12; ++x)
+            for (int y = 10; y <= 16; ++y)
+                world.set(x, y, b);
+    };
+    fillLava(BlockType::Lava8);
+    for (int x = 8; x <= 12; ++x)
+        world.set(x, 17, BlockType::Stone);
+
+    Player player({10 * TILE_SIZE, 12 * TILE_SIZE});
+
+    // 0.4 s in lava: charging, no hit.
+    for (int i = 0; i < 24; ++i)
+        player.update({}, world, STEP);
+    CHECK(player.health() == Player::MAX_HEALTH);
+
+    // Lava removed: the player now stands in air on the floor, so the timer resets.
+    fillLava(BlockType::Air);
+    for (int i = 0; i < 6; ++i)
+        player.update({}, world, STEP);
+    CHECK(player.health() == Player::MAX_HEALTH);
+
+    // Lava returns: a fresh 0.4 s must not trigger a hit (would be 30 with carryover).
+    fillLava(BlockType::Lava8);
+    for (int i = 0; i < 24; ++i)
+        player.update({}, world, STEP);
+    CHECK(player.health() == Player::MAX_HEALTH);
 }
