@@ -28,6 +28,7 @@ add_library(Litharia_core STATIC
 
     src/World/World.cpp
     src/World/TerrainGenerator.cpp
+    src/World/FluidSim.cpp
 
     src/Physics/Physics.cpp
     src/Player/Player.cpp
