@@ -32,15 +32,17 @@ struct CraftIngredient
     int count = 0;
 };
 
-// One hand-craft recipe: up to 2 ingredients from the bag become one output
-// item after `seconds`. requiresCraftingTable is false only for the Crafting
-// Table itself - the one recipe reachable with no table placed yet.
+// One hand-craft recipe: up to 2 ingredients from the bag become
+// outputCount of the output item after `seconds`. requiresCraftingTable is
+// false only for the Crafting Table itself - the one recipe reachable with
+// no table placed yet.
 struct CraftRecipe
 {
     ItemType output;
     std::array<CraftIngredient, 2> ingredients;
     float seconds;
     bool requiresCraftingTable;
+    int outputCount = 1;
 };
 
 // Every defined hand-craft recipe.

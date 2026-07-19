@@ -64,7 +64,7 @@ TEST_CASE("every placeable machine has a matching craftable item")
 TEST_CASE("allCraftRecipes exposes every craftable item exactly once")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
-    CHECK(all.size() == 13);
+    CHECK(all.size() == 16);
 }
 
 TEST_CASE("the Chest recipe costs 8 oak logs and 2 copper plates")
@@ -279,4 +279,53 @@ TEST_CASE("the Iron Smelter recipe costs 3 iron plates and 5 stone, no copper ne
     CHECK(it->ingredients[1].item == ItemType::Stone);
     CHECK(it->ingredients[1].count == 5);
     CHECK(it->seconds == doctest::Approx(4.0f));
+}
+
+TEST_CASE("the Stick recipe costs 1 oak log and yields 4 sticks")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::Stick; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::OakLog);
+    CHECK(it->ingredients[0].count == 1);
+    CHECK(it->outputCount == 4);
+}
+
+TEST_CASE("every recipe outputs a positive count, 1 by default")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+
+    for (const CraftRecipe& r : all)
+        CHECK(r.outputCount > 0);
+}
+
+TEST_CASE("the Stone Pickaxe recipe costs 2 sticks and 2 sharp rocks")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::StonePickaxe; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Stick);
+    CHECK(it->ingredients[0].count == 2);
+    CHECK(it->ingredients[1].item == ItemType::SharpRock);
+    CHECK(it->ingredients[1].count == 2);
+}
+
+TEST_CASE("the Stone Axe recipe costs 2 sticks and 1 sharp rock")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::StoneAxe; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Stick);
+    CHECK(it->ingredients[0].count == 2);
+    CHECK(it->ingredients[1].item == ItemType::SharpRock);
+    CHECK(it->ingredients[1].count == 1);
 }

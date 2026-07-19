@@ -10,7 +10,10 @@ constexpr std::array<SmeltRecipe, 2> recipes = {{
     {ItemType::IronOre,   ItemType::IronPlate,   3.5f},
 }};
 
-constexpr std::array<CraftRecipe, 13> craftRecipes = {{
+constexpr std::array<CraftRecipe, 16> craftRecipes = {{
+    {ItemType::Stick,           {{{ItemType::OakLog, 1}, {}}},                           1.0f, true, 4},
+    {ItemType::StonePickaxe,    {{{ItemType::Stick, 2}, {ItemType::SharpRock, 2}}},       2.0f, true},
+    {ItemType::StoneAxe,        {{{ItemType::Stick, 2}, {ItemType::SharpRock, 1}}},       2.0f, true},
     {ItemType::CraftingTable,   {{{ItemType::OakLog, 15}, {}}},                          3.0f, false},
     {ItemType::Chest,           {{{ItemType::OakLog, 8}, {ItemType::CopperPlate, 2}}},    2.0f, true},
     {ItemType::CopperBelt, {{{ItemType::CopperPlate, 2}, {ItemType::Stone, 2}}}, 1.0f, true},

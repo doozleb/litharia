@@ -265,9 +265,14 @@ void Hud::buildRecipeLabels()
     // Built once: every string here is a compile-time constant, so the
     // expensive part (SFML's text geometry build) never has to run again.
     for (const CraftRecipe& recipe : allCraftRecipes())
-        craftLabels.push_back(
-            {sf::Text(*font, std::string(itemInfo(recipe.output).name), LABEL_TITLE_SIZE),
-             sf::Text(*font, formatIngredientCost(recipe), LABEL_SUBTITLE_SIZE)});
+    {
+        std::string title(itemInfo(recipe.output).name);
+        if (recipe.outputCount > 1)
+            title += " x" + std::to_string(recipe.outputCount);
+
+        craftLabels.push_back({sf::Text(*font, title, LABEL_TITLE_SIZE),
+                                sf::Text(*font, formatIngredientCost(recipe), LABEL_SUBTITLE_SIZE)});
+    }
 
     for (const FurnaceRecipe& recipe : allFurnaceRecipes())
         smeltLabels.push_back(

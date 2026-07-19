@@ -591,7 +591,7 @@ void Game::updateCrafting(float dt)
         return;
 
     Inventory& bag = player.inventory();
-    const int leftover = bag.add({recipe.output, 1});
+    const int leftover = bag.add({recipe.output, recipe.outputCount});
 
     dropAtPlayer(ItemStack{recipe.output, leftover});
 

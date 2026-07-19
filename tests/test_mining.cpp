@@ -670,3 +670,47 @@ TEST_CASE("a wood pickaxe cannot mine copper ore, even though it is a pickaxe")
     CHECK(world.get(12, 29) == BlockType::CopperOre);
     CHECK_FALSE(player.isMining());
 }
+
+TEST_CASE("stick, sharp rock, and the stone tools are correctly typed items")
+{
+    CHECK(itemInfo(ItemType::Stick).toolType == ToolType::None);
+    CHECK(itemInfo(ItemType::SharpRock).toolType == ToolType::None);
+
+    CHECK(itemInfo(ItemType::StonePickaxe).toolType == ToolType::Pickaxe);
+    CHECK(itemInfo(ItemType::StonePickaxe).tier == ToolTier::Stone);
+
+    CHECK(itemInfo(ItemType::StoneAxe).toolType == ToolType::Axe);
+    CHECK(itemInfo(ItemType::StoneAxe).tier == ToolTier::Stone);
+}
+
+TEST_CASE("a stone pickaxe can mine copper ore, at Stone tier's own speed")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(12, 29, BlockType::CopperOre);
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.inventory().exchange(2, {ItemType::StonePickaxe, 1});
+    player.setSelectedSlot(2);
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 29);
+
+    const float expectedTime =
+        blockInfo(BlockType::CopperOre).hardness / toolTierSpeedMultiplier(ToolTier::Stone);
+
+    ActionResult result;
+    float elapsed = 0.0f;
+
+    for (int i = 0; i < 300 && !result.broke; ++i)
+    {
+        result = player.update(input, world, STEP);
+        elapsed += STEP;
+    }
+
+    REQUIRE(result.broke);
+    CHECK(elapsed >= expectedTime);
+    CHECK(elapsed < expectedTime + 0.05f);
+    CHECK(world.get(12, 29) == BlockType::Air);
+}
