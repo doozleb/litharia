@@ -829,3 +829,48 @@ TEST_CASE("a copper pickaxe cannot mine obsidian, but an iron pickaxe can")
     REQUIRE(result.broke);
     CHECK(world.get(13, 29) == BlockType::Air);
 }
+
+TEST_CASE("the obsidian tools are correctly typed items, and Obsidian is the top tier")
+{
+    CHECK(itemInfo(ItemType::ObsidianPickaxe).toolType == ToolType::Pickaxe);
+    CHECK(itemInfo(ItemType::ObsidianPickaxe).tier == ToolTier::Obsidian);
+
+    CHECK(itemInfo(ItemType::ObsidianAxe).toolType == ToolType::Axe);
+    CHECK(itemInfo(ItemType::ObsidianAxe).tier == ToolTier::Obsidian);
+
+    // Nothing outranks Obsidian: it meets its own tier requirement and
+    // every requirement below it.
+    CHECK(meetsTier(ToolTier::Obsidian, ToolTier::Obsidian));
+    CHECK(meetsTier(ToolTier::Obsidian, ToolTier::Iron));
+}
+
+TEST_CASE("an obsidian pickaxe mines obsidian at Obsidian tier's own (fastest) speed")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(12, 29, BlockType::Obsidian);
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.inventory().exchange(2, {ItemType::ObsidianPickaxe, 1});
+    player.setSelectedSlot(2);
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 29);
+
+    const float expectedTime =
+        blockInfo(BlockType::Obsidian).hardness / toolTierSpeedMultiplier(ToolTier::Obsidian);
+
+    ActionResult result;
+    float elapsed = 0.0f;
+
+    for (int i = 0; i < 400 && !result.broke; ++i)
+    {
+        result = player.update(input, world, STEP);
+        elapsed += STEP;
+    }
+
+    REQUIRE(result.broke);
+    CHECK(elapsed >= expectedTime);
+    CHECK(elapsed < expectedTime + 0.05f);
+}

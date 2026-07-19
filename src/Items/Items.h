@@ -27,6 +27,8 @@ enum class ItemType : std::uint8_t
     CopperAxe,
     IronPickaxe,
     IronAxe,
+    ObsidianPickaxe,
+    ObsidianAxe,
     OakLog,
     Stick,
     SharpRock,
