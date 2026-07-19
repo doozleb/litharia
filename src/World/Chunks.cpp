@@ -71,9 +71,20 @@ void ChunkRenderer::rebuild(Chunk& chunk, int chunkX, int chunkY) const
             const sf::Color color = toColor(blockInfo(type).color);
 
             const float left = static_cast<float>(x * TILE_SIZE);
-            const float top = static_cast<float>(y * TILE_SIZE);
             const float right = left + TILE_SIZE;
-            const float bottom = top + TILE_SIZE;
+            const float bottom = static_cast<float>((y + 1) * TILE_SIZE);
+            float top = static_cast<float>(y * TILE_SIZE);
+
+            // A fluid surface tile - one with no fluid directly above it - is
+            // drawn only as full as its level: liquid fills the tile from the
+            // bottom up, so a level-1 tile is a 1/8-height sliver and a level-8
+            // tile fills the whole block. Submerged fluid (fluid above it) stays
+            // full, so only the very top of a pool shows a partial surface.
+            if (isFluid(type) && !isFluid(world.get(x, y - 1)))
+            {
+                const float fillHeight = TILE_SIZE * (fluidLevel(type) / 8.0f);
+                top = bottom - fillHeight;
+            }
 
             // Two triangles per tile: SFML 3 has no quad primitive.
             chunk.vertices.append({{left, top}, color});
