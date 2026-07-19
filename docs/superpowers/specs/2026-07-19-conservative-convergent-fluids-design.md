@@ -75,17 +75,25 @@ fluid type `T` at level `L`, rules are tried in order; the first to act wins:
    rests on a full cell.
 4. **`equalizeAt`** (new — replaces `flattenAt` and `spreadAt`). Runs only when
    the cell cannot fall (i.e. `fallAt` did not act, so the cell rests on full
-   support: solid ground, the world floor, or same-fluid at level 8). It
-   considers the two horizontal neighbors, each **eligible** only if it is air
-   or same-fluid **and it rests** (its own cell below is not open in-bounds air
-   — an air neighbor over a drop is a ledge, left to `cascadeAt`). Among eligible
-   neighbors it selects the strictly-lower one by level (air counts as level 0;
-   ties go left) and moves `floor((L - neighborLevel) / 2)` units into it —
-   **only if that amount is at least 1**, i.e. the level difference is at least
-   2. A difference of exactly 1 moves nothing. Moving into a resting neighbor
-   whose support is only partial is safe here (unlike the old `spreadAt`):
-   because nothing is non-conservative, the fed column simply fills and the
-   process terminates rather than looping.
+   support). It has two modes:
+   - **Level (slosh):** if the cell rests, gather the maximal contiguous run of
+     resting same-fluid tiles at this row, find the run's highest and lowest
+     cells (leftmost wins ties), and if their level difference is at least 2,
+     move **exactly one unit** from the highest to the lowest (`max-1`,
+     `min+1`). One unit per step is exactly conservative and strictly shrinks
+     the run's spread, so the surface visibly sloshes to flat-within-one-level
+     and then stops (a difference of 1 is the stable remainder). Taking the
+     whole run's max and min — not just adjacent neighbors — is essential:
+     a purely pairwise rule stalls on a staircase like `6,5,4,4` where every
+     neighbor differs by only one yet the surface is not flat.
+   - **Widen:** if the run is already flat within one level (or the tile is
+     alone), widen one step into open, **resting** air beside it (air over a
+     drop is a ledge, left to `cascadeAt`; ties go left), moving `floor(L/2)`
+     into it so a puddle grows one cell per step.
+
+   Because every level move relocates exactly one unit (never rounds) and the
+   two modes are gated on resting/full support, `fallAt` (vertical fill) and
+   `equalizeAt` (horizontal level) have disjoint domains and cannot fight.
 5. **`cascadeAt`** — unchanged, conservative. Spill over a ledge: an air
    neighbor with open air beneath it; the tile tips over so it falls down the
    far side next step.
