@@ -93,6 +93,14 @@ constexpr float FOREST_DENSITY_MAX = 0.6f;
 constexpr std::uint32_t SALT_FOREST = 0x6000u;
 constexpr std::uint32_t SALT_TREE = 0x7000u;
 
+// --- Pass 6: fluids ------------------------------------------------------
+constexpr float POOL_MIN_RADIUS = 2.5f;
+constexpr float POOL_MAX_RADIUS = 4.5f;
+
+constexpr std::uint32_t SALT_LAKE = 0xA000u;
+constexpr std::uint32_t SALT_WATER_POOL = 0xB000u;
+constexpr std::uint32_t SALT_LAVA_POOL = 0xC000u;
+
 // --- Sharp Rocks ---------------------------------------------------------
 constexpr std::uint32_t SALT_SHARP_ROCK = 0x9000u;
 
@@ -170,6 +178,7 @@ void TerrainGenerator::generate(World& world) const
     generateBase(world);
     carveSpecialCaves(world);
     scatterOre(world);
+    scatterFluids(world);
     scatterTrees(world);
 }
 
@@ -249,6 +258,38 @@ void TerrainGenerator::growVein(World& world,
                 continue;
 
             world.set(x, y, ore);
+        }
+    }
+}
+
+void TerrainGenerator::growPool(World& world,
+                                 int centerX,
+                                 int centerY,
+                                 float radius,
+                                 BlockType fluid,
+                                 int minY,
+                                 int maxY) const
+{
+    const int reach = static_cast<int>(std::ceil(radius));
+    const float radiusSquared = radius * radius;
+
+    for (int dy = -reach; dy <= reach; ++dy)
+    {
+        for (int dx = -reach; dx <= reach; ++dx)
+        {
+            if (static_cast<float>(dx * dx + dy * dy) > radiusSquared)
+                continue;
+
+            const int x = centerX + dx;
+            const int y = centerY + dy;
+
+            if (y < minY || y > maxY)
+                continue;
+
+            // A pool carves through whatever is there - unlike growVein, which
+            // only ever replaces Stone, a pool is a basin that displaces the
+            // terrain, not a mineral that only forms inside it.
+            world.set(x, y, fluid);
         }
     }
 }
@@ -509,6 +550,79 @@ void TerrainGenerator::scatterTrees(World& world) const
 
         lastTrunkX = x;
     }
+}
+
+std::vector<FluidPoolSpawn> TerrainGenerator::scatterFluids(World& world) const
+{
+    std::vector<FluidPoolSpawn> spawns;
+    spawns.reserve(SURFACE_LAKE_COUNT + WATER_POOL_COUNT + LAVA_POOL_COUNT);
+
+    // Surface lakes: anchored to each chosen column's own surface height, one
+    // roughly every WORLD_WIDTH / SURFACE_LAKE_COUNT tiles.
+    const int lakeBinWidth = (WORLD_WIDTH - 2) / SURFACE_LAKE_COUNT;
+
+    for (int i = 0; i < SURFACE_LAKE_COUNT; ++i)
+    {
+        const int binStart = 1 + i * lakeBinWidth;
+        const float xRoll = noise::hashFloat(i, 0, worldSeed + SALT_LAKE);
+        const int x = binStart + static_cast<int>(xRoll * lakeBinWidth);
+
+        const float radiusRoll = noise::hashFloat(i, 1, worldSeed + SALT_LAKE);
+        const float radius = POOL_MIN_RADIUS + radiusRoll * (POOL_MAX_RADIUS - POOL_MIN_RADIUS);
+
+        // Centered radius-below the surface, so the blob's top edge just
+        // reaches the surface contour rather than poking a dome above ground.
+        const int surface = surfaceHeight(x);
+        const int centerY = surface + static_cast<int>(radius);
+
+        growPool(world, x, centerY, radius, BlockType::Water8, 0, WORLD_HEIGHT - 1);
+        spawns.push_back({x, centerY, PoolKind::Lake});
+    }
+
+    // Underground water pools: within the existing cave-depth range, above the
+    // lava band, no depth bias.
+    const int waterBinWidth = (WORLD_WIDTH - 2) / WATER_POOL_COUNT;
+
+    for (int i = 0; i < WATER_POOL_COUNT; ++i)
+    {
+        const int binStart = 1 + i * waterBinWidth;
+        const float xRoll = noise::hashFloat(i, 0, worldSeed + SALT_WATER_POOL);
+        const int x = binStart + static_cast<int>(xRoll * waterBinWidth);
+
+        const float yRoll = noise::hashFloat(i, 1, worldSeed + SALT_WATER_POOL);
+        const int y = WATER_POOL_MIN_Y +
+                      static_cast<int>(yRoll * (WATER_POOL_MAX_Y - WATER_POOL_MIN_Y));
+
+        const float radiusRoll = noise::hashFloat(i, 2, worldSeed + SALT_WATER_POOL);
+        const float radius = POOL_MIN_RADIUS + radiusRoll * (POOL_MAX_RADIUS - POOL_MIN_RADIUS);
+
+        growPool(world, x, y, radius, BlockType::Water8, WATER_POOL_MIN_Y, WATER_POOL_MAX_Y);
+        spawns.push_back({x, y, PoolKind::WaterPool});
+    }
+
+    // Lava pools: below the iron layer, biased toward the deeper end of the
+    // band (squaring a uniform roll concentrates it near 0, so subtracting
+    // that from LAVA_MAX_Y keeps most rolls close to LAVA_MAX_Y) so lava gets
+    // progressively more common - and dangerous - the deeper the player digs.
+    const int lavaBinWidth = (WORLD_WIDTH - 2) / LAVA_POOL_COUNT;
+
+    for (int i = 0; i < LAVA_POOL_COUNT; ++i)
+    {
+        const int binStart = 1 + i * lavaBinWidth;
+        const float xRoll = noise::hashFloat(i, 0, worldSeed + SALT_LAVA_POOL);
+        const int x = binStart + static_cast<int>(xRoll * lavaBinWidth);
+
+        const float yRoll = noise::hashFloat(i, 1, worldSeed + SALT_LAVA_POOL);
+        const int y = LAVA_MAX_Y - static_cast<int>(yRoll * yRoll * (LAVA_MAX_Y - LAVA_MIN_Y));
+
+        const float radiusRoll = noise::hashFloat(i, 2, worldSeed + SALT_LAVA_POOL);
+        const float radius = POOL_MIN_RADIUS + radiusRoll * (POOL_MAX_RADIUS - POOL_MIN_RADIUS);
+
+        growPool(world, x, y, radius, BlockType::Lava8, LAVA_MIN_Y, LAVA_MAX_Y);
+        spawns.push_back({x, y, PoolKind::LavaPool});
+    }
+
+    return spawns;
 }
 
 std::pair<int, int> TerrainGenerator::randomSurfaceSpot(const World& world, std::uint32_t salt) const

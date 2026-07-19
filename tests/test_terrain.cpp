@@ -67,13 +67,18 @@ TEST_CASE("every column has a surface, inside the world bounds")
 
         // The surface tile itself is grass, except where a hill-cave
         // entrance has carved it open (see "each hill cave's trunk reaches
-        // down to at least the iron layer" for that pass). Directly above
-        // it is open air, unless a tree's bottom log has grown there instead.
+        // down to at least the iron layer" for that pass) or a surface lake's
+        // basin has flooded it (a lake is anchored to one column's surface
+        // height, so it can spill water across a neighboring column whose own
+        // surface sits higher). Directly above it is open air, unless a
+        // tree's bottom log has grown there instead, or a lake has flooded
+        // that tile too.
         const BlockType surfaceTile = world.get(x, surface);
-        CHECK((surfaceTile == BlockType::Grass || surfaceTile == BlockType::Air));
+        CHECK((surfaceTile == BlockType::Grass || surfaceTile == BlockType::Air ||
+               isWater(surfaceTile)));
 
         const BlockType above = world.get(x, surface - 1);
-        CHECK((above == BlockType::Air || above == BlockType::OakLog));
+        CHECK((above == BlockType::Air || above == BlockType::OakLog || isWater(above)));
     }
 }
 
@@ -670,4 +675,109 @@ TEST_CASE("randomSurfaceSpot gives different salts a chance to land on different
     }
 
     CHECK(sawDifferentSpot);
+}
+
+TEST_CASE("world generation places exactly the expected count of each fluid pool kind")
+{
+    World world;
+    TerrainGenerator generator(2026u);
+    generator.generate(world);
+
+    const std::vector<FluidPoolSpawn> pools = generator.scatterFluids(world);
+
+    int lakes = 0, waterPools = 0, lavaPools = 0;
+
+    for (const FluidPoolSpawn& p : pools)
+    {
+        if (p.kind == PoolKind::Lake)
+            ++lakes;
+        else if (p.kind == PoolKind::WaterPool)
+            ++waterPools;
+        else
+            ++lavaPools;
+    }
+
+    CHECK(lakes == TerrainGenerator::SURFACE_LAKE_COUNT);
+    CHECK(waterPools == TerrainGenerator::WATER_POOL_COUNT);
+    CHECK(lavaPools == TerrainGenerator::LAVA_POOL_COUNT);
+}
+
+TEST_CASE("every lava pool spawns within its own depth band")
+{
+    TerrainGenerator generator(4242u);
+    World world;
+
+    const std::vector<FluidPoolSpawn> pools = generator.scatterFluids(world);
+
+    for (const FluidPoolSpawn& p : pools)
+    {
+        if (p.kind != PoolKind::LavaPool)
+            continue;
+
+        REQUIRE(p.y >= TerrainGenerator::LAVA_MIN_Y);
+        REQUIRE(p.y <= TerrainGenerator::LAVA_MAX_Y);
+    }
+}
+
+TEST_CASE("every underground water pool spawns within its own depth band, safely above the lava band")
+{
+    TerrainGenerator generator(1337u);
+    World world;
+
+    const std::vector<FluidPoolSpawn> pools = generator.scatterFluids(world);
+
+    for (const FluidPoolSpawn& p : pools)
+    {
+        if (p.kind != PoolKind::WaterPool)
+            continue;
+
+        REQUIRE(p.y >= TerrainGenerator::WATER_POOL_MIN_Y);
+        REQUIRE(p.y <= TerrainGenerator::WATER_POOL_MAX_Y);
+        REQUIRE(p.y < TerrainGenerator::LAVA_MIN_Y);
+    }
+}
+
+TEST_CASE("lava pools skew toward the deeper part of their band")
+{
+    TerrainGenerator generator(2026u);
+    World world;
+
+    const std::vector<FluidPoolSpawn> pools = generator.scatterFluids(world);
+
+    long long totalY = 0;
+    int lavaCount = 0;
+
+    for (const FluidPoolSpawn& p : pools)
+    {
+        if (p.kind != PoolKind::LavaPool)
+            continue;
+
+        totalY += p.y;
+        ++lavaCount;
+    }
+
+    REQUIRE(lavaCount == TerrainGenerator::LAVA_POOL_COUNT);
+
+    const double averageY = static_cast<double>(totalY) / lavaCount;
+    const double midpoint =
+        (TerrainGenerator::LAVA_MIN_Y + TerrainGenerator::LAVA_MAX_Y) / 2.0;
+
+    CHECK(averageY > midpoint);
+}
+
+TEST_CASE("scatterFluids actually carves fluid into the world at every returned position")
+{
+    World world;
+    TerrainGenerator generator(2026u);
+    generator.generateBase(world); // real stone underfoot for the pools to carve into
+
+    const std::vector<FluidPoolSpawn> pools = generator.scatterFluids(world);
+
+    for (const FluidPoolSpawn& p : pools)
+    {
+        if (p.kind == PoolKind::LavaPool)
+            CHECK(isLava(world.get(p.x, p.y)));
+        else
+            CHECK(isWater(world.get(p.x, p.y)));
+    }
 }
