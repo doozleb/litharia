@@ -92,8 +92,8 @@ public:
     static constexpr int LAVA_MAX_Y = 495;
 
     static constexpr int SURFACE_LAKE_COUNT = 5;
-    static constexpr int WATER_POOL_COUNT = 10;
-    static constexpr int LAVA_POOL_COUNT = 15;
+    static constexpr int WATER_POOL_COUNT = 25;
+    static constexpr int LAVA_POOL_COUNT = 40;
 
     // A finite early-game resource: exactly this many Sharp Rock spawn
     // points at world generation. Game tops it back up at runtime via
