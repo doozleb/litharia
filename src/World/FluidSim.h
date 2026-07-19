@@ -8,19 +8,30 @@
 
 class World;
 
-// Ticks Water/Lava tiles: falling, spreading, and reacting into Obsidian where
-// they touch. Owns its own active-tile queue so a 1000x500 world never needs a
-// full-grid scan - only tiles that changed (or are adjacent to a change) tick.
+// Ticks Water/Lava tiles so a body of liquid settles as flat as it can: every
+// tile moves down first, filling the space below as much as it fits, then
+// levels out sideways with its lower neighbour - so a pool fills a hollow,
+// overflows the lip, and evens out to a flat surface. Lava is more viscous and
+// only flows on every LAVA_MOVE_INTERVAL-th step, so it creeps to level far
+// slower than water. Where lava meets water it reacts into Obsidian.
 //
-// Falling and spreading are exactly conservative (nothing is created or
-// destroyed by flow alone) - the only thing that ever reduces a pool's total
-// fluid is the Obsidian reaction.
+// Owns its own active-tile queue so a 1000x500 world never needs a full-grid
+// scan - only tiles that changed (or are adjacent to a change) tick, and a
+// tile with nowhere left to move goes quiescent.
+//
+// Falling and levelling are exactly conservative (nothing is created or
+// destroyed by flow alone, and no fluid is lost off the world's edges) - the
+// only thing that ever reduces a pool's total fluid is the Obsidian reaction.
 class FluidSim
 {
 public:
     // Seconds between simulation steps - independent of the 60Hz physics step,
     // so flow reads as a visible process rather than an instant teleport.
     static constexpr float TICK_INTERVAL = 0.1f;
+
+    // Lava flows on one in every this-many steps; water flows every step. This
+    // is the whole of "lava moves slower than water".
+    static constexpr int LAVA_MOVE_INTERVAL = 3;
 
     // Marks a tile as needing to be checked on the next step. Call this
     // whenever a fluid tile is placed (world generation, world load).
@@ -48,8 +59,14 @@ private:
     // try the next rule on the same tile this tick).
     bool reactAt(World& world, int x, int y, std::vector<sf::Vector2i>& changed);
     bool fallAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
-    bool spreadAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
+    bool equalizeAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
+
+    // True if the tile at (x, y) has anywhere to fall or level to. Used to let
+    // a throttled (off-step) lava tile stay pending only while it still has a
+    // move left, so settled lava goes quiescent like everything else.
+    bool canMove(const World& world, int x, int y, BlockType type) const;
 
     std::vector<sf::Vector2i> active;
     float timer = 0.0f;
+    int stepCount = 0;
 };

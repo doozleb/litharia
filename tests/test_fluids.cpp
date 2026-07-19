@@ -216,7 +216,7 @@ TEST_CASE("a fully-enclosed fluid tile does not fall through solid ground")
     CHECK(world.get(10, 11) == BlockType::Stone);
 }
 
-TEST_CASE("a blocked fluid tile spreads sideways, splitting its level with the neighbor")
+TEST_CASE("a blocked fluid tile levels toward its lower neighbour, moving half the difference")
 {
     World world;
     world.set(10, 11, BlockType::Stone); // floor - nothing to fall onto
@@ -228,7 +228,9 @@ TEST_CASE("a blocked fluid tile spreads sideways, splitting its level with the n
     std::vector<sf::Vector2i> changed;
     sim.tick(world, FLUID_STEP, changed);
 
-    // Level 8 splits evenly: source keeps ceil(8/2)=4, left neighbor gets floor(8/2)=4.
+    // Both sides are open air (level 0); ties go left. It levels by moving half
+    // the difference - (8 - 0) / 2 = 4 - so the two columns end up equal, which
+    // is exactly "as flat as possible" for this pair.
     CHECK(world.get(10, 10) == BlockType::Water4);
     CHECK(world.get(9, 10) == BlockType::Water4);
 }
@@ -250,7 +252,7 @@ TEST_CASE("a level-1 fluid tile cannot spread any further")
     CHECK(world.get(11, 10) == BlockType::Air);
 }
 
-TEST_CASE("a fluid tile falling onto a lower-level match of itself tops it up by exactly one level")
+TEST_CASE("a fluid tile falling onto a lower-level match fills the space below as much as fits")
 {
     World world;
     world.set(10, 11, BlockType::Water3);
@@ -262,8 +264,11 @@ TEST_CASE("a fluid tile falling onto a lower-level match of itself tops it up by
     std::vector<sf::Vector2i> changed;
     sim.tick(world, FLUID_STEP, changed);
 
-    CHECK(world.get(10, 11) == BlockType::Water4);
-    CHECK(world.get(10, 10) == BlockType::Water7);
+    // The tile below had room for 5 more (3 -> 8); the tile above pours all 5
+    // of that down in one step, filling the space rather than trickling one
+    // level at a time. Nothing is created or lost: 8 + 3 == 8 + 3.
+    CHECK(world.get(10, 11) == BlockType::Water8);
+    CHECK(world.get(10, 10) == BlockType::Water3);
 }
 
 TEST_CASE("lava adjacent to water solidifies into obsidian and the water loses one level")
@@ -333,6 +338,103 @@ TEST_CASE("a full lava wall meeting a full water wall along a 10-tile contact yi
 
     for (int y = 0; y < 10; ++y)
         CHECK(world.get(11, y) == BlockType::Water7);
+}
+
+TEST_CASE("a body of water settles to a flat surface, filling the width of its basin")
+{
+    World world;
+
+    const int floorY = 20;
+    const int leftWall = 9;
+    const int rightWall = 21;
+
+    // A basin: stone floor and two stone walls.
+    for (int x = leftWall; x <= rightWall; ++x)
+        world.set(x, floorY, BlockType::Stone);
+    for (int y = 0; y <= floorY; ++y)
+    {
+        world.set(leftWall, y, BlockType::Stone);
+        world.set(rightWall, y, BlockType::Stone);
+    }
+
+    // All the water starts piled in one central column.
+    for (int y = 11; y < floorY; ++y)
+        world.set(15, y, BlockType::Water8);
+
+    FluidSim sim;
+    sim.activateAll(world);
+
+    std::vector<sf::Vector2i> changed;
+    for (int i = 0; i < 400; ++i)
+        sim.tick(world, FLUID_STEP, changed);
+
+    // Surface (topmost water row) of each interior column that holds water.
+    int columnsWithWater = 0;
+    int minSurface = floorY;
+    int maxSurface = 0;
+
+    for (int x = leftWall + 1; x < rightWall; ++x)
+    {
+        int surface = -1;
+        for (int y = 0; y < floorY; ++y)
+        {
+            if (isWater(world.get(x, y)))
+            {
+                surface = y;
+                break;
+            }
+        }
+
+        if (surface >= 0)
+        {
+            ++columnsWithWater;
+            if (surface < minSurface) minSurface = surface;
+            if (surface > maxSurface) maxSurface = surface;
+        }
+    }
+
+    // It spread out of the single starting column to fill most of the basin...
+    CHECK(columnsWithWater >= 9);
+
+    // ...and the top surface came to rest flat, within a single level step.
+    CHECK(maxSurface - minSurface <= 1);
+}
+
+TEST_CASE("lava flows slower than water: after the same time it has fallen less far")
+{
+    World world; // empty - all air
+
+    world.set(5, 0, BlockType::Water8);
+    world.set(15, 0, BlockType::Lava8);
+
+    FluidSim sim;
+    sim.activate(5, 0);
+    sim.activate(15, 0);
+
+    std::vector<sf::Vector2i> changed;
+    for (int i = 0; i < 9; ++i)
+        sim.tick(world, FLUID_STEP, changed);
+
+    auto rowOf = [&](int x, bool water) {
+        for (int y = 0; y < WORLD_HEIGHT; ++y)
+        {
+            const BlockType b = world.get(x, y);
+            if (water ? isWater(b) : isLava(b))
+                return y;
+        }
+        return -1;
+    };
+
+    const int waterRow = rowOf(5, true);
+    const int lavaRow = rowOf(15, false);
+
+    REQUIRE(waterRow >= 0);
+    REQUIRE(lavaRow >= 0);
+
+    // Water falls every step; lava only on one step in LAVA_MOVE_INTERVAL, so in
+    // the same number of ticks the water has dropped well below the lava.
+    CHECK(lavaRow > 0);        // lava did creep down some
+    CHECK(waterRow > lavaRow); // but water is much further down
 }
 
 TEST_CASE("tick does nothing until a full TICK_INTERVAL has accumulated")
