@@ -575,7 +575,7 @@ TEST_CASE("equalize leaves a one-level surface difference alone (no flicker)")
     CHECK(changed.empty());
 }
 
-TEST_CASE("equalize moves floor(diff/2) toward a strictly lower neighbour and conserves")
+TEST_CASE("equalize sloshes one unit per step toward level, and settles flat, conserving")
 {
     World world;
     world.set(8, 11, BlockType::Stone);
@@ -585,14 +585,26 @@ TEST_CASE("equalize moves floor(diff/2) toward a strictly lower neighbour and co
     world.set(8, 10, BlockType::Water8);
     world.set(9, 10, BlockType::Water2);
 
+    // Activate ONLY the higher cell so exactly one cell is processed this tick,
+    // making the one-unit slosh deterministic.
     FluidSim sim;
     sim.activate(8, 10);
-    sim.activate(9, 10);
 
     std::vector<sf::Vector2i> changed;
     sim.tick(world, FLUID_STEP, changed);
 
-    // (8 - 2) / 2 = 3 moves right: 8 -> 5, 2 -> 5. Total conserved at 10.
+    // One unit relocated from the run's highest cell to its lowest: 8,2 -> 7,3.
+    CHECK(world.get(8, 10) == BlockType::Water7);
+    CHECK(world.get(9, 10) == BlockType::Water3);
+    CHECK(fluidLevelAt(world, 8, 10) + fluidLevelAt(world, 9, 10) == 10);
+
+    int emptyRun = 0;
+    for (int i = 0; i < 50 && emptyRun < 3; ++i)
+    {
+        changed.clear();
+        sim.tick(world, FLUID_STEP, changed);
+        emptyRun = changed.empty() ? emptyRun + 1 : 0;
+    }
     CHECK(world.get(8, 10) == BlockType::Water5);
     CHECK(world.get(9, 10) == BlockType::Water5);
     CHECK(fluidLevelAt(world, 8, 10) + fluidLevelAt(world, 9, 10) == 10);

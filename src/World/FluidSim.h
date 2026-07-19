@@ -10,9 +10,10 @@
 class World;
 
 // Ticks Water/Lava tiles so a body of liquid settles flat. Each tile moves down
-// first (filling the space below as much as fits); a resting row then levels
-// itself flat in a single step so the surface snaps horizontal the moment it
-// changes; water widens gradually into open space beside it and spills over
+// first (filling the space below as much as fits); a resting row then sloshes
+// one unit per step from its highest cell to its lowest, so the surface visibly
+// settles rather than snapping flat in a single tick, until it is flat within
+// one level; water widens gradually into open space beside it and spills over
 // ledges. Lava is more viscous and only flows on every LAVA_MOVE_INTERVAL-th
 // step, so it creeps to level far slower than water. Where lava meets water it
 // reacts into Obsidian.
@@ -65,12 +66,14 @@ private:
     bool reactAt(World& world, int x, int y, std::vector<sf::Vector2i>& changed);
     bool fallAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
     // Conservative horizontal levelling. Runs only when the cell cannot fall
-    // (rests on full support). Levels the whole contiguous resting run of
-    // same-fluid tiles at once (base level everywhere, remainder in the centre
-    // cells) so it settles flat within one level in a single call; if the run
-    // is already flat, widens one step into open, resting air beside it
-    // instead. Every move is an exact split of the existing total, so no fluid
-    // is ever created or lost.
+    // (rests on full support). Finds the highest and lowest cell across the
+    // whole contiguous resting run of same-fluid tiles and, while they differ
+    // by two or more, sloshes exactly one unit per step from the highest to
+    // the lowest - a visible, gradual settle rather than a one-tick snap -
+    // until the run is flat within one level; if the run is already flat,
+    // widens one step into open, resting air beside it instead. Every move
+    // relocates exactly one unit (or an exact split when widening), so no
+    // fluid is ever created or lost.
     bool equalizeAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
     bool cascadeAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
 

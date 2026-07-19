@@ -189,29 +189,19 @@ bool FluidSim::fallAt(World& world, int x, int y, BlockType type, std::vector<sf
 bool FluidSim::equalizeAt(World& world, int x, int y, BlockType type,
                           std::vector<sf::Vector2i>& changed)
 {
-    // A tile "rests" on this row if it cannot fall - the tile below is not open,
-    // in-bounds air. Only resting same-fluid tiles form a levelling run; a tile
-    // that can still fall is left for fallAt (which always runs first in step(),
-    // so by the time equalizeAt is reached x itself already rests).
+    // A tile "rests" if it cannot fall: the tile below is not open in-bounds
+    // air. Only resting same-fluid tiles form a levelling run.
     auto rests = [&](int cx) {
         const BlockType t = world.get(cx, y);
-
         if (!sameFluid(type, t))
             return false;
-
         const BlockType below = world.get(cx, y + 1);
         return !(below == BlockType::Air && world.inBounds(cx, y + 1));
     };
 
     if (rests(x))
     {
-        // Gather the maximal contiguous run of resting same-fluid tiles at this
-        // row. A single pairwise nudge toward one neighbour only guarantees the
-        // *adjacent* difference settles to at most one - it can still stall on
-        // a multi-tile staircase (e.g. 6,5,4,4) that is locally stable but not
-        // flat overall. Levelling the whole run at once avoids that: it is
-        // still exactly conservative (base * n + remainder == total), and it
-        // converges to a surface flat within one level in a single call.
+        // Gather the maximal contiguous run of resting same-fluid tiles.
         int xL = x;
         int xR = x;
         while (xL - 1 >= 0 && rests(xL - 1))
@@ -219,45 +209,39 @@ bool FluidSim::equalizeAt(World& world, int x, int y, BlockType type,
         while (xR + 1 < WORLD_WIDTH && rests(xR + 1))
             ++xR;
 
-        const int n = xR - xL + 1;
-
-        if (n > 1)
+        // Slosh one unit per step from the run's highest cell to its lowest, so
+        // the surface visibly settles instead of snapping flat in one tick.
+        // Using the whole run's max and min (not just adjacent cells) avoids
+        // stalling on a staircase like 6,5,4,4 where every neighbour differs by
+        // only one yet the surface is not flat. Moving exactly one unit is
+        // exactly conservative and strictly shrinks the run's spread, so it
+        // reaches flat-within-one-level and then stops.
+        int maxX = xL;
+        int minX = xL;
+        int maxLevel = fluidLevel(world.get(xL, y));
+        int minLevel = maxLevel;
+        for (int cx = xL + 1; cx <= xR; ++cx)
         {
-            int total = 0;
-            for (int cx = xL; cx <= xR; ++cx)
-                total += fluidLevel(world.get(cx, y));
+            const int lvl = fluidLevel(world.get(cx, y));
+            if (lvl > maxLevel) { maxLevel = lvl; maxX = cx; }
+            if (lvl < minLevel) { minLevel = lvl; minX = cx; }
+        }
 
-            // Exact split: base everywhere, with the leftover single levels
-            // placed in the centre cells - nothing created or lost.
-            const int base = total / n;
-            const int rem = total % n;
-            const int remStart = xL + (n - rem) / 2;
-
-            bool anyChange = false;
-
-            for (int cx = xL; cx <= xR; ++cx)
-            {
-                const int cellLevel = base + (cx >= remStart && cx < remStart + rem ? 1 : 0);
-                const BlockType want = fluidAtLevel(type, cellLevel);
-
-                if (world.get(cx, y) != want)
-                {
-                    world.set(cx, y, want);
-                    activateAround(cx, y);
-                    changed.push_back({cx, y});
-                    anyChange = true;
-                }
-            }
-
-            if (anyChange)
-                return true;
+        if (maxLevel - minLevel >= 2)
+        {
+            world.set(maxX, y, fluidAtLevel(type, maxLevel - 1));
+            world.set(minX, y, fluidAtLevel(type, minLevel + 1));
+            activateAround(maxX, y);
+            activateAround(minX, y);
+            changed.push_back({maxX, y});
+            changed.push_back({minX, y});
+            return true;
         }
     }
 
-    // The run is already flat (or x is a lone tile): try to widen one step into
-    // open, resting air beside it instead. Air over a drop is a ledge, left to
-    // cascadeAt. Ties go left. A single unit cannot widen without emptying
-    // itself.
+    // Already flat within one level (or a lone tile): widen one step into open,
+    // resting air beside it. Air over a drop is a ledge, left to cascadeAt.
+    // Ties go left. A single unit cannot widen without emptying itself.
     const int level = fluidLevel(type);
 
     if (level < 2)
@@ -322,38 +306,61 @@ bool FluidSim::canMove(const World& world, int x, int y, BlockType type) const
 {
     const BlockType below = world.get(x, y + 1);
 
+    // Can fall into open air, or pour into same fluid below with room.
     if (below == BlockType::Air && world.inBounds(x, y + 1))
         return true;
-
     if (sameFluid(type, below) && fluidLevel(below) < 8)
         return true;
 
-    const int level = fluidLevel(type);
+    // Can level: mirror equalizeAt's run scan - a resting run whose highest and
+    // lowest cells differ by at least 2 still has a unit to slosh.
+    auto rests = [&](int cx) {
+        const BlockType t = world.get(cx, y);
+        if (!sameFluid(type, t))
+            return false;
+        const BlockType b = world.get(cx, y + 1);
+        return !(b == BlockType::Air && world.inBounds(cx, y + 1));
+    };
 
+    if (rests(x))
+    {
+        int xL = x;
+        int xR = x;
+        while (xL - 1 >= 0 && rests(xL - 1))
+            --xL;
+        while (xR + 1 < WORLD_WIDTH && rests(xR + 1))
+            ++xR;
+
+        int maxLevel = fluidLevel(world.get(xL, y));
+        int minLevel = maxLevel;
+        for (int cx = xL + 1; cx <= xR; ++cx)
+        {
+            const int lvl = fluidLevel(world.get(cx, y));
+            maxLevel = std::max(maxLevel, lvl);
+            minLevel = std::min(minLevel, lvl);
+        }
+
+        if (maxLevel - minLevel >= 2)
+            return true;
+    }
+
+    // Can widen into resting open air beside it (needs level >= 2), or spill
+    // over a ledge (air neighbour with open air beneath it).
+    const int level = fluidLevel(type);
     for (const int dx : {-1, 1})
     {
         const int nx = x + dx;
 
-        if (!world.inBounds(nx, y))
+        if (!world.inBounds(nx, y) || world.get(nx, y) != BlockType::Air)
             continue;
 
-        const BlockType n = world.get(nx, y);
-        const bool neighborIsAir = (n == BlockType::Air);
-
-        if (!neighborIsAir && !sameFluid(type, n))
-            continue;
-
-        // Mirror equalizeAt: the neighbour must rest, and there must be a real
-        // (>= 2) downhill difference for a move to happen. Anything less is the
-        // stable remainder, so the tile is done.
         const BlockType belowNeighbor = world.get(nx, y + 1);
-        const bool neighborRests = !(belowNeighbor == BlockType::Air && world.inBounds(nx, y + 1));
-        if (!neighborRests)
-            continue;
+        const bool neighborOverDrop = (belowNeighbor == BlockType::Air && world.inBounds(nx, y + 1));
 
-        const int neighborLevel = neighborIsAir ? 0 : fluidLevel(n);
-        if (level - neighborLevel >= 2)
-            return true;
+        if (neighborOverDrop)
+            return true;   // can cascade (spill over the ledge)
+        if (level >= 2)
+            return true;   // neighbour rests: can widen into it
     }
 
     return false;
