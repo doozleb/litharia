@@ -15,20 +15,6 @@ bool sameFluid(BlockType a, BlockType b)
     return (isWater(a) && isWater(b)) || (isLava(a) && isLava(b));
 }
 
-// A horizontal neighbour's effective level for levelling: Air is 0, same-fluid
-// is its own level, anything else (solid, obsidian, the other fluid) is not a
-// candidate at all and is reported as -1.
-int levelTarget(BlockType type, BlockType neighbor)
-{
-    if (neighbor == BlockType::Air)
-        return 0;
-
-    if (sameFluid(type, neighbor))
-        return fluidLevel(neighbor);
-
-    return -1;
-}
-
 } // namespace
 
 void FluidSim::activate(int x, int y)
@@ -98,10 +84,18 @@ void FluidSim::step(World& world, std::vector<sf::Vector2i>& changedTiles)
             continue;
         }
 
+        // Down first, then level a resting row flat, then widen into open
+        // space, then spill over a ledge - the first rule that acts wins.
         if (fallAt(world, x, y, type, changedTiles))
             continue;
 
-        equalizeAt(world, x, y, type, changedTiles);
+        if (flattenAt(world, x, y, type, changedTiles))
+            continue;
+
+        if (spreadAt(world, x, y, type, changedTiles))
+            continue;
+
+        cascadeAt(world, x, y, type, changedTiles);
     }
 
     ++stepCount;
@@ -176,62 +170,130 @@ bool FluidSim::fallAt(World& world, int x, int y, BlockType type, std::vector<sf
     return false;
 }
 
-bool FluidSim::equalizeAt(World& world, int x, int y, BlockType type,
-                          std::vector<sf::Vector2i>& changed)
+bool FluidSim::flattenAt(World& world, int x, int y, BlockType type,
+                         std::vector<sf::Vector2i>& changed)
 {
-    const int level = fluidLevel(type);
+    // A tile "rests" on this row if it cannot fall - the tile below is not open,
+    // in-bounds air. Only resting same-fluid tiles form a levelling run; a tile
+    // that can still fall is left for fallAt.
+    auto rests = [&](int cx) {
+        const BlockType t = world.get(cx, y);
 
-    // A single unit has nothing to give without emptying itself, so a level-1
-    // tile is as flat as it can get and stays put.
-    if (level < 2)
+        if (!sameFluid(type, t))
+            return false;
+
+        const BlockType below = world.get(cx, y + 1);
+        return !(below == BlockType::Air && world.inBounds(cx, y + 1));
+    };
+
+    if (!rests(x))
         return false;
 
-    // Level toward the lower of the two horizontal neighbours; ties go left.
-    // Only in-bounds Air or same-fluid tiles are candidates - a wall or the
-    // world edge is not somewhere fluid can go.
-    int bestDx = 0;
-    int bestLevel = level;
+    // Gather the maximal contiguous run of resting same-fluid tiles at this row.
+    int xL = x;
+    int xR = x;
+    while (xL - 1 >= 0 && rests(xL - 1))
+        --xL;
+    while (xR + 1 < WORLD_WIDTH && rests(xR + 1))
+        ++xR;
 
-    for (const int dx : {-1, 1})
+    const int n = xR - xL + 1;
+
+    if (n <= 1)
+        return false; // a lone tile is already as level as it gets
+
+    int total = 0;
+    for (int cx = xL; cx <= xR; ++cx)
+        total += fluidLevel(world.get(cx, y));
+
+    // Spread the total evenly; the remainder (a single level) goes to the
+    // centre cells so a symmetric pool stays symmetric.
+    const int base = total / n;
+    const int rem = total % n;
+    const int remStart = xL + (n - rem) / 2;
+
+    bool anyChange = false;
+    for (int cx = xL; cx <= xR; ++cx)
     {
-        if (!world.inBounds(x + dx, y))
-            continue;
+        const int level = base + (cx >= remStart && cx < remStart + rem ? 1 : 0);
+        const BlockType want = fluidAtLevel(type, level);
 
-        const int nl = levelTarget(type, world.get(x + dx, y));
-
-        if (nl < 0)
-            continue;
-
-        if (nl < bestLevel)
+        if (world.get(cx, y) != want)
         {
-            bestLevel = nl;
-            bestDx = dx;
+            world.set(cx, y, want);
+            activateAround(cx, y);
+            changed.push_back({cx, y});
+            anyChange = true;
         }
     }
 
-    if (bestDx == 0)
-        return false;
+    return anyChange;
+}
 
-    // Stop once neighbours differ by at most one level - that already reads as
-    // flat, and moving further would only slosh a single unit back and forth.
-    const int diff = level - bestLevel;
+bool FluidSim::spreadAt(World& world, int x, int y, BlockType type,
+                        std::vector<sf::Vector2i>& changed)
+{
+    const int level = fluidLevel(type);
 
-    if (diff < 2)
-        return false;
+    if (level < 2)
+        return false; // a single unit cannot widen without emptying itself
 
-    // Move half the difference toward the lower side. Halving never overshoots
-    // (the source stays >= the neighbour), so a body converges to level quickly
-    // and without oscillating.
-    const int move = diff / 2;
-    const int nx = x + bestDx;
+    // Widen into open air beside it, but only where that air is itself resting
+    // on support (so a puddle grows sideways). Air over a drop is a ledge, left
+    // to cascadeAt. Ties go left. Move half the level so the two even out.
+    for (const int dx : {-1, 1})
+    {
+        const int nx = x + dx;
 
-    world.set(nx, y, fluidAtLevel(type, bestLevel + move));
-    world.set(x, y, fluidAtLevel(type, level - move));
-    activateAround(x, y);
-    activateAround(nx, y);
-    changed.push_back({x, y});
-    changed.push_back({nx, y});
-    return true;
+        if (!world.inBounds(nx, y) || world.get(nx, y) != BlockType::Air)
+            continue;
+
+        const BlockType belowNeighbor = world.get(nx, y + 1);
+        const bool neighborRests = !(belowNeighbor == BlockType::Air && world.inBounds(nx, y + 1));
+
+        if (!neighborRests)
+            continue;
+
+        const int move = level / 2;
+
+        world.set(nx, y, fluidAtLevel(type, move));
+        world.set(x, y, fluidAtLevel(type, level - move));
+        activateAround(x, y);
+        activateAround(nx, y);
+        changed.push_back({x, y});
+        changed.push_back({nx, y});
+        return true;
+    }
+
+    return false;
+}
+
+bool FluidSim::cascadeAt(World& world, int x, int y, BlockType type,
+                         std::vector<sf::Vector2i>& changed)
+{
+    // Spill over a ledge: an air neighbour with open air beneath it. The tile
+    // tips over the edge so it falls down the far side next step - this is what
+    // lets a full basin overflow its lip.
+    for (const int dx : {-1, 1})
+    {
+        const int nx = x + dx;
+
+        if (!world.inBounds(nx, y) || world.get(nx, y) != BlockType::Air)
+            continue;
+
+        if (!(world.get(nx, y + 1) == BlockType::Air && world.inBounds(nx, y + 1)))
+            continue;
+
+        world.set(nx, y, type);
+        world.set(x, y, BlockType::Air);
+        activateAround(x, y);
+        activateAround(nx, y);
+        changed.push_back({x, y});
+        changed.push_back({nx, y});
+        return true;
+    }
+
+    return false;
 }
 
 bool FluidSim::canMove(const World& world, int x, int y, BlockType type) const
@@ -244,16 +306,19 @@ bool FluidSim::canMove(const World& world, int x, int y, BlockType type) const
     if (sameFluid(type, below) && fluidLevel(below) < 8)
         return true;
 
-    const int level = fluidLevel(type);
-
+    // An air neighbour means it can spread or spill; a same-fluid neighbour at a
+    // different level means the row can still level.
     for (const int dx : {-1, 1})
     {
         if (!world.inBounds(x + dx, y))
             continue;
 
-        const int nl = levelTarget(type, world.get(x + dx, y));
+        const BlockType n = world.get(x + dx, y);
 
-        if (nl >= 0 && level - nl >= 2)
+        if (n == BlockType::Air)
+            return true;
+
+        if (sameFluid(type, n) && fluidLevel(n) != fluidLevel(type))
             return true;
     }
 

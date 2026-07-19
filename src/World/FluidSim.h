@@ -8,20 +8,21 @@
 
 class World;
 
-// Ticks Water/Lava tiles so a body of liquid settles as flat as it can: every
-// tile moves down first, filling the space below as much as it fits, then
-// levels out sideways with its lower neighbour - so a pool fills a hollow,
-// overflows the lip, and evens out to a flat surface. Lava is more viscous and
-// only flows on every LAVA_MOVE_INTERVAL-th step, so it creeps to level far
-// slower than water. Where lava meets water it reacts into Obsidian.
+// Ticks Water/Lava tiles so a body of liquid settles flat. Each tile moves down
+// first (filling the space below as much as fits); a resting row then levels
+// itself flat in a single step so the surface snaps horizontal the moment it
+// changes; water widens gradually into open space beside it and spills over
+// ledges. Lava is more viscous and only flows on every LAVA_MOVE_INTERVAL-th
+// step, so it creeps to level far slower than water. Where lava meets water it
+// reacts into Obsidian.
 //
 // Owns its own active-tile queue so a 1000x500 world never needs a full-grid
 // scan - only tiles that changed (or are adjacent to a change) tick, and a
 // tile with nowhere left to move goes quiescent.
 //
-// Falling and levelling are exactly conservative (nothing is created or
-// destroyed by flow alone, and no fluid is lost off the world's edges) - the
-// only thing that ever reduces a pool's total fluid is the Obsidian reaction.
+// Flow is exactly conservative (nothing is created or destroyed by falling,
+// levelling or spilling, and no fluid is lost off the world's edges) - the only
+// thing that ever reduces a pool's total fluid is the Obsidian reaction.
 class FluidSim
 {
 public:
@@ -59,11 +60,13 @@ private:
     // try the next rule on the same tile this tick).
     bool reactAt(World& world, int x, int y, std::vector<sf::Vector2i>& changed);
     bool fallAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
-    bool equalizeAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
+    bool flattenAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
+    bool spreadAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
+    bool cascadeAt(World& world, int x, int y, BlockType type, std::vector<sf::Vector2i>& changed);
 
-    // True if the tile at (x, y) has anywhere to fall or level to. Used to let
-    // a throttled (off-step) lava tile stay pending only while it still has a
-    // move left, so settled lava goes quiescent like everything else.
+    // True if the tile at (x, y) has anywhere to fall, level, spread or spill.
+    // Used to let a throttled (off-step) lava tile stay pending only while it
+    // still has a move left, so settled lava goes quiescent like everything else.
     bool canMove(const World& world, int x, int y, BlockType type) const;
 
     std::vector<sf::Vector2i> active;

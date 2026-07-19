@@ -216,10 +216,42 @@ TEST_CASE("a fully-enclosed fluid tile does not fall through solid ground")
     CHECK(world.get(10, 11) == BlockType::Stone);
 }
 
-TEST_CASE("a blocked fluid tile levels toward its lower neighbour, moving half the difference")
+TEST_CASE("a resting, uneven row of water levels itself flat in a single step")
 {
     World world;
-    world.set(10, 11, BlockType::Stone); // floor - nothing to fall onto
+
+    // A four-wide basin: stone floor, stone walls at each end.
+    for (int x = 8; x <= 11; ++x)
+        world.set(x, 11, BlockType::Stone);
+    world.set(7, 10, BlockType::Stone);
+    world.set(12, 10, BlockType::Stone);
+
+    // Deep on the left, shallow on the right - total 8 + 8 + 2 + 2 = 20.
+    world.set(8, 10, BlockType::Water8);
+    world.set(9, 10, BlockType::Water8);
+    world.set(10, 10, BlockType::Water2);
+    world.set(11, 10, BlockType::Water2);
+
+    FluidSim sim;
+    for (int x = 8; x <= 11; ++x)
+        sim.activate(x, 10);
+
+    std::vector<sf::Vector2i> changed;
+    sim.tick(world, FLUID_STEP, changed);
+
+    // 20 over 4 columns levels to exactly 5 each in one step - a flat surface,
+    // immediately, and conserving the total.
+    for (int x = 8; x <= 11; ++x)
+        CHECK(world.get(x, 10) == BlockType::Water5);
+}
+
+TEST_CASE("water widens into open, supported space beside it")
+{
+    World world;
+
+    // A flat stone floor, no walls: a lone deep tile should spread sideways.
+    for (int x = 8; x <= 12; ++x)
+        world.set(x, 11, BlockType::Stone);
     world.set(10, 10, BlockType::Water8);
 
     FluidSim sim;
@@ -228,18 +260,21 @@ TEST_CASE("a blocked fluid tile levels toward its lower neighbour, moving half t
     std::vector<sf::Vector2i> changed;
     sim.tick(world, FLUID_STEP, changed);
 
-    // Both sides are open air (level 0); ties go left. It levels by moving half
-    // the difference - (8 - 0) / 2 = 4 - so the two columns end up equal, which
-    // is exactly "as flat as possible" for this pair.
+    // The neighbouring air rests on stone, so the tile widens into it, moving
+    // half its level (ties go left). It grows one cell wider per step.
     CHECK(world.get(10, 10) == BlockType::Water4);
     CHECK(world.get(9, 10) == BlockType::Water4);
 }
 
-TEST_CASE("a level-1 fluid tile cannot spread any further")
+TEST_CASE("water spills over a ledge and falls down the far side")
 {
     World world;
+
+    // A one-tile shelf: stone under the water and a stone wall on its left, but
+    // open air to the right with open air beneath it - a ledge.
     world.set(10, 11, BlockType::Stone);
-    world.set(10, 10, BlockType::Water1);
+    world.set(9, 10, BlockType::Stone); // wall: nothing to level or widen into
+    world.set(10, 10, BlockType::Water8);
 
     FluidSim sim;
     sim.activate(10, 10);
@@ -247,9 +282,10 @@ TEST_CASE("a level-1 fluid tile cannot spread any further")
     std::vector<sf::Vector2i> changed;
     sim.tick(world, FLUID_STEP, changed);
 
-    CHECK(world.get(10, 10) == BlockType::Water1);
-    CHECK(world.get(9, 10) == BlockType::Air);
-    CHECK(world.get(11, 10) == BlockType::Air);
+    // (11,10) is air with air beneath it, so the resting tile tips over the
+    // edge, ready to fall down the far side next step.
+    CHECK(world.get(11, 10) == BlockType::Water8);
+    CHECK(world.get(10, 10) == BlockType::Air);
 }
 
 TEST_CASE("a fluid tile falling onto a lower-level match fills the space below as much as fits")
