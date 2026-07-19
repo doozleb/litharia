@@ -78,6 +78,36 @@ void collectTreeBreak(World& world, int startX, int startY, std::vector<BrokenTi
     }
 }
 
+// Felling 4+ logs in one cascade adds a flat bonus scaled by the axe's
+// tier (Wood +0 ... Obsidian +4 - ToolTier's own underlying value is
+// exactly this bonus, so no separate table is needed). Below 4 logs (a
+// partial chop high up the trunk) there is no bonus at all - this closes
+// the exploit of chopping one log at a time to farm the bonus repeatedly.
+void applyAxeLogBonus(std::vector<BrokenTile>& broken, ToolTier axeTier)
+{
+    int logCount = 0;
+    int lastLogX = 0;
+    int lastLogY = 0;
+
+    for (const BrokenTile& tile : broken)
+    {
+        if (tile.block != BlockType::OakLog)
+            continue;
+
+        ++logCount;
+        lastLogX = tile.x;
+        lastLogY = tile.y;
+    }
+
+    if (logCount < 4)
+        return;
+
+    const int bonus = static_cast<int>(axeTier);
+
+    for (int i = 0; i < bonus; ++i)
+        broken.push_back({BlockType::OakLog, lastLogX, lastLogY});
+}
+
 } // namespace
 
 Player::Player(sf::Vector2f topLeft)
@@ -223,7 +253,10 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
 
     // Broken.
     if (isTreePart(block))
+    {
         collectTreeBreak(world, tileX, tileY, result.broken);
+        applyAxeLogBonus(result.broken, heldInfo.tier);
+    }
     else
     {
         world.set(tileX, tileY, BlockType::Air);

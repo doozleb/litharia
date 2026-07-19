@@ -874,3 +874,65 @@ TEST_CASE("an obsidian pickaxe mines obsidian at Obsidian tier's own (fastest) s
     CHECK(elapsed >= expectedTime);
     CHECK(elapsed < expectedTime + 0.05f);
 }
+
+TEST_CASE("felling 5 or more logs at once adds a per-tier bonus")
+{
+    auto logsFelledWith = [](ItemType axe) {
+        World world;
+        buildFloor(world, 30);
+        buildTree(world, 12, 30, 5); // trunk rows 25..29 - a 5-log fell
+
+        Player player = standingAt(world, 10.0f, 30);
+        player.inventory().exchange(2, {axe, 1});
+        player.setSelectedSlot(2);
+
+        PlayerInput input;
+        input.mine = true;
+        input.cursor = cursorOn(12, 29); // the bottom log
+
+        ActionResult result;
+        for (int i = 0; i < 300 && !result.broke; ++i)
+            result = player.update(input, world, STEP);
+
+        int logCount = 0;
+        for (const BrokenTile& tile : result.broken)
+            if (tile.block == BlockType::OakLog)
+                ++logCount;
+
+        return logCount;
+    };
+
+    CHECK(logsFelledWith(ItemType::WoodAxe) == 5);
+    CHECK(logsFelledWith(ItemType::StoneAxe) == 6);
+    CHECK(logsFelledWith(ItemType::CopperAxe) == 7);
+    CHECK(logsFelledWith(ItemType::IronAxe) == 8);
+    CHECK(logsFelledWith(ItemType::ObsidianAxe) == 9);
+}
+
+TEST_CASE("a partial chop below the 4-log floor gets no tier bonus, regardless of axe")
+{
+    World world;
+    buildFloor(world, 30);
+    buildTree(world, 12, 30, 5); // trunk rows 25..29 (25 = top, 29 = bottom)
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.inventory().exchange(2, {ItemType::ObsidianAxe, 1}); // the biggest possible bonus
+    player.setSelectedSlot(2);
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 26); // second log from the top: a 2-log partial chop
+
+    ActionResult result;
+    for (int i = 0; i < 300 && !result.broke; ++i)
+        result = player.update(input, world, STEP);
+
+    REQUIRE(result.broke);
+
+    int logCount = 0;
+    for (const BrokenTile& tile : result.broken)
+        if (tile.block == BlockType::OakLog)
+            ++logCount;
+
+    CHECK(logCount == 2);
+}
