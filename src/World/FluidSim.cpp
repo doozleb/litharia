@@ -206,16 +206,40 @@ bool FluidSim::flattenAt(World& world, int x, int y, BlockType type,
     for (int cx = xL; cx <= xR; ++cx)
         total += fluidLevel(world.get(cx, y));
 
-    // Spread the total evenly; the remainder (a single level) goes to the
-    // centre cells so a symmetric pool stays symmetric.
-    const int base = total / n;
-    const int rem = total % n;
-    const int remStart = xL + (n - rem) / 2;
+    // Is the run boxed in at both ends (a wall or the world edge), or still open
+    // to widen into air? Rounding is applied only to a settled, enclosed run;
+    // rounding a run that is still spreading would compound its error every
+    // step as it widens and visibly inflate the pool.
+    const bool openLeft = xL > 0 && world.get(xL - 1, y) == BlockType::Air;
+    const bool openRight = xR < WORLD_WIDTH - 1 && world.get(xR + 1, y) == BlockType::Air;
+    const bool enclosed = !openLeft && !openRight;
 
     bool anyChange = false;
+
     for (int cx = xL; cx <= xR; ++cx)
     {
-        const int level = base + (cx >= remStart && cx < remStart + rem ? 1 : 0);
+        int level;
+
+        if (enclosed)
+        {
+            // Settled in a basin: round the average to the nearest whole level
+            // and store that single level everywhere, so the surface is dead
+            // flat. The run is all fluid (each cell >= level 1), so the result
+            // lands in [1, 8]. This is a one-shot nudge of up to half a level
+            // per cell - the trade for a perfectly flat, uniform surface.
+            level = std::clamp((total + n / 2) / n, 1, 8);
+        }
+        else
+        {
+            // Still spreading toward an open end: level conservatively (base,
+            // with the leftover single level in the centre cells) so nothing is
+            // created or lost while the body is in motion.
+            const int base = total / n;
+            const int rem = total % n;
+            const int remStart = xL + (n - rem) / 2;
+            level = base + (cx >= remStart && cx < remStart + rem ? 1 : 0);
+        }
+
         const BlockType want = fluidAtLevel(type, level);
 
         if (world.get(cx, y) != want)

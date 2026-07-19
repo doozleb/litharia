@@ -245,6 +245,34 @@ TEST_CASE("a resting, uneven row of water levels itself flat in a single step")
         CHECK(world.get(x, 10) == BlockType::Water5);
 }
 
+TEST_CASE("an uneven run rounds to the nearest level and stores it uniformly")
+{
+    World world;
+
+    for (int x = 8; x <= 11; ++x)
+        world.set(x, 11, BlockType::Stone);
+    world.set(7, 10, BlockType::Stone);
+    world.set(12, 10, BlockType::Stone);
+
+    // Total 6 + 6 + 6 + 1 = 19 over 4 columns -> average 4.75, which rounds to
+    // level 5 and is stored in every cell. It is NOT exactly conserving (19 in,
+    // 20 out): the nearest whole level is chosen so the surface is dead flat.
+    world.set(8, 10, BlockType::Water6);
+    world.set(9, 10, BlockType::Water6);
+    world.set(10, 10, BlockType::Water6);
+    world.set(11, 10, BlockType::Water1);
+
+    FluidSim sim;
+    for (int x = 8; x <= 11; ++x)
+        sim.activate(x, 10);
+
+    std::vector<sf::Vector2i> changed;
+    sim.tick(world, FLUID_STEP, changed);
+
+    for (int x = 8; x <= 11; ++x)
+        CHECK(world.get(x, 10) == BlockType::Water5);
+}
+
 TEST_CASE("water widens into open, supported space beside it")
 {
     World world;

@@ -20,9 +20,11 @@ class World;
 // scan - only tiles that changed (or are adjacent to a change) tick, and a
 // tile with nowhere left to move goes quiescent.
 //
-// Flow is exactly conservative (nothing is created or destroyed by falling,
-// levelling or spilling, and no fluid is lost off the world's edges) - the only
-// thing that ever reduces a pool's total fluid is the Obsidian reaction.
+// Falling, spilling and the world edges are exactly conservative (no fluid is
+// lost off the edges). Levelling instead rounds a run to the nearest whole
+// level so a settled surface is dead flat, which can nudge a pool's total by a
+// fraction of a level either way. The Obsidian reaction is the only thing that
+// deliberately consumes fluid.
 class FluidSim
 {
 public:
