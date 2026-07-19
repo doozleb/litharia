@@ -67,6 +67,8 @@ Game::Game()
     generator.generate(world);
     chunks.markAllDirty();
 
+    spawnSharpRocks();
+
     player = Player(findSpawn());
     camera.snapTo(player.center());
 }
@@ -132,6 +134,40 @@ void Game::spawnDrop(const ActionResult& result)
 
         drops.emplace_back(ItemStack{type, 1}, position, velocity);
     }
+}
+
+void Game::spawnSharpRocks()
+{
+    for (const auto& [x, y] : generator.scatterSharpRocks(world))
+    {
+        const sf::Vector2f position{(x + 0.5f) * TILE_SIZE, (y - 1.0f) * TILE_SIZE};
+        drops.emplace_back(ItemStack{ItemType::SharpRock, 1}, position, sf::Vector2f{0.0f, 0.0f});
+    }
+}
+
+void Game::respawnSharpRocksIfNeeded(float dt)
+{
+    sharpRockRespawnTimer += dt;
+
+    if (sharpRockRespawnTimer < SHARP_ROCK_RESPAWN_INTERVAL)
+        return;
+
+    sharpRockRespawnTimer = 0.0f;
+
+    int groundCount = 0;
+    for (const ItemEntity& drop : drops)
+        if (drop.stack().type == ItemType::SharpRock)
+            ++groundCount;
+
+    if (groundCount >= TerrainGenerator::SHARP_ROCK_COUNT)
+        return;
+
+    ++sharpRockSpawnCounter;
+    const auto [x, y] =
+        generator.randomSurfaceSpot(world, static_cast<std::uint32_t>(sharpRockSpawnCounter));
+
+    const sf::Vector2f position{(x + 0.5f) * TILE_SIZE, (y - 1.0f) * TILE_SIZE};
+    drops.emplace_back(ItemStack{ItemType::SharpRock, 1}, position, sf::Vector2f{0.0f, 0.0f});
 }
 
 void Game::updateDrops(float dt)
@@ -838,6 +874,7 @@ void Game::fixedUpdate(float dt)
     mineFurnitureAtCursor(input, dt);
 
     updateDrops(dt);
+    respawnSharpRocksIfNeeded(dt);
     tickMachines(dt);
     updateCrafting(dt);
     updateSmelting(dt);

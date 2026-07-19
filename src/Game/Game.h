@@ -20,6 +20,8 @@
 class Game
 {
 public:
+    static constexpr float SHARP_ROCK_RESPAWN_INTERVAL = 300.0f; // 5 minutes
+
     Game();
 
     void run();
@@ -43,6 +45,8 @@ private:
 
     // A mined block becomes a stack on the ground.
     void spawnDrop(const ActionResult& result);
+    void spawnSharpRocks();
+    void respawnSharpRocksIfNeeded(float dt);
 
     void tickMachines(float dt);
     void placeMachineAtCursor();
@@ -78,6 +82,9 @@ private:
     Hud hud;
 
     std::vector<ItemEntity> drops;
+
+    float sharpRockRespawnTimer = 0.0f;
+    int sharpRockSpawnCounter = 0;
 
     Machines machines;
     MachineRenderer machineRenderer;

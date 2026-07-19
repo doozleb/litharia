@@ -93,6 +93,9 @@ constexpr float FOREST_DENSITY_MAX = 0.6f;
 constexpr std::uint32_t SALT_FOREST = 0x6000u;
 constexpr std::uint32_t SALT_TREE = 0x7000u;
 
+// --- Sharp Rocks ---------------------------------------------------------
+constexpr std::uint32_t SALT_SHARP_ROCK = 0x9000u;
+
 float lerp(float a, float b, float t)
 {
     return a + (b - a) * t;
@@ -506,4 +509,50 @@ void TerrainGenerator::scatterTrees(World& world) const
 
         lastTrunkX = x;
     }
+}
+
+std::pair<int, int> TerrainGenerator::randomSurfaceSpot(const World& world, std::uint32_t salt) const
+{
+    constexpr int MAX_ATTEMPTS = 8;
+
+    int x = 1;
+
+    for (int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt)
+    {
+        const float roll = noise::hashFloat(attempt, 0, worldSeed + SALT_SHARP_ROCK + salt);
+        x = 1 + static_cast<int>(roll * (WORLD_WIDTH - 2));
+
+        if (world.get(x, surfaceHeight(x)) == BlockType::Grass)
+            break;
+    }
+
+    return {x, surfaceHeight(x)};
+}
+
+std::vector<std::pair<int, int>> TerrainGenerator::scatterSharpRocks(const World& world) const
+{
+    std::vector<std::pair<int, int>> spots;
+    spots.reserve(SHARP_ROCK_COUNT);
+
+    const int binWidth = (WORLD_WIDTH - 2) / SHARP_ROCK_COUNT;
+    constexpr int MAX_ATTEMPTS = 8;
+
+    for (int i = 0; i < SHARP_ROCK_COUNT; ++i)
+    {
+        const int binStart = 1 + i * binWidth;
+        int x = binStart;
+
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt)
+        {
+            const float roll = noise::hashFloat(i, attempt, worldSeed + SALT_SHARP_ROCK);
+            x = binStart + static_cast<int>(roll * binWidth);
+
+            if (world.get(x, surfaceHeight(x)) == BlockType::Grass)
+                break;
+        }
+
+        spots.push_back({x, surfaceHeight(x)});
+    }
+
+    return spots;
 }

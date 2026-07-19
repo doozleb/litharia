@@ -59,6 +59,11 @@ public:
     // from ever bleeding into a neighbor tree.
     static constexpr int TREE_MIN_SPACING = 4;
 
+    // A finite early-game resource: exactly this many Sharp Rock spawn
+    // points at world generation. Game tops it back up at runtime via
+    // randomSurfaceSpot - see SHARP_ROCK_RESPAWN_INTERVAL in Game.h.
+    static constexpr int SHARP_ROCK_COUNT = 9;
+
     // Starting search radius for findHillPeak - it expands from here (see
     // findHillPeak's own comment) when the terrain's real peak lies further
     // out than this.
@@ -84,6 +89,17 @@ public:
     void carveSpecialCaves(World& world) const;
 
     int surfaceHeight(int x) const;
+
+    // SHARP_ROCK_COUNT random surface spots, hashed from the world seed
+    // alone - deterministic like every other pass. Used once at world
+    // generation.
+    std::vector<std::pair<int, int>> scatterSharpRocks(const World& world) const;
+
+    // One more random surface spot, hashed from the world seed and `salt` -
+    // vary `salt` per call (e.g. an incrementing counter) to get a
+    // different spot each time. Used by Game's runtime respawn timer, since
+    // that is not a generation pass and needs a fresh pick on demand.
+    std::pair<int, int> randomSurfaceSpot(const World& world, std::uint32_t salt) const;
 
     // The most elevated column near targetX (smaller surfaceHeight = higher
     // ground). Starts searching a window of HILL_SEARCH_RADIUS and, if the

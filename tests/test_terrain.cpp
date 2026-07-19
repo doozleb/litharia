@@ -611,3 +611,63 @@ TEST_CASE("each hill cave's trunk reaches down to at least the iron layer")
         CHECK(reachedIronDepth);
     }
 }
+
+TEST_CASE("world generation places exactly SHARP_ROCK_COUNT sharp rock spots on the surface, spread out")
+{
+    World world;
+    TerrainGenerator generator(2026u);
+    generator.generate(world);
+
+    const std::vector<std::pair<int, int>> spots = generator.scatterSharpRocks(world);
+
+    REQUIRE(spots.size() == static_cast<std::size_t>(TerrainGenerator::SHARP_ROCK_COUNT));
+
+    std::vector<int> xs;
+    for (const auto& [x, y] : spots)
+    {
+        REQUIRE(x >= 0);
+        REQUIRE(x < WORLD_WIDTH);
+        CHECK(y == generator.surfaceHeight(x));
+        xs.push_back(x);
+    }
+
+    // Spread across the world rather than clumped together.
+    std::sort(xs.begin(), xs.end());
+    for (std::size_t i = 1; i < xs.size(); ++i)
+        CHECK(xs[i] - xs[i - 1] > 10);
+}
+
+TEST_CASE("randomSurfaceSpot lands on the surface within world bounds")
+{
+    World world;
+    TerrainGenerator generator(4242u);
+    generator.generate(world);
+
+    const auto [x, y] = generator.randomSurfaceSpot(world, 17u);
+
+    REQUIRE(x >= 0);
+    REQUIRE(x < WORLD_WIDTH);
+    CHECK(y == generator.surfaceHeight(x));
+}
+
+TEST_CASE("randomSurfaceSpot gives different salts a chance to land on different spots")
+{
+    World world;
+    TerrainGenerator generator(99u);
+    generator.generate(world);
+
+    bool sawDifferentSpot = false;
+    const auto [firstX, firstY] = generator.randomSurfaceSpot(world, 0u);
+
+    for (std::uint32_t salt = 1; salt < 20; ++salt)
+    {
+        const auto [x, y] = generator.randomSurfaceSpot(world, salt);
+        if (x != firstX)
+        {
+            sawDifferentSpot = true;
+            break;
+        }
+    }
+
+    CHECK(sawDifferentSpot);
+}
