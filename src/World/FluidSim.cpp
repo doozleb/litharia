@@ -17,11 +17,24 @@ bool sameFluid(BlockType a, BlockType b)
 
 } // namespace
 
+FluidSim::FluidSim()
+    : pending(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, 0)
+{
+}
+
 void FluidSim::activate(int x, int y)
 {
     if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT)
         return;
 
+    // Already queued this step: don't enqueue a duplicate. This is what keeps
+    // the pending queue proportional to the number of live fluid tiles rather
+    // than exploding by the fan-out of activateAround.
+    const std::size_t i = static_cast<std::size_t>(y) * WORLD_WIDTH + x;
+    if (pending[i])
+        return;
+
+    pending[i] = 1;
     active.push_back({x, y});
 }
 
@@ -64,6 +77,12 @@ void FluidSim::step(World& world, std::vector<sf::Vector2i>& changedTiles)
     {
         const int x = pos.x;
         const int y = pos.y;
+
+        // Consume this tile: clear its pending flag so that any re-activation of
+        // it during this step (by its own rules or a neighbour's) re-queues it
+        // for the next step instead of being suppressed as a duplicate.
+        pending[static_cast<std::size_t>(y) * WORLD_WIDTH + x] = 0;
+
         const BlockType type = world.get(x, y);
 
         if (!isFluid(type))

@@ -2,6 +2,7 @@
 
 #include <SFML/System/Vector2.hpp>
 
+#include <cstdint>
 #include <vector>
 
 #include "../Blocks/Blocks.h"
@@ -35,6 +36,8 @@ public:
     // Lava flows on one in every this-many steps; water flows every step. This
     // is the whole of "lava moves slower than water".
     static constexpr int LAVA_MOVE_INTERVAL = 3;
+
+    FluidSim();
 
     // Marks a tile as needing to be checked on the next step. Call this
     // whenever a fluid tile is placed (world generation, world load).
@@ -71,7 +74,14 @@ private:
     // still has a move left, so settled lava goes quiescent like everything else.
     bool canMove(const World& world, int x, int y, BlockType type) const;
 
+    // The pending queue, plus a per-tile flag marking which tiles are already
+    // in it. Without the flag, activateAround would push the same tile many
+    // times per step (each fluid tile is a neighbour of up to four others), and
+    // every duplicate re-runs the full rule chain - the queue grew to ~40x the
+    // real fluid-tile count. The flag keeps `active` a true set: at most one
+    // entry per tile.
     std::vector<sf::Vector2i> active;
+    std::vector<std::uint8_t> pending; // size WORLD_WIDTH*WORLD_HEIGHT, 1 = queued
     float timer = 0.0f;
     int stepCount = 0;
 };
