@@ -84,6 +84,7 @@ add_executable(Litharia_tests
     tests/test_machines.cpp
     tests/test_world.cpp
     tests/test_terrain.cpp
+    tests/test_fluids.cpp
     tests/test_physics.cpp
     tests/test_player.cpp
     tests/test_spawn.cpp

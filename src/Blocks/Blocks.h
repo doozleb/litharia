@@ -63,6 +63,24 @@ enum class BlockType : std::uint8_t
     OakLeaves,
     Obsidian,
 
+    Water1,
+    Water2,
+    Water3,
+    Water4,
+    Water5,
+    Water6,
+    Water7,
+    Water8,
+
+    Lava1,
+    Lava2,
+    Lava3,
+    Lava4,
+    Lava5,
+    Lava6,
+    Lava7,
+    Lava8,
+
     Count
 };
 
@@ -100,4 +118,55 @@ const BlockInfo& blockInfo(BlockType type);
 inline bool isSolidBlock(BlockType type)
 {
     return blockInfo(type).solid;
+}
+
+// True for Water1..Water8.
+inline bool isWater(BlockType type)
+{
+    return type >= BlockType::Water1 && type <= BlockType::Water8;
+}
+
+// True for Lava1..Lava8.
+inline bool isLava(BlockType type)
+{
+    return type >= BlockType::Lava1 && type <= BlockType::Lava8;
+}
+
+inline bool isFluid(BlockType type)
+{
+    return isWater(type) || isLava(type);
+}
+
+// 1-8 for a fluid tile (1 = almost empty, 8 = full/source-like), 0 otherwise.
+inline int fluidLevel(BlockType type)
+{
+    if (isWater(type))
+        return static_cast<int>(type) - static_cast<int>(BlockType::Water1) + 1;
+
+    if (isLava(type))
+        return static_cast<int>(type) - static_cast<int>(BlockType::Lava1) + 1;
+
+    return 0;
+}
+
+// level must be 1-8.
+inline BlockType waterAtLevel(int level)
+{
+    return static_cast<BlockType>(static_cast<int>(BlockType::Water1) + level - 1);
+}
+
+// level must be 1-8.
+inline BlockType lavaAtLevel(int level)
+{
+    return static_cast<BlockType>(static_cast<int>(BlockType::Lava1) + level - 1);
+}
+
+// Air if level <= 0; otherwise the same fluid family as sameTypeAs (water stays
+// water, lava stays lava) at the given level.
+inline BlockType fluidAtLevel(BlockType sameTypeAs, int level)
+{
+    if (level <= 0)
+        return BlockType::Air;
+
+    return isWater(sameTypeAs) ? waterAtLevel(level) : lavaAtLevel(level);
 }
