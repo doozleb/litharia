@@ -92,7 +92,7 @@ bool FluidSim::fallAt(World& world, int x, int y, BlockType type, std::vector<sf
 {
     const BlockType below = world.get(x, y + 1);
 
-    if (below == BlockType::Air)
+    if (below == BlockType::Air && world.inBounds(x, y + 1))
     {
         world.set(x, y + 1, type);
         world.set(x, y, BlockType::Air);
@@ -129,7 +129,7 @@ bool FluidSim::spreadAt(World& world, int x, int y, BlockType type, std::vector<
     const int half = level / 2;      // floor - goes to the neighbor
     const int remainder = level - half; // ceil - stays at the source
 
-    if (world.get(x - 1, y) == BlockType::Air)
+    if (world.get(x - 1, y) == BlockType::Air && world.inBounds(x - 1, y))
     {
         world.set(x - 1, y, fluidAtLevel(type, half));
         world.set(x, y, fluidAtLevel(type, remainder));
@@ -140,7 +140,7 @@ bool FluidSim::spreadAt(World& world, int x, int y, BlockType type, std::vector<
         return true;
     }
 
-    if (world.get(x + 1, y) == BlockType::Air)
+    if (world.get(x + 1, y) == BlockType::Air && world.inBounds(x + 1, y))
     {
         world.set(x + 1, y, fluidAtLevel(type, half));
         world.set(x, y, fluidAtLevel(type, remainder));

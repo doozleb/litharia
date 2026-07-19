@@ -65,12 +65,18 @@ TEST_CASE("every fluid block is non-solid, unmineable, and drops nothing")
 
 #include <vector>
 
+#include "Core/Constants.h"
 #include "World/FluidSim.h"
 #include "World/World.h"
 
 namespace
 {
 constexpr float FLUID_STEP = FluidSim::TICK_INTERVAL;
+
+int fluidLevelAt(const World& world, int x, int y)
+{
+    return fluidLevel(world.get(x, y));
+}
 }
 
 TEST_CASE("a fluid tile falls straight down into open air")
@@ -86,6 +92,105 @@ TEST_CASE("a fluid tile falls straight down into open air")
 
     CHECK(world.get(10, 10) == BlockType::Air);
     CHECK(world.get(10, 11) == BlockType::Water8);
+}
+
+TEST_CASE("a fluid tile at the bottom row of the world does not fall out of bounds and vanish")
+{
+    World world;
+    const int y = WORLD_HEIGHT - 1;
+    world.set(4, y, BlockType::Stone); // walls on both sides, so the only
+    world.set(6, y, BlockType::Stone); // possible move is falling off the
+                                       // bottom edge of the world
+    world.set(5, y, BlockType::Water8);
+
+    FluidSim sim;
+    sim.activate(5, y);
+
+    std::vector<sf::Vector2i> changed;
+    sim.tick(world, FLUID_STEP, changed);
+
+    // There is nothing below the bottom row (world.get there is the OOB "Air").
+    // The fall-into-air branch must not fire against an out-of-bounds
+    // destination, or the tile would be cleared here while the write below it
+    // is silently dropped by World::set - a net loss of fluid at the edge.
+    CHECK(world.get(5, y) == BlockType::Water8);
+}
+
+TEST_CASE("a fluid tile at the left column of the world does not spread out of bounds and vanish")
+{
+    World world;
+    const int y = 10;
+    world.set(0, y + 1, BlockType::Stone); // floor - nothing to fall onto
+    world.set(1, y, BlockType::Stone);     // right neighbor blocked - the only
+                                            // remaining move is spreading left,
+                                            // which is off the world edge
+    world.set(0, y, BlockType::Water8);
+
+    FluidSim sim;
+    sim.activate(0, y);
+
+    std::vector<sf::Vector2i> changed;
+    sim.tick(world, FLUID_STEP, changed);
+
+    // Column -1 is out of bounds (World::get returns Air there). The spread
+    // branch must not treat that as an open destination, or the tile's level
+    // would be halved here while the write to column -1 is silently dropped -
+    // a net loss of fluid at the edge.
+    CHECK(world.get(0, y) == BlockType::Water8);
+}
+
+TEST_CASE("an adjacent lava pool and water pool react end-to-end, producing obsidian and strictly reducing total fluid")
+{
+    World world;
+
+    const int x_lava = 10;
+    const int x_water = 11;
+    const int yTop = 10;
+    const int yBottom = 15; // exclusive - fluid occupies [yTop, yBottom)
+
+    // Stone floor under both columns, and stone walls enclosing both sides so
+    // neither pool can spread away from the contact line between them.
+    for (int y = yTop; y < yBottom; ++y)
+    {
+        world.set(x_lava - 1, y, BlockType::Stone);  // left wall
+        world.set(x_water + 1, y, BlockType::Stone); // right wall
+    }
+    for (int x = x_lava; x <= x_water; ++x)
+        world.set(x, yBottom, BlockType::Stone); // floor
+
+    for (int y = yTop; y < yBottom; ++y)
+    {
+        world.set(x_lava, y, BlockType::Lava8);
+        world.set(x_water, y, BlockType::Water8);
+    }
+
+    int totalBefore = 0;
+    for (int y = yTop; y < yBottom; ++y)
+    {
+        totalBefore += fluidLevelAt(world, x_lava, y);
+        totalBefore += fluidLevelAt(world, x_water, y);
+    }
+
+    FluidSim sim;
+    sim.activateAll(world);
+
+    std::vector<sf::Vector2i> changed;
+    for (int i = 0; i < 100; ++i)
+        sim.tick(world, FLUID_STEP, changed);
+
+    bool obsidianExists = false;
+    int totalAfter = 0;
+    for (int y = yTop; y < yBottom; ++y)
+    {
+        if (world.get(x_lava, y) == BlockType::Obsidian || world.get(x_water, y) == BlockType::Obsidian)
+            obsidianExists = true;
+
+        totalAfter += fluidLevelAt(world, x_lava, y);
+        totalAfter += fluidLevelAt(world, x_water, y);
+    }
+
+    CHECK(obsidianExists);
+    CHECK(totalAfter < totalBefore);
 }
 
 TEST_CASE("a fully-enclosed fluid tile does not fall through solid ground")
