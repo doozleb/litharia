@@ -228,3 +228,19 @@ TEST_CASE("a 30x46 player fits down a two-tile-wide shaft")
     // It fell the whole way down the shaft instead of wedging in it.
     CHECK(box.position.y + box.size.y == doctest::Approx(60.0f * TILE_SIZE).epsilon(0.001));
 }
+
+TEST_CASE("overlapsLava is true only over lava tiles, not water or air")
+{
+    World world;
+    world.set(5, 5, BlockType::Lava8);
+    world.set(7, 5, BlockType::Water8);
+
+    // A small box sitting inside the lava tile.
+    CHECK(physics::overlapsLava(boxAtTile(5.1f, 5.1f, 4.0f, 4.0f), world));
+
+    // Over the water tile: fluid, but not lava.
+    CHECK_FALSE(physics::overlapsLava(boxAtTile(7.1f, 5.1f, 4.0f, 4.0f), world));
+
+    // Over empty air.
+    CHECK_FALSE(physics::overlapsLava(boxAtTile(20.1f, 5.1f, 4.0f, 4.0f), world));
+}

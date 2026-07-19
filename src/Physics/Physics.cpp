@@ -129,6 +129,19 @@ bool overlapsFluid(const AABB& box, const World& world)
     return false;
 }
 
+bool overlapsLava(const AABB& box, const World& world)
+{
+    int x0, x1, y0, y1;
+    tileRange(box, x0, x1, y0, y1);
+
+    for (int y = y0; y <= y1; ++y)
+        for (int x = x0; x <= x1; ++x)
+            if (isLava(world.get(x, y)))
+                return true;
+
+    return false;
+}
+
 bool overlaps(const AABB& a, const AABB& b)
 {
     return a.left() < b.right() && a.right() > b.left() && a.top() < b.bottom() &&

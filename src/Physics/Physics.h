@@ -43,6 +43,9 @@ bool overlapsSolid(const AABB& box, const World& world);
 // True if any fluid tile overlaps the box.
 bool overlapsFluid(const AABB& box, const World& world);
 
+// True if any lava tile overlaps the box.
+bool overlapsLava(const AABB& box, const World& world);
+
 // True if two boxes overlap.
 bool overlaps(const AABB& a, const AABB& b);
 
