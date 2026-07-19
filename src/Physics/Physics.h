@@ -40,6 +40,9 @@ CollisionResult moveAndCollide(AABB& box, sf::Vector2f& velocity, const World& w
 // True if any solid tile overlaps the box.
 bool overlapsSolid(const AABB& box, const World& world);
 
+// True if any fluid tile overlaps the box.
+bool overlapsFluid(const AABB& box, const World& world);
+
 // True if two boxes overlap.
 bool overlaps(const AABB& a, const AABB& b);
 

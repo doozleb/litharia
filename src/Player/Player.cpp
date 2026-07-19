@@ -181,7 +181,8 @@ void Player::move(const PlayerInput& input, const World& world, float dt)
     if (input.jump && grounded)
         speed.y = -JUMP_SPEED;
 
-    speed.y += GRAVITY * dt;
+    const float gravity = physics::overlapsFluid(body, world) ? GRAVITY * 0.5f : GRAVITY;
+    speed.y += gravity * dt;
     speed.y = std::min(speed.y, TERMINAL_VELOCITY);
 
     const physics::CollisionResult result = physics::moveAndCollide(body, speed, world, dt);

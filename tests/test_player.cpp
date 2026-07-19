@@ -187,3 +187,29 @@ TEST_CASE("the player keeps horizontal momentum in the air")
 
     CHECK(player.velocity().x == doctest::Approx(runSpeed).epsilon(0.01));
 }
+
+TEST_CASE("gravity is halved while the player overlaps a fluid tile")
+{
+    World world;
+    buildFloor(world, 30);
+
+    // A deep column of water well above the floor, so a player dropped into it
+    // free-falls through fluid the whole time.
+    for (int y = 5; y < 30; ++y)
+        world.set(10, y, BlockType::Water8);
+
+    Player inWater({10.0f * TILE_SIZE, 5.0f * TILE_SIZE});
+    Player inAir({20.0f * TILE_SIZE, 5.0f * TILE_SIZE});
+
+    for (int i = 0; i < 10; ++i)
+    {
+        inWater.update({}, world, STEP);
+        inAir.update({}, world, STEP);
+    }
+
+    // Both started from rest and are still airborne (nowhere near the floor
+    // yet) - the one falling through water should have picked up less
+    // downward speed than the one falling through open air.
+    CHECK(inWater.velocity().y < inAir.velocity().y);
+    CHECK(inWater.velocity().y > 0.0f); // still falling, just more slowly
+}
