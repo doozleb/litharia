@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 
@@ -15,6 +17,38 @@ enum class ToolType : std::uint8_t
     Pickaxe,
     Axe,
 };
+
+// How advanced a tool is, independent of what kind it is (Pickaxe vs Axe).
+// Ordered: a higher tier can always do everything a lower tier can.
+enum class ToolTier : std::uint8_t
+{
+    Wood,
+    Stone,
+    Copper,
+    Iron,
+    Obsidian,
+};
+
+// True if a tool of `held` tier can mine a block that requires `required`.
+inline bool meetsTier(ToolTier held, ToolTier required)
+{
+    return static_cast<std::uint8_t>(held) >= static_cast<std::uint8_t>(required);
+}
+
+// Indexed by ToolTier. Multiplies mining speed - Wood is nerfed below 1x,
+// every tier from Copper up is a bonus above Stone's baseline 1x.
+inline constexpr std::array<float, 5> TOOL_TIER_SPEED_MULTIPLIER = {
+    0.6f,  // Wood
+    1.0f,  // Stone
+    1.25f, // Copper
+    1.5f,  // Iron
+    1.75f, // Obsidian
+};
+
+inline float toolTierSpeedMultiplier(ToolTier tier)
+{
+    return TOOL_TIER_SPEED_MULTIPLIER[static_cast<std::size_t>(tier)];
+}
 
 enum class BlockType : std::uint8_t
 {
@@ -53,6 +87,11 @@ struct BlockInfo
     // What tool is needed to mine this block at all. A mismatched (or empty)
     // hand makes the block unbreakable, not just slower.
     ToolType requiredTool;
+
+    // The minimum tier of that tool. Meaningless when requiredTool is None.
+    // Defaults to Wood - "any tool of the right kind works" - so every
+    // existing row keeps compiling unchanged.
+    ToolTier requiredTier = ToolTier::Wood;
 };
 
 const BlockInfo& blockInfo(BlockType type);

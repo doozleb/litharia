@@ -50,13 +50,15 @@ void buildTree(World& world, int trunkX, int groundY, int height)
 
 } // namespace
 
-TEST_CASE("pickaxe, axe, and oak log are correctly typed items")
+TEST_CASE("wood pickaxe, wood axe, and oak log are correctly typed items")
 {
-    CHECK(itemInfo(ItemType::Pickaxe).toolType == ToolType::Pickaxe);
-    CHECK(itemInfo(ItemType::Pickaxe).maxStack == 1);
+    CHECK(itemInfo(ItemType::WoodPickaxe).toolType == ToolType::Pickaxe);
+    CHECK(itemInfo(ItemType::WoodPickaxe).tier == ToolTier::Wood);
+    CHECK(itemInfo(ItemType::WoodPickaxe).maxStack == 1);
 
-    CHECK(itemInfo(ItemType::Axe).toolType == ToolType::Axe);
-    CHECK(itemInfo(ItemType::Axe).maxStack == 1);
+    CHECK(itemInfo(ItemType::WoodAxe).toolType == ToolType::Axe);
+    CHECK(itemInfo(ItemType::WoodAxe).tier == ToolTier::Wood);
+    CHECK(itemInfo(ItemType::WoodAxe).maxStack == 1);
 
     CHECK(itemInfo(ItemType::OakLog).toolType == ToolType::None);
 
@@ -124,7 +126,7 @@ TEST_CASE("every terrain block requires a pickaxe, and both tree blocks require 
     CHECK(blockInfo(BlockType::OakLog).drop == BlockType::OakLog);
 }
 
-TEST_CASE("holding mine breaks a block after its hardness, and it drops itself")
+TEST_CASE("holding mine breaks a block after its (tier-adjusted) hardness, and it drops itself")
 {
     World world;
     buildFloor(world, 30);
@@ -137,13 +139,14 @@ TEST_CASE("holding mine breaks a block after its hardness, and it drops itself")
     input.mine = true;
     input.cursor = cursorOn(12, 29);
 
-    const float hardness = blockInfo(BlockType::Stone).hardness;
+    const float expectedTime =
+        blockInfo(BlockType::Stone).hardness / toolTierSpeedMultiplier(ToolTier::Wood);
 
     ActionResult result;
     float elapsed = 0.0f;
 
-    // Not broken before its hardness is paid.
-    for (int i = 0; i < 200 && !result.broke; ++i)
+    // Not broken before its (tier-adjusted) hardness is paid.
+    for (int i = 0; i < 300 && !result.broke; ++i)
     {
         result = player.update(input, world, STEP);
         elapsed += STEP;
@@ -152,8 +155,8 @@ TEST_CASE("holding mine breaks a block after its hardness, and it drops itself")
     REQUIRE(result.broke);
     REQUIRE(result.broken.size() == 1);
 
-    CHECK(elapsed >= hardness);
-    CHECK(elapsed < hardness + 0.05f);
+    CHECK(elapsed >= expectedTime);
+    CHECK(elapsed < expectedTime + 0.05f);
 
     CHECK(result.broken[0].block == BlockType::Stone);
     CHECK(result.broken[0].x == 12);
@@ -216,7 +219,7 @@ TEST_CASE("releasing the button resets progress")
     mining.cursor = cursorOn(12, 29);
 
     // Most of the way through.
-    for (int i = 0; i < 45; ++i)
+    for (int i = 0; i < 60; ++i)
         player.update(mining, world, STEP);
 
     REQUIRE(player.isMining());
@@ -250,7 +253,7 @@ TEST_CASE("switching to a different tile resets progress")
     first.mine = true;
     first.cursor = cursorOn(12, 29);
 
-    for (int i = 0; i < 45; ++i)
+    for (int i = 0; i < 60; ++i)
         player.update(first, world, STEP);
 
     REQUIRE(player.miningProgress() > 0.5f);
@@ -427,15 +430,15 @@ TEST_CASE("the player can dig down through the floor and stand in the hole")
     CHECK(player.box().bottom() == doctest::Approx(31.0f * TILE_SIZE).epsilon(0.01));
 }
 
-TEST_CASE("the player spawns already holding a pickaxe and an axe")
+TEST_CASE("the player spawns already holding a wood pickaxe and a wood axe")
 {
     World world;
     buildFloor(world, 30);
     Player player = standingAt(world, 10.0f, 30);
 
-    CHECK(player.inventory().slot(0).type == ItemType::Pickaxe);
+    CHECK(player.inventory().slot(0).type == ItemType::WoodPickaxe);
     CHECK(player.inventory().slot(0).count == 1);
-    CHECK(player.inventory().slot(1).type == ItemType::Axe);
+    CHECK(player.inventory().slot(1).type == ItemType::WoodAxe);
     CHECK(player.inventory().slot(1).count == 1);
 }
 
@@ -622,4 +625,48 @@ TEST_CASE("a felled tree's logs are the only thing an axe drops")
         const ItemType dropped = itemForBlock(tile.block);
         CHECK((dropped == ItemType::OakLog || dropped == ItemType::None));
     }
+}
+
+TEST_CASE("Copper Ore requires at least Stone tier; everything else still defaults to Wood tier")
+{
+    CHECK(blockInfo(BlockType::CopperOre).requiredTier == ToolTier::Stone);
+
+    CHECK(blockInfo(BlockType::Stone).requiredTier == ToolTier::Wood);
+    CHECK(blockInfo(BlockType::Coal).requiredTier == ToolTier::Wood);
+    CHECK(blockInfo(BlockType::IronOre).requiredTier == ToolTier::Wood);
+    CHECK(blockInfo(BlockType::OakLog).requiredTier == ToolTier::Wood);
+    CHECK(blockInfo(BlockType::Dirt).requiredTier == ToolTier::Wood);
+    CHECK(blockInfo(BlockType::Grass).requiredTier == ToolTier::Wood);
+}
+
+TEST_CASE("meetsTier is a simple ordered comparison")
+{
+    CHECK(meetsTier(ToolTier::Wood, ToolTier::Wood));
+    CHECK_FALSE(meetsTier(ToolTier::Wood, ToolTier::Stone));
+    CHECK(meetsTier(ToolTier::Stone, ToolTier::Wood));
+    CHECK(meetsTier(ToolTier::Obsidian, ToolTier::Iron));
+    CHECK_FALSE(meetsTier(ToolTier::Iron, ToolTier::Obsidian));
+}
+
+TEST_CASE("a wood pickaxe cannot mine copper ore, even though it is a pickaxe")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(12, 29, BlockType::CopperOre);
+
+    Player player = standingAt(world, 10.0f, 30);
+    player.setSelectedSlot(0); // Wood Pickaxe
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = cursorOn(12, 29);
+
+    for (int i = 0; i < 300; ++i)
+    {
+        const ActionResult result = player.update(input, world, STEP);
+        REQUIRE_FALSE(result.broke);
+    }
+
+    CHECK(world.get(12, 29) == BlockType::CopperOre);
+    CHECK_FALSE(player.isMining());
 }

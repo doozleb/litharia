@@ -85,8 +85,8 @@ Player::Player(sf::Vector2f topLeft)
 {
     // Mining is gated on holding the right tool, so the player starts with
     // both rather than unable to break anything at all.
-    bag.exchange(0, {ItemType::Pickaxe, 1});
-    bag.exchange(1, {ItemType::Axe, 1});
+    bag.exchange(0, {ItemType::WoodPickaxe, 1});
+    bag.exchange(1, {ItemType::WoodAxe, 1});
 
     // Testing convenience: one of each station, so a fresh world can exercise
     // crafting, smelting and storage without first felling trees for 15 logs.
@@ -184,13 +184,21 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
 
     const BlockType block = world.get(tileX, tileY);
 
-    const ToolType heldTool = itemInfo(bag.slot(selected).type).toolType;
-    const bool wrongTool = block != BlockType::Air && blockInfo(block).requiredTool != heldTool;
+    const ItemInfo& heldInfo = itemInfo(bag.slot(selected).type);
+    const BlockInfo& targetInfo = blockInfo(block);
+
+    const bool wrongKind = block != BlockType::Air && targetInfo.requiredTool != heldInfo.toolType;
+    const bool tooLowTier = heldInfo.toolType == ToolType::Pickaxe &&
+                             !meetsTier(heldInfo.tier, targetInfo.requiredTier);
+    const bool wrongTool = wrongKind || tooLowTier;
 
     // Not holding the button, nothing solid under the cursor, out of arm's
-    // reach, or the wrong tool (including no tool at all) in hand: no
-    // progress, and any progress already made is thrown away. A block cannot
-    // be chipped away by hand or the wrong tool - it simply does not break.
+    // reach, the wrong kind of tool, or a pickaxe below the block's required
+    // tier: no progress, and any progress already made is thrown away. A
+    // block cannot be chipped away by hand, the wrong tool, or an
+    // underpowered one - it simply does not break. Axes never gate on tier:
+    // every axe tier can chop any tree, tier only changes speed (and, later,
+    // log yield).
     if (!input.mine || block == BlockType::Air || !inReach(tileX, tileY) || wrongTool)
     {
         mining = false;
@@ -207,7 +215,7 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
         progress = 0.0f;
     }
 
-    targetHardness = blockInfo(block).hardness;
+    targetHardness = targetInfo.hardness / toolTierSpeedMultiplier(heldInfo.tier);
     progress += dt;
 
     if (progress < targetHardness)

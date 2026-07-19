@@ -18,8 +18,8 @@ enum class ItemType : std::uint8_t
     Coal,
     CopperPlate,
     IronPlate,
-    Pickaxe,
-    Axe,
+    WoodPickaxe,
+    WoodAxe,
     OakLog,
     CraftingTable,
     BurnerGenerator,
@@ -46,13 +46,16 @@ struct ItemInfo
     // The block this item places, or Air if it is not placeable.
     BlockType placeBlock;
 
-    // None for everything except the two tools.
+    // None for everything except tools.
     ToolType toolType;
 
     // What this item looks like in the hotbar/bag and on the ground. Independent
     // of placeBlock: a non-placeable item (a plate, a tool, a log) still needs a
     // color of its own to render as anything but a black square.
     BlockColor iconColor;
+
+    // How advanced a tool item is. Meaningless when toolType is None.
+    ToolTier tier = ToolTier::Wood;
 };
 
 const ItemInfo& itemInfo(ItemType type);
