@@ -61,6 +61,7 @@ enum class BlockType : std::uint8_t
     Coal,
     OakLog,
     OakLeaves,
+    Obsidian,
 
     Count
 };

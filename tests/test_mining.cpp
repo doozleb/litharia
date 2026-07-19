@@ -771,3 +771,61 @@ TEST_CASE("a stone pickaxe can mine copper ore, at Stone tier's own speed")
     CHECK(elapsed < expectedTime + 0.05f);
     CHECK(world.get(12, 29) == BlockType::Air);
 }
+
+TEST_CASE("obsidian is a real, high-hardness, Iron-tier-gated block")
+{
+    CHECK(blockInfo(BlockType::Obsidian).requiredTool == ToolType::Pickaxe);
+    CHECK(blockInfo(BlockType::Obsidian).requiredTier == ToolTier::Iron);
+    CHECK(blockInfo(BlockType::Obsidian).solid);
+    CHECK(blockInfo(BlockType::Obsidian).drop == BlockType::Obsidian);
+    CHECK(blockInfo(BlockType::Obsidian).hardness > blockInfo(BlockType::IronOre).hardness);
+
+    CHECK(itemForBlock(BlockType::Obsidian) == ItemType::Obsidian);
+}
+
+TEST_CASE("the iron tools are correctly typed items")
+{
+    CHECK(itemInfo(ItemType::IronPickaxe).toolType == ToolType::Pickaxe);
+    CHECK(itemInfo(ItemType::IronPickaxe).tier == ToolTier::Iron);
+
+    CHECK(itemInfo(ItemType::IronAxe).toolType == ToolType::Axe);
+    CHECK(itemInfo(ItemType::IronAxe).tier == ToolTier::Iron);
+}
+
+TEST_CASE("a copper pickaxe cannot mine obsidian, but an iron pickaxe can")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(12, 29, BlockType::Obsidian);
+    world.set(13, 29, BlockType::Obsidian);
+
+    Player player = standingAt(world, 10.0f, 30);
+
+    player.inventory().exchange(2, {ItemType::CopperPickaxe, 1});
+    player.setSelectedSlot(2);
+
+    PlayerInput copperInput;
+    copperInput.mine = true;
+    copperInput.cursor = cursorOn(12, 29);
+
+    for (int i = 0; i < 400; ++i)
+    {
+        const ActionResult result = player.update(copperInput, world, STEP);
+        REQUIRE_FALSE(result.broke);
+    }
+    CHECK(world.get(12, 29) == BlockType::Obsidian);
+
+    player.inventory().exchange(3, {ItemType::IronPickaxe, 1});
+    player.setSelectedSlot(3);
+
+    PlayerInput ironInput;
+    ironInput.mine = true;
+    ironInput.cursor = cursorOn(13, 29);
+
+    ActionResult result;
+    for (int i = 0; i < 400 && !result.broke; ++i)
+        result = player.update(ironInput, world, STEP);
+
+    REQUIRE(result.broke);
+    CHECK(world.get(13, 29) == BlockType::Air);
+}

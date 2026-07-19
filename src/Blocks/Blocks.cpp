@@ -17,6 +17,7 @@ constexpr std::array<BlockInfo, static_cast<std::size_t>(BlockType::Count)> regi
     {"Coal",        { 44,  44,  50}, true,  1.10f, BlockType::Coal,      ToolType::Pickaxe},
     {"Oak Log",     {101,  67,  33}, false, 0.60f, BlockType::OakLog,    ToolType::Axe},
     {"Oak Leaves",  { 60, 140,  50}, false, 0.15f, BlockType::Air,       ToolType::Axe},
+    {"Obsidian",    { 40,  20,  55}, true,  3.00f, BlockType::Obsidian,  ToolType::Pickaxe, ToolTier::Iron},
 }};
 
 } // namespace

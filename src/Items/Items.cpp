@@ -14,6 +14,7 @@ constexpr std::array<ItemInfo, static_cast<std::size_t>(ItemType::Count)> regist
     {"Copper Ore",       99,  BlockType::CopperOre, ToolType::None,    {201, 116,  56}},
     {"Iron Ore",         99,  BlockType::IronOre,   ToolType::None,    {166, 174, 190}},
     {"Coal",             99,  BlockType::Coal,      ToolType::None,    { 44,  44,  50}},
+    {"Obsidian",         99,  BlockType::Obsidian,  ToolType::None,    { 40,  20,  55}},
     {"Copper Plate",     99,  BlockType::Air,       ToolType::None,    {224, 150,  90}},
     {"Iron Plate",       99,  BlockType::Air,       ToolType::None,    {205, 210, 218}},
     {"Wood Pickaxe",      1,  BlockType::Air,       ToolType::Pickaxe, {170, 170, 180}, ToolTier::Wood},
@@ -22,6 +23,8 @@ constexpr std::array<ItemInfo, static_cast<std::size_t>(ItemType::Count)> regist
     {"Stone Axe",         1,  BlockType::Air,       ToolType::Axe,     {120, 100,  80}, ToolTier::Stone},
     {"Copper Pickaxe",    1,  BlockType::Air,       ToolType::Pickaxe, {195, 120,  70}, ToolTier::Copper},
     {"Copper Axe",        1,  BlockType::Air,       ToolType::Axe,     {190, 115,  65}, ToolTier::Copper},
+    {"Iron Pickaxe",      1,  BlockType::Air,       ToolType::Pickaxe, {175, 180, 190}, ToolTier::Iron},
+    {"Iron Axe",          1,  BlockType::Air,       ToolType::Axe,     {170, 175, 185}, ToolTier::Iron},
     {"Oak Log",          99,  BlockType::Air,       ToolType::None,    {101,  67,  33}},
     {"Stick",             99,  BlockType::Air,       ToolType::None,    {170, 140,  90}},
     {"Sharp Rock",        99,  BlockType::Air,       ToolType::None,    {150, 145, 140}},
@@ -66,6 +69,7 @@ ItemType itemForBlock(BlockType block)
         case BlockType::IronOre:   return ItemType::IronOre;
         case BlockType::Coal:      return ItemType::Coal;
         case BlockType::OakLog:    return ItemType::OakLog;
+        case BlockType::Obsidian:  return ItemType::Obsidian;
 
         default: return ItemType::None;
     }
