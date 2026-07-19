@@ -5,6 +5,7 @@
 
 #include "../Blocks/Blocks.h"
 #include "../Core/Constants.h"
+#include "FluidSurface.h"
 #include "World.h"
 
 namespace
@@ -82,7 +83,7 @@ void ChunkRenderer::rebuild(Chunk& chunk, int chunkX, int chunkY) const
             // full, so only the very top of a pool shows a partial surface.
             if (isFluid(type) && !isFluid(world.get(x, y - 1)))
             {
-                const float fillHeight = TILE_SIZE * (fluidLevel(type) / 8.0f);
+                const float fillHeight = TILE_SIZE * fluidSurfaceHeight(world, x, y);
                 top = bottom - fillHeight;
             }
 
