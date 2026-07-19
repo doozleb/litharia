@@ -97,6 +97,13 @@ constexpr std::uint32_t SALT_TREE = 0x7000u;
 constexpr float POOL_MIN_RADIUS = 2.5f;
 constexpr float POOL_MAX_RADIUS = 4.5f;
 
+// A pool is a shallow basin, not a bubble: the base radius is stretched wide
+// and squashed flat so the fill reads as a pool of liquid rather than a
+// circle. With the radius range above this yields bodies roughly 11-20 tiles
+// across and 3-6 deep.
+constexpr float POOL_WIDTH_FACTOR = 2.2f;
+constexpr float POOL_HEIGHT_FACTOR = 0.65f;
+
 constexpr std::uint32_t SALT_LAKE = 0xA000u;
 constexpr std::uint32_t SALT_WATER_POOL = 0xB000u;
 constexpr std::uint32_t SALT_LAVA_POOL = 0xC000u;
@@ -270,14 +277,21 @@ void TerrainGenerator::growPool(World& world,
                                  int minY,
                                  int maxY) const
 {
-    const int reach = static_cast<int>(std::ceil(radius));
-    const float radiusSquared = radius * radius;
+    // Wide-and-flat ellipse: horizontal reach is stretched, vertical reach
+    // squashed, so the body is a shallow basin rather than a round bubble.
+    const float rx = radius * POOL_WIDTH_FACTOR;
+    const float ry = radius * POOL_HEIGHT_FACTOR;
+    const int reachX = static_cast<int>(std::ceil(rx));
+    const int reachY = static_cast<int>(std::ceil(ry));
 
-    for (int dy = -reach; dy <= reach; ++dy)
+    for (int dy = -reachY; dy <= reachY; ++dy)
     {
-        for (int dx = -reach; dx <= reach; ++dx)
+        for (int dx = -reachX; dx <= reachX; ++dx)
         {
-            if (static_cast<float>(dx * dx + dy * dy) > radiusSquared)
+            const float nx = static_cast<float>(dx) / rx;
+            const float ny = static_cast<float>(dy) / ry;
+
+            if (nx * nx + ny * ny > 1.0f)
                 continue;
 
             const int x = centerX + dx;
@@ -570,10 +584,11 @@ std::vector<FluidPoolSpawn> TerrainGenerator::scatterFluids(World& world) const
         const float radiusRoll = noise::hashFloat(i, 1, worldSeed + SALT_LAKE);
         const float radius = POOL_MIN_RADIUS + radiusRoll * (POOL_MAX_RADIUS - POOL_MIN_RADIUS);
 
-        // Centered radius-below the surface, so the blob's top edge just
-        // reaches the surface contour rather than poking a dome above ground.
+        // Centered a (flattened) vertical-radius below the surface, so the
+        // basin's top edge just reaches the surface contour rather than poking
+        // a dome above ground.
         const int surface = surfaceHeight(x);
-        const int centerY = surface + static_cast<int>(radius);
+        const int centerY = surface + static_cast<int>(radius * POOL_HEIGHT_FACTOR);
 
         growPool(world, x, centerY, radius, BlockType::Water8, 0, WORLD_HEIGHT - 1);
         spawns.push_back({x, centerY, PoolKind::Lake});

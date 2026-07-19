@@ -188,7 +188,7 @@ TEST_CASE("the player keeps horizontal momentum in the air")
     CHECK(player.velocity().x == doctest::Approx(runSpeed).epsilon(0.01));
 }
 
-TEST_CASE("gravity is halved while the player overlaps a fluid tile")
+TEST_CASE("gravity is reduced while the player overlaps a fluid tile")
 {
     World world;
     buildFloor(world, 30);

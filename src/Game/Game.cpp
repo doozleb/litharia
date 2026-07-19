@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <random>
 #include <string>
 
 #include "../Core/Constants.h"
@@ -14,7 +15,11 @@ namespace
 constexpr unsigned WINDOW_WIDTH = 1280;
 constexpr unsigned WINDOW_HEIGHT = 720;
 
-constexpr std::uint32_t WORLD_SEED = 1337;
+// A fresh world every launch: the seed is drawn from the OS entropy source at
+// startup rather than being a fixed constant, so no two boots generate the
+// same terrain. Used both to seed the generator and for the drop-scatter hash
+// below, so a single value keeps those consistent within one run.
+const std::uint32_t WORLD_SEED = std::random_device{}();
 
 // Physics runs at exactly this rate no matter what the display does.
 constexpr float FIXED_STEP = 1.0f / 60.0f;
