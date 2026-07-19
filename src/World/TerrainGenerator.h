@@ -169,17 +169,30 @@ private:
                   int minY,
                   int maxY) const;
 
-    // Carves a circular blob and fills it entirely with `fluid`, clipped to
-    // [minY, maxY]. Unlike growVein (which only ever replaces Stone, to keep
-    // ore veins from spilling into caves or dirt), a pool is a basin that
-    // displaces whatever terrain is there.
-    void growPool(World& world,
-                  int centerX,
-                  int centerY,
-                  float radius,
-                  BlockType fluid,
-                  int minY,
-                  int maxY) const;
+    // An irregular underground pocket of `fluid`: fills tiles whose 2D-noise
+    // value beats their distance from the centre, so the core is solid but the
+    // rim ravels into a random clutter rather than a clean outline. Clipped to
+    // [minY, maxY]. Like every pool it displaces whatever terrain is there
+    // (unlike growVein, which only replaces Stone). `salt` decorrelates the
+    // noise field between pools.
+    void growPoolNoise(World& world,
+                       int centerX,
+                       int centerY,
+                       float radius,
+                       BlockType fluid,
+                       int minY,
+                       int maxY,
+                       std::uint32_t salt) const;
+
+    // A surface lake: a flat-topped basin, deepest at its centre column and
+    // tapering smoothly to nothing at its edges (a parabolic bowl). `topY` is
+    // the flat water level; each column fills from there (or its own surface,
+    // whichever is lower, so water never floats above ground) down to the
+    // column's depth.
+    void growLakeBasin(World& world,
+                       int centerX,
+                       int topY,
+                       float radius) const;
 
     void placeTree(World& world, int trunkX, int surface, int height) const;
 

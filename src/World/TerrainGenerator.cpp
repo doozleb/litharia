@@ -97,12 +97,17 @@ constexpr std::uint32_t SALT_TREE = 0x7000u;
 constexpr float POOL_MIN_RADIUS = 2.5f;
 constexpr float POOL_MAX_RADIUS = 4.5f;
 
-// A pool is a shallow basin, not a bubble: the base radius is stretched wide
-// and squashed flat so the fill reads as a pool of liquid rather than a
-// circle. With the radius range above this yields bodies roughly 11-20 tiles
-// across and 3-6 deep.
-constexpr float POOL_WIDTH_FACTOR = 2.2f;
-constexpr float POOL_HEIGHT_FACTOR = 0.65f;
+// Underground pockets (water and lava): a noise field decides the ragged fill.
+// REACH is how far past the base radius a pocket can straggle; FREQ sets how
+// granular the clutter is (higher = more broken up); OCTAVES adds finer detail.
+constexpr float NOISE_POOL_REACH = 2.6f;
+constexpr float NOISE_POOL_FREQ = 0.30f;
+constexpr int NOISE_POOL_OCTAVES = 3;
+
+// Surface lakes: half-width is the base radius stretched wide, and the centre
+// column is this many times the radius deep, tapering to zero at the edges.
+constexpr float LAKE_WIDTH_FACTOR = 2.4f;
+constexpr float LAKE_DEPTH_FACTOR = 1.6f;
 
 constexpr std::uint32_t SALT_LAKE = 0xA000u;
 constexpr std::uint32_t SALT_WATER_POOL = 0xB000u;
@@ -269,42 +274,83 @@ void TerrainGenerator::growVein(World& world,
     }
 }
 
-void TerrainGenerator::growPool(World& world,
-                                 int centerX,
-                                 int centerY,
-                                 float radius,
-                                 BlockType fluid,
-                                 int minY,
-                                 int maxY) const
+void TerrainGenerator::growPoolNoise(World& world,
+                                     int centerX,
+                                     int centerY,
+                                     float radius,
+                                     BlockType fluid,
+                                     int minY,
+                                     int maxY,
+                                     std::uint32_t salt) const
 {
-    // Wide-and-flat ellipse: horizontal reach is stretched, vertical reach
-    // squashed, so the body is a shallow basin rather than a round bubble.
-    const float rx = radius * POOL_WIDTH_FACTOR;
-    const float ry = radius * POOL_HEIGHT_FACTOR;
-    const int reachX = static_cast<int>(std::ceil(rx));
-    const int reachY = static_cast<int>(std::ceil(ry));
+    const float reachF = radius * NOISE_POOL_REACH;
+    const int reach = static_cast<int>(std::ceil(reachF));
 
-    for (int dy = -reachY; dy <= reachY; ++dy)
+    for (int dy = -reach; dy <= reach; ++dy)
     {
-        for (int dx = -reachX; dx <= reachX; ++dx)
+        for (int dx = -reach; dx <= reach; ++dx)
         {
-            const float nx = static_cast<float>(dx) / rx;
-            const float ny = static_cast<float>(dy) / ry;
-
-            if (nx * nx + ny * ny > 1.0f)
-                continue;
-
             const int x = centerX + dx;
             const int y = centerY + dy;
 
             if (y < minY || y > maxY)
                 continue;
 
-            // A pool carves through whatever is there - unlike growVein, which
-            // only ever replaces Stone, a pool is a basin that displaces the
-            // terrain, not a mineral that only forms inside it.
-            world.set(x, y, fluid);
+            // The seed tile is always filled, so the pocket is never empty and
+            // its recorded centre is guaranteed to be fluid.
+            if (dx == 0 && dy == 0)
+            {
+                world.set(x, y, fluid);
+                continue;
+            }
+
+            // Normalised distance from the centre, 0 at the core and ~1 at the
+            // straggle radius.
+            const float dist =
+                std::sqrt(static_cast<float>(dx * dx + dy * dy)) / reachF;
+
+            const float n = noise::fbm2D(static_cast<float>(x) * NOISE_POOL_FREQ,
+                                         static_cast<float>(y) * NOISE_POOL_FREQ,
+                                         worldSeed + salt,
+                                         NOISE_POOL_OCTAVES);
+
+            // Solid near the centre (small dist, almost any noise beats it),
+            // ragged and sparse near the rim (dist ~1, only high noise fills) -
+            // an irregular clutter rather than a clean outline. A pool carves
+            // through whatever is there, unlike growVein's stone-only fill.
+            if (n > dist)
+                world.set(x, y, fluid);
         }
+    }
+}
+
+void TerrainGenerator::growLakeBasin(World& world, int centerX, int topY, float radius) const
+{
+    const int halfWidth = static_cast<int>(radius * LAKE_WIDTH_FACTOR);
+    const int maxDepth = static_cast<int>(radius * LAKE_DEPTH_FACTOR);
+
+    for (int dx = -halfWidth; dx <= halfWidth; ++dx)
+    {
+        const int x = centerX + dx;
+
+        if (x < 0 || x >= WORLD_WIDTH)
+            continue;
+
+        // Parabolic bowl: full depth at the centre column, tapering smoothly to
+        // nothing at the rim.
+        const float f = static_cast<float>(dx) / static_cast<float>(halfWidth);
+        const int depth = static_cast<int>(maxDepth * (1.0f - f * f));
+
+        if (depth <= 0)
+            continue;
+
+        // Never float water above a lower neighbour's ground: start filling at
+        // the flat lake level or this column's own surface, whichever is lower
+        // (larger y). The bowl then deepens downward from there.
+        const int fillTop = std::max(topY, surfaceHeight(x));
+
+        for (int y = fillTop; y < fillTop + depth && y < WORLD_HEIGHT; ++y)
+            world.set(x, y, BlockType::Water8);
     }
 }
 
@@ -584,14 +630,14 @@ std::vector<FluidPoolSpawn> TerrainGenerator::scatterFluids(World& world) const
         const float radiusRoll = noise::hashFloat(i, 1, worldSeed + SALT_LAKE);
         const float radius = POOL_MIN_RADIUS + radiusRoll * (POOL_MAX_RADIUS - POOL_MIN_RADIUS);
 
-        // Centered a (flattened) vertical-radius below the surface, so the
-        // basin's top edge just reaches the surface contour rather than poking
-        // a dome above ground.
-        const int surface = surfaceHeight(x);
-        const int centerY = surface + static_cast<int>(radius * POOL_HEIGHT_FACTOR);
+        // The flat water level sits at this column's surface; the basin
+        // deepens downward from there into a central bowl. The recorded spawn
+        // is that top-centre tile, which growLakeBasin always fills (depth at
+        // the centre column is maxDepth >= 1 for any radius in range).
+        const int topY = surfaceHeight(x);
 
-        growPool(world, x, centerY, radius, BlockType::Water8, 0, WORLD_HEIGHT - 1);
-        spawns.push_back({x, centerY, PoolKind::Lake});
+        growLakeBasin(world, x, topY, radius);
+        spawns.push_back({x, topY, PoolKind::Lake});
     }
 
     // Underground water pools: within the existing cave-depth range, above the
@@ -611,7 +657,8 @@ std::vector<FluidPoolSpawn> TerrainGenerator::scatterFluids(World& world) const
         const float radiusRoll = noise::hashFloat(i, 2, worldSeed + SALT_WATER_POOL);
         const float radius = POOL_MIN_RADIUS + radiusRoll * (POOL_MAX_RADIUS - POOL_MIN_RADIUS);
 
-        growPool(world, x, y, radius, BlockType::Water8, WATER_POOL_MIN_Y, WATER_POOL_MAX_Y);
+        growPoolNoise(world, x, y, radius, BlockType::Water8, WATER_POOL_MIN_Y, WATER_POOL_MAX_Y,
+                      SALT_WATER_POOL);
         spawns.push_back({x, y, PoolKind::WaterPool});
     }
 
@@ -633,7 +680,7 @@ std::vector<FluidPoolSpawn> TerrainGenerator::scatterFluids(World& world) const
         const float radiusRoll = noise::hashFloat(i, 2, worldSeed + SALT_LAVA_POOL);
         const float radius = POOL_MIN_RADIUS + radiusRoll * (POOL_MAX_RADIUS - POOL_MIN_RADIUS);
 
-        growPool(world, x, y, radius, BlockType::Lava8, LAVA_MIN_Y, LAVA_MAX_Y);
+        growPoolNoise(world, x, y, radius, BlockType::Lava8, LAVA_MIN_Y, LAVA_MAX_Y, SALT_LAVA_POOL);
         spawns.push_back({x, y, PoolKind::LavaPool});
     }
 
