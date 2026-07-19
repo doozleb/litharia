@@ -22,6 +22,13 @@ constexpr float TERMINAL_VELOCITY = 1100.0f; // px/s
 
 constexpr float JUMP_SPEED = 470.0f; // px/s upward, clears roughly 3.5 tiles
 
+// Fall damage: a landing under FALL_SAFE_TILES does no harm. Above it, damage
+// scales with how far the impact speed exceeded the speed a safe fall reaches,
+// tuned so a terminal-velocity landing removes all of MAX_HEALTH.
+constexpr int FALL_SAFE_TILES = 7;
+const float FALL_SAFE_SPEED = std::sqrt(2.0f * GRAVITY * FALL_SAFE_TILES * TILE_SIZE);
+const float FALL_DAMAGE_SCALE = Player::MAX_HEALTH / (TERMINAL_VELOCITY - FALL_SAFE_SPEED);
+
 float applyFriction(float speed, float amount)
 {
     if (speed > 0.0f)
@@ -185,9 +192,23 @@ void Player::move(const PlayerInput& input, const World& world, float dt)
     speed.y += gravity * dt;
     speed.y = std::min(speed.y, TERMINAL_VELOCITY);
 
+    // moveAndCollide zeroes speed.y on a landing, so record the speed we are
+    // about to hit at first, for fall-damage.
+    const bool wasGrounded = grounded;
+    const float impactSpeed = speed.y;
+
     const physics::CollisionResult result = physics::moveAndCollide(body, speed, world, dt);
 
     grounded = result.grounded;
+
+    // Fall damage fires once, on the airborne->grounded transition, scaled by how
+    // far the impact speed exceeded a safe FALL_SAFE_TILES fall.
+    if (!wasGrounded && grounded && impactSpeed > FALL_SAFE_SPEED)
+    {
+        const int damage =
+            static_cast<int>(std::lround((impactSpeed - FALL_SAFE_SPEED) * FALL_DAMAGE_SCALE));
+        applyDamage(damage);
+    }
 }
 
 bool Player::inReach(int tileX, int tileY) const
@@ -268,6 +289,19 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
     progress = 0.0f;
 
     result.broke = true;
+}
+
+void Player::applyDamage(int amount)
+{
+    hp = std::max(0, hp - amount);
+}
+
+void Player::respawn(sf::Vector2f topLeft)
+{
+    body.position = topLeft;
+    speed = {0.0f, 0.0f};
+    grounded = false;
+    hp = MAX_HEALTH;
 }
 
 void Player::place(const PlayerInput& input, World& world, const Machines* machines,

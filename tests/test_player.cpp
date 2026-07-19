@@ -27,6 +27,21 @@ Player standing(World& world, float tileX, float floorRow)
     return player;
 }
 
+// Drops the player so its feet start `fallTiles` above the floor row, then ticks
+// until it lands (or the tick budget runs out).
+Player dropFrom(World& world, float tileX, int floorRow, int fallTiles, int maxTicks = 2000)
+{
+    const float top =
+        floorRow * TILE_SIZE - Player::HEIGHT - static_cast<float>(fallTiles) * TILE_SIZE;
+
+    Player player({tileX * TILE_SIZE, top});
+
+    for (int i = 0; i < maxTicks && !player.isGrounded(); ++i)
+        player.update({}, world, STEP);
+
+    return player;
+}
+
 } // namespace
 
 TEST_CASE("the player falls, lands, and is grounded")
@@ -212,4 +227,56 @@ TEST_CASE("gravity is reduced while the player overlaps a fluid tile")
     // downward speed than the one falling through open air.
     CHECK(inWater.velocity().y < inAir.velocity().y);
     CHECK(inWater.velocity().y > 0.0f); // still falling, just more slowly
+}
+
+TEST_CASE("a fall within the safe height (under 7 tiles) deals no damage")
+{
+    World world;
+    buildFloor(world, 100);
+
+    Player player = dropFrom(world, 20.0f, 100, 5);
+
+    REQUIRE(player.isGrounded());
+    CHECK(player.health() == Player::MAX_HEALTH);
+}
+
+TEST_CASE("a big fall past the safe height removes health but can be survived")
+{
+    World world;
+    buildFloor(world, 100);
+
+    Player player = dropFrom(world, 20.0f, 100, 12);
+
+    REQUIRE(player.isGrounded());
+    CHECK(player.health() < Player::MAX_HEALTH);
+    CHECK(player.health() > 0);
+}
+
+TEST_CASE("a terminal-velocity fall is lethal")
+{
+    World world;
+    buildFloor(world, 100);
+
+    Player player = dropFrom(world, 20.0f, 100, 60);
+
+    REQUIRE(player.isGrounded());
+    CHECK(player.health() == 0);
+    CHECK(player.isDead());
+}
+
+TEST_CASE("respawn restores full health and position, and zeroes velocity")
+{
+    World world;
+    buildFloor(world, 100);
+
+    Player player = dropFrom(world, 20.0f, 100, 60);
+    REQUIRE(player.isDead());
+
+    const sf::Vector2f spawn{123.0f, 234.0f};
+    player.respawn(spawn);
+
+    CHECK(player.health() == Player::MAX_HEALTH);
+    CHECK_FALSE(player.isDead());
+    CHECK(player.position() == spawn);
+    CHECK(player.velocity() == sf::Vector2f{0.0f, 0.0f});
 }

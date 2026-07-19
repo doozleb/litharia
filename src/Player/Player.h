@@ -64,6 +64,9 @@ public:
     static constexpr float WIDTH = 30.0f;
     static constexpr float HEIGHT = 46.0f;
 
+    // Full health. The player dies at 0 and is respawned by Game.
+    static constexpr int MAX_HEALTH = 50;
+
     // How far the player can reach to mine or place, in tiles.
     static constexpr float REACH_TILES = 5.0f;
 
@@ -78,6 +81,12 @@ public:
     sf::Vector2f velocity() const { return speed; }
 
     bool isGrounded() const { return grounded; }
+
+    int health() const { return hp; }
+    bool isDead() const { return hp <= 0; }
+
+    // Restores full health at `topLeft`, velocity cleared. Called by Game on death.
+    void respawn(sf::Vector2f topLeft);
 
     // True while a block is actively being broken.
     bool isMining() const { return mining; }
@@ -103,11 +112,13 @@ private:
     void mine(const PlayerInput& input, World& world, ActionResult& result, float dt);
     void place(const PlayerInput& input, World& world, const Machines* machines,
                ActionResult& result);
+    void applyDamage(int amount);
 
     AABB body;
     sf::Vector2f speed{0.0f, 0.0f};
 
     bool grounded = false;
+    int hp = MAX_HEALTH;
 
     bool mining = false;
     sf::Vector2i target{0, 0};
