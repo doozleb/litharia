@@ -662,3 +662,39 @@ TEST_CASE("every generated world's fluids settle to a full stop")
         CHECK(settled);
     }
 }
+
+#include "World/FluidSurface.h"
+
+TEST_CASE("fluidSurfaceHeight reports one flat height across a within-one-level run")
+{
+    World world;
+    for (int x = 8; x <= 10; ++x)
+        world.set(x, 11, BlockType::Stone);
+
+    // Surface run 5, 4, 5 with open air above each: average (5+4+5)/3 = 4.667.
+    world.set(8, 10, BlockType::Water5);
+    world.set(9, 10, BlockType::Water4);
+    world.set(10, 10, BlockType::Water5);
+
+    const float h8 = fluidSurfaceHeight(world, 8, 10);
+    const float h9 = fluidSurfaceHeight(world, 9, 10);
+    const float h10 = fluidSurfaceHeight(world, 10, 10);
+
+    CHECK(h8 == doctest::Approx(h9));
+    CHECK(h9 == doctest::Approx(h10));
+    CHECK(h8 == doctest::Approx((14.0f / 3.0f) / 8.0f));
+}
+
+TEST_CASE("fluidSurfaceHeight stops a run at a solid gap and at a different fluid")
+{
+    World world;
+    world.set(8, 10, BlockType::Water8);
+    world.set(9, 10, BlockType::Stone);  // gap breaks the run
+    world.set(10, 10, BlockType::Water2);
+    world.set(11, 10, BlockType::Lava8); // different fluid breaks the run
+
+    // The run through x=8 is just {8}: 8/8 = 1.0.
+    CHECK(fluidSurfaceHeight(world, 8, 10) == doctest::Approx(1.0f));
+    // The run through x=10 is just {10} (stone left, lava right): 2/8.
+    CHECK(fluidSurfaceHeight(world, 10, 10) == doctest::Approx(2.0f / 8.0f));
+}
