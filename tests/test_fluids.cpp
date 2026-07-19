@@ -64,11 +64,13 @@ TEST_CASE("every fluid block is non-solid, unmineable, and drops nothing")
 }
 
 #include <algorithm>
+#include <cstdint>
 #include <vector>
 
 #include "Core/Constants.h"
 #include "World/FluidSim.h"
 #include "World/World.h"
+#include "World/TerrainGenerator.h"
 
 namespace
 {
@@ -632,4 +634,31 @@ TEST_CASE("a settled pool produces no further changes (fully quiescent)")
     CHECK(changed.empty());
     for (int x = 8; x <= 11; ++x)
         CHECK(world.get(x, 10) == BlockType::Water5);
+}
+
+TEST_CASE("every generated world's fluids settle to a full stop")
+{
+    // Seeds 1, 42 and 555 all oscillated forever under the old flatten/spread
+    // rules; a conservative sim must bring each to quiescence.
+    for (std::uint32_t seed : {1u, 42u, 555u, 7u, 88u})
+    {
+        World world;
+        TerrainGenerator gen(seed);
+        gen.generate(world);
+
+        FluidSim sim;
+        sim.activateAll(world);
+
+        bool settled = false;
+        int emptyRun = 0;
+        for (int i = 0; i < 4000; ++i)
+        {
+            std::vector<sf::Vector2i> changed;
+            sim.tick(world, FLUID_STEP, changed);
+            emptyRun = changed.empty() ? emptyRun + 1 : 0;
+            if (emptyRun >= 3) { settled = true; break; }
+        }
+
+        CHECK(settled);
+    }
 }
