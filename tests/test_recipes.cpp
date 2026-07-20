@@ -334,7 +334,7 @@ TEST_CASE("the Stone Axe recipe costs 2 sticks and 1 sharp rock")
     CHECK(it->ingredients[1].count == 1);
 }
 
-TEST_CASE("the Copper Pickaxe recipe costs 2 sticks and 4 copper plates")
+TEST_CASE("the Copper Pickaxe recipe costs 2 sticks and 10 copper plates")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
     const auto it = std::find_if(all.begin(), all.end(),
@@ -345,10 +345,10 @@ TEST_CASE("the Copper Pickaxe recipe costs 2 sticks and 4 copper plates")
     CHECK(it->ingredients[0].item == ItemType::Stick);
     CHECK(it->ingredients[0].count == 2);
     CHECK(it->ingredients[1].item == ItemType::CopperPlate);
-    CHECK(it->ingredients[1].count == 4);
+    CHECK(it->ingredients[1].count == 10);
 }
 
-TEST_CASE("the Copper Axe recipe costs 2 sticks and 2 copper plates")
+TEST_CASE("the Copper Axe recipe costs 2 sticks and 5 copper plates")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
     const auto it = std::find_if(all.begin(), all.end(),
@@ -359,10 +359,10 @@ TEST_CASE("the Copper Axe recipe costs 2 sticks and 2 copper plates")
     CHECK(it->ingredients[0].item == ItemType::Stick);
     CHECK(it->ingredients[0].count == 2);
     CHECK(it->ingredients[1].item == ItemType::CopperPlate);
-    CHECK(it->ingredients[1].count == 2);
+    CHECK(it->ingredients[1].count == 5);
 }
 
-TEST_CASE("the Iron Pickaxe recipe costs 2 sticks and 4 iron plates")
+TEST_CASE("the Iron Pickaxe recipe costs 2 sticks and 10 iron plates")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
     const auto it = std::find_if(all.begin(), all.end(),
@@ -373,10 +373,10 @@ TEST_CASE("the Iron Pickaxe recipe costs 2 sticks and 4 iron plates")
     CHECK(it->ingredients[0].item == ItemType::Stick);
     CHECK(it->ingredients[0].count == 2);
     CHECK(it->ingredients[1].item == ItemType::IronPlate);
-    CHECK(it->ingredients[1].count == 4);
+    CHECK(it->ingredients[1].count == 10);
 }
 
-TEST_CASE("the Iron Axe recipe costs 2 sticks and 2 iron plates")
+TEST_CASE("the Iron Axe recipe costs 2 sticks and 5 iron plates")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
     const auto it = std::find_if(all.begin(), all.end(),
@@ -387,10 +387,10 @@ TEST_CASE("the Iron Axe recipe costs 2 sticks and 2 iron plates")
     CHECK(it->ingredients[0].item == ItemType::Stick);
     CHECK(it->ingredients[0].count == 2);
     CHECK(it->ingredients[1].item == ItemType::IronPlate);
-    CHECK(it->ingredients[1].count == 2);
+    CHECK(it->ingredients[1].count == 5);
 }
 
-TEST_CASE("the Obsidian Pickaxe recipe costs 2 sticks and 3 obsidian")
+TEST_CASE("the Obsidian Pickaxe recipe costs 2 sticks and 10 obsidian")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
     const auto it = std::find_if(all.begin(), all.end(),
@@ -401,10 +401,10 @@ TEST_CASE("the Obsidian Pickaxe recipe costs 2 sticks and 3 obsidian")
     CHECK(it->ingredients[0].item == ItemType::Stick);
     CHECK(it->ingredients[0].count == 2);
     CHECK(it->ingredients[1].item == ItemType::Obsidian);
-    CHECK(it->ingredients[1].count == 3);
+    CHECK(it->ingredients[1].count == 10);
 }
 
-TEST_CASE("the Obsidian Axe recipe costs 2 sticks and 2 obsidian")
+TEST_CASE("the Obsidian Axe recipe costs 2 sticks and 5 obsidian")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
     const auto it = std::find_if(all.begin(), all.end(),
@@ -415,7 +415,7 @@ TEST_CASE("the Obsidian Axe recipe costs 2 sticks and 2 obsidian")
     CHECK(it->ingredients[0].item == ItemType::Stick);
     CHECK(it->ingredients[0].count == 2);
     CHECK(it->ingredients[1].item == ItemType::Obsidian);
-    CHECK(it->ingredients[1].count == 2);
+    CHECK(it->ingredients[1].count == 5);
 }
 
 TEST_CASE("the Obsidian Drill recipe costs 4 obsidian and 2 stone, no plate needed")
