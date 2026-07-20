@@ -62,6 +62,7 @@ add_executable(Litharia
 
     src/Game/Game.cpp
     src/World/Chunks.cpp
+    src/World/LightRenderer.cpp
     src/Camera/Camera.cpp
     src/Hud/Hud.cpp
     src/Machines/MachineRenderer.cpp
