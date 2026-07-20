@@ -990,8 +990,27 @@ void Game::fixedUpdate(float dt)
 
     std::vector<sf::Vector2i> fluidChanges;
     fluids.tick(world, dt, fluidChanges);
+
+    // Lava is a mobile light source (see Lighting::recomputeAll's Lava
+    // seeding) - a recompute triggered only by block/Torch edits would leave
+    // flowing lava's glow anchored to wherever it started. FluidSim's
+    // fall/spread/cascade rules are conservative (a lava tile vanishing from
+    // one spot always shows up as either Obsidian there or still-Lava on
+    // another tile in this same batch), so checking the whole batch for any
+    // currently-Lava-or-Obsidian tile is enough to catch every lava-light
+    // change without tracking pre-tick state.
+    bool lavaLightingChanged = false;
     for (const sf::Vector2i& t : fluidChanges)
+    {
         chunks.markDirty(t.x, t.y);
+
+        const BlockType changedType = world.get(t.x, t.y);
+        if (isLava(changedType) || changedType == BlockType::Obsidian)
+            lavaLightingChanged = true;
+    }
+
+    if (lavaLightingChanged)
+        lighting.recomputeAll(world, machines);
 
     camera.follow(player.center(), dt);
 
