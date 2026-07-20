@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "../Core/Constants.h"
+#include "World.h"
 
 namespace
 {
@@ -45,8 +46,8 @@ void appendQuad(sf::VertexArray& vertices, float left, float top, float right, f
 
 } // namespace
 
-void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const Lighting& lighting,
-                          float daylightFactor,
+void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const World& world,
+                          const Lighting& lighting, float daylightFactor,
                           const std::vector<std::pair<sf::Vector2i, int>>& heldTorchLight) const
 {
     const sf::Vector2f center = view.getCenter();
@@ -74,6 +75,13 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const L
     {
         for (int x = firstX; x <= lastX; ++x)
         {
+            // Unexcavated ground is terrain, not a "space" - it renders at
+            // its normal color regardless of light, exactly as it did before
+            // this feature existed. Only actual open air (caves, dug
+            // tunnels, the sky) is ever darkened.
+            if (world.isSolid(x, y))
+                continue;
+
             const float skyEffective = lighting.skyLight(x, y) * daylightFactor;
 
             int blockEffective = lighting.blockLight(x, y);

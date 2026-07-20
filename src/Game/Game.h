@@ -113,6 +113,14 @@ private:
     Lighting lighting;
     LightRenderer lightRenderer;
 
+    // Rate-limits the lava-movement lighting recompute (see fixedUpdate):
+    // Lighting::recomputeAll is a full-world flood fill, expensive enough
+    // that re-running it on every single tick a lava tile changes - which is
+    // most ticks while any of the world's many generated lava pools are
+    // still settling - visibly stalls the game. Counts down each tick;
+    // a lava-triggered recompute only fires once it reaches 0, then resets.
+    float lavaLightingCooldown = 0.0f;
+
     bool buildMode = false;
     MachineType buildType = MachineType::CopperBelt;
     Direction buildFacing = Direction::Right;

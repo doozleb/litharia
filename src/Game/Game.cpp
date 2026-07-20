@@ -39,6 +39,11 @@ constexpr float MINING_FURNITURE_SECONDS = 1.0f;
 constexpr float DAMAGE_POPUP_RISE_SPEED = 40.0f;
 constexpr float DAMAGE_POPUP_LIFETIME = 1.0f;
 
+// Minimum real time between lava-triggered lighting recomputes (see
+// Game::lavaLightingCooldown) - a full-world recompute is too expensive to
+// run on every tick lava moves, which is most ticks while a pool settles.
+constexpr float LAVA_LIGHTING_COOLDOWN_SECONDS = 0.5f;
+
 sf::Color toColor(BlockColor c)
 {
     return sf::Color(c.r, c.g, c.b);
@@ -1009,8 +1014,16 @@ void Game::fixedUpdate(float dt)
             lavaLightingChanged = true;
     }
 
-    if (lavaLightingChanged)
+    lavaLightingCooldown = std::max(0.0f, lavaLightingCooldown - dt);
+
+    // Rate-limited: recomputeAll is a full-world flood fill, too expensive
+    // to re-run on every tick lava moves (which is most ticks while any of
+    // the world's many generated lava pools are still settling).
+    if (lavaLightingChanged && lavaLightingCooldown <= 0.0f)
+    {
         lighting.recomputeAll(world, machines);
+        lavaLightingCooldown = LAVA_LIGHTING_COOLDOWN_SECONDS;
+    }
 
     camera.follow(player.center(), dt);
 
@@ -1102,7 +1115,7 @@ void Game::render()
         heldLight = lighting.heldTorchLight(world, playerTile);
     }
 
-    lightRenderer.draw(window, camera.view(), lighting, dayNightClock.daylightFactor(), heldLight);
+    lightRenderer.draw(window, camera.view(), world, lighting, dayNightClock.daylightFactor(), heldLight);
 
     hud.draw(window, player.inventory(), player.selectedSlot());
     hud.drawHealth(window, player.health(), Player::MAX_HEALTH);
