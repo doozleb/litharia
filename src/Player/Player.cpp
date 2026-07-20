@@ -210,9 +210,12 @@ void Player::move(const PlayerInput& input, const World& world, float dt)
 
     const bool inFluid = physics::overlapsFluid(body, world);
 
-    // Jump is gated on being grounded, so it cannot be spammed in mid-air.
+    // Jump is gated on being grounded, so it cannot be spammed in mid-air. A
+    // puddle only one tile deep or less doesn't count as "in water" for this
+    // purpose - the floaty, capped water jump only kicks in over genuinely
+    // deep water, so wading through ankle-deep water still gets a normal jump.
     if (input.jump && grounded)
-        speed.y = inFluid ? -WATER_JUMP_SPEED : -JUMP_SPEED;
+        speed.y = physics::restsInDeepFluid(body, world) ? -WATER_JUMP_SPEED : -JUMP_SPEED;
 
     const float gravity = inFluid ? GRAVITY * 0.3f : GRAVITY;
     speed.y += gravity * dt;

@@ -129,6 +129,23 @@ bool overlapsFluid(const AABB& box, const World& world)
     return false;
 }
 
+bool restsInDeepFluid(const AABB& box, const World& world)
+{
+    int x0, x1, y0, y1;
+    tileRange(box, x0, x1, y0, y1);
+
+    for (int x = x0; x <= x1; ++x)
+    {
+        int depth = 0;
+
+        for (int y = y1; y >= 0 && isFluid(world.get(x, y)); --y)
+            if (++depth > 1)
+                return true;
+    }
+
+    return false;
+}
+
 bool overlapsLava(const AABB& box, const World& world)
 {
     int x0, x1, y0, y1;

@@ -46,6 +46,13 @@ bool overlapsFluid(const AABB& box, const World& world);
 // True if any lava tile overlaps the box.
 bool overlapsLava(const AABB& box, const World& world);
 
+// True if the box rests on top of more than one tile of stacked fluid,
+// scanning up from the box's bottom edge. A single-tile puddle (or none)
+// returns false. Meant to be called on a grounded box - it answers "is the
+// fluid the box is resting in deep", not "is the box currently falling
+// through fluid".
+bool restsInDeepFluid(const AABB& box, const World& world);
+
 // True if two boxes overlap.
 bool overlaps(const AABB& a, const AABB& b);
 

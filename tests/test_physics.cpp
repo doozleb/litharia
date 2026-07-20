@@ -229,6 +229,26 @@ TEST_CASE("a 30x46 player fits down a two-tile-wide shaft")
     CHECK(box.position.y + box.size.y == doctest::Approx(60.0f * TILE_SIZE).epsilon(0.001));
 }
 
+TEST_CASE("restsInDeepFluid is true only over fluid stacked more than one tile deep")
+{
+    World world;
+
+    // A one-tile puddle: water at row 5, open air above it.
+    world.set(5, 5, BlockType::Water8);
+
+    // A two-tile-deep column: water at rows 4 and 5.
+    world.set(7, 4, BlockType::Water8);
+    world.set(7, 5, BlockType::Water8);
+
+    // A box small enough to sit entirely within row 5 in each case, matching
+    // the tile the box is nominally "resting on".
+    CHECK_FALSE(physics::restsInDeepFluid(boxAtTile(5.1f, 5.1f, 4.0f, 4.0f), world));
+    CHECK(physics::restsInDeepFluid(boxAtTile(7.1f, 5.1f, 4.0f, 4.0f), world));
+
+    // Over empty air: no fluid at all, so not deep either.
+    CHECK_FALSE(physics::restsInDeepFluid(boxAtTile(20.1f, 5.1f, 4.0f, 4.0f), world));
+}
+
 TEST_CASE("overlapsLava is true only over lava tiles, not water or air")
 {
     World world;

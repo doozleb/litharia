@@ -276,6 +276,50 @@ TEST_CASE("a jump from water clears about 2 tiles more than a land jump, not the
     CHECK(waterJumpHeight < 8.0f * TILE_SIZE);
 }
 
+TEST_CASE("a jump from a puddle only one tile deep matches a land jump, not the deeper water jump")
+{
+    World world;
+    buildFloor(world, 30);
+
+    // A single-tile-deep puddle sitting on the floor - not the deep column
+    // the other water-jump tests use.
+    world.set(10, 29, BlockType::Water8);
+
+    Player inPuddle({10.0f * TILE_SIZE, (30.0f - 4.0f) * TILE_SIZE});
+    Player onLand = standing(world, 20.0f, 30.0f);
+
+    for (int i = 0; i < 120; ++i)
+        inPuddle.update({}, world, STEP);
+
+    REQUIRE(inPuddle.isGrounded());
+
+    const float puddleGroundY = inPuddle.position().y;
+    const float landGroundY = onLand.position().y;
+
+    PlayerInput jump;
+    jump.jump = true;
+    inPuddle.update(jump, world, STEP);
+    onLand.update(jump, world, STEP);
+
+    float puddleHighest = inPuddle.position().y;
+    float landHighest = onLand.position().y;
+
+    for (int i = 0; i < 120; ++i)
+    {
+        inPuddle.update({}, world, STEP);
+        onLand.update({}, world, STEP);
+        puddleHighest = std::min(puddleHighest, inPuddle.position().y);
+        landHighest = std::min(landHighest, onLand.position().y);
+    }
+
+    const float puddleJumpHeight = puddleGroundY - puddleHighest;
+    const float landJumpHeight = landGroundY - landHighest;
+
+    // Close to the land jump, well short of the ~2-tile-higher deep-water jump.
+    CHECK(puddleJumpHeight > landJumpHeight - 1.0f * TILE_SIZE);
+    CHECK(puddleJumpHeight < landJumpHeight + 1.0f * TILE_SIZE);
+}
+
 TEST_CASE("a fall of exactly the safe height (14 tiles) deals no damage")
 {
     World world;
