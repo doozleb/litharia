@@ -57,9 +57,10 @@ constexpr std::uint32_t SALT_SPECIAL_CAVE = 0x8000u;
 // Candidate vein centres are hashed once per cell of this size.
 constexpr int VEIN_CELL = 10;
 
-constexpr float COPPER_DENSITY = 0.34f;
-constexpr float IRON_DENSITY = 0.24f;
-constexpr float COAL_DENSITY = 0.30f;
+// A third of the original density - ore is scarcer, veins are a rarer find.
+constexpr float COPPER_DENSITY = 0.34f / 3.0f;
+constexpr float IRON_DENSITY = 0.24f / 3.0f;
+constexpr float COAL_DENSITY = 0.30f / 3.0f;
 
 // Rare bands roll at a fifth of their ore's normal density - a real find,
 // not a routine one.
