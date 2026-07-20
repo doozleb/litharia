@@ -26,6 +26,7 @@ constexpr std::array<MachineInfo, static_cast<std::size_t>(MachineType::Count)> 
     {"Crafting Table",    {120,  80,  40}, false, false, false, 0.0f,  0.0f,  2, 1},
     {"Furnace",           {110, 110, 115}, false, false, false, 0.0f,  0.0f,  2, 2},
     {"Item Acceptor",     { 80, 140, 190}, false, false, false, 0.0f,  0.0f,  1, 1},
+    {"Torch",             {230, 170,  60}, false, false, false, 0.0f,  0.0f,  1, 1},
 }};
 
 } // namespace
@@ -76,6 +77,7 @@ ItemType itemForMachine(MachineType type)
         case MachineType::CraftingTable:   return ItemType::CraftingTable;
         case MachineType::Furnace:         return ItemType::Furnace;
         case MachineType::ItemAcceptor:    return ItemType::ItemAcceptor;
+        case MachineType::Torch:           return ItemType::Torch;
         default:                           return ItemType::None;
     }
 }
@@ -83,7 +85,7 @@ ItemType itemForMachine(MachineType type)
 bool isFurniture(MachineType type)
 {
     return type == MachineType::Chest || type == MachineType::CraftingTable
-        || type == MachineType::Furnace;
+        || type == MachineType::Furnace || type == MachineType::Torch;
 }
 
 bool isDrill(MachineType type)

@@ -10,7 +10,7 @@ constexpr std::array<SmeltRecipe, 2> recipes = {{
     {ItemType::IronOre,   ItemType::IronPlate,   3.5f},
 }};
 
-constexpr std::array<CraftRecipe, 26> craftRecipes = {{
+constexpr std::array<CraftRecipe, 27> craftRecipes = {{
     {ItemType::Stick,           {{{ItemType::OakLog, 1}, {}}},                           1.0f, true, 4},
     {ItemType::StonePickaxe,    {{{ItemType::Stick, 2}, {ItemType::SharpRock, 2}}},       2.0f, true},
     {ItemType::StoneAxe,        {{{ItemType::Stick, 2}, {ItemType::SharpRock, 1}}},       2.0f, true},
@@ -37,6 +37,7 @@ constexpr std::array<CraftRecipe, 26> craftRecipes = {{
     {ItemType::ObsidianSmelter, {{{ItemType::Obsidian, 3}, {ItemType::Stone, 5}}}, 4.0f, true},
     {ItemType::Furnace,         {{{ItemType::Stone, 20}, {}}},                           4.0f, true},
     {ItemType::ItemAcceptor,    {{{ItemType::Stone, 10}, {ItemType::CopperPlate, 3}}},    3.0f, true},
+    {ItemType::Torch,           {{{ItemType::Stone, 2}, {ItemType::Stick, 1}}},            1.0f, true, 2},
 }};
 
 constexpr std::array<FurnaceRecipe, 2> furnaceRecipes = {{

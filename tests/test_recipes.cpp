@@ -68,7 +68,7 @@ TEST_CASE("every placeable machine has a matching craftable item")
 TEST_CASE("allCraftRecipes exposes every craftable item exactly once")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
-    CHECK(all.size() == 26);
+    CHECK(all.size() == 27);
 }
 
 TEST_CASE("the Chest recipe costs 8 oak logs and 2 copper plates")
@@ -476,4 +476,19 @@ TEST_CASE("the Obsidian Smelter recipe costs 3 obsidian and 5 stone, no plate ne
     CHECK(it->ingredients[1].item == ItemType::Stone);
     CHECK(it->ingredients[1].count == 5);
     CHECK(it->seconds == doctest::Approx(4.0f));
+}
+
+TEST_CASE("the Torch recipe costs 2 stone and 1 stick, yields 2 torches")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::Torch; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Stone);
+    CHECK(it->ingredients[0].count == 2);
+    CHECK(it->ingredients[1].item == ItemType::Stick);
+    CHECK(it->ingredients[1].count == 1);
+    CHECK(it->outputCount == 2);
 }

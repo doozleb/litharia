@@ -49,6 +49,7 @@ enum class ItemType : std::uint8_t
     Chest,
     Furnace,
     ItemAcceptor,
+    Torch,
 
     Count
 };

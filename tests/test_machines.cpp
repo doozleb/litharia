@@ -230,6 +230,7 @@ TEST_CASE("itemForMachine maps every placeable machine to its own item")
     CHECK(itemForMachine(MachineType::ObsidianSmelter) == ItemType::ObsidianSmelter);
     CHECK(itemForMachine(MachineType::Chest) == ItemType::Chest);
     CHECK(itemForMachine(MachineType::CraftingTable) == ItemType::CraftingTable);
+    CHECK(itemForMachine(MachineType::Torch) == ItemType::Torch);
 }
 
 TEST_CASE("itemForMachine maps every Chute tier to its own item")
@@ -367,7 +368,7 @@ TEST_CASE("swap-and-pop relocates every tile of a 2x2 machine, including its ver
     CHECK(machines.at(1, 0)->type == MachineType::IronBelt);
 }
 
-TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
+TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, Furnace, and Torch")
 {
     CHECK_FALSE(isFurniture(MachineType::None));
     CHECK_FALSE(isFurniture(MachineType::BurnerGenerator));
@@ -387,6 +388,7 @@ TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
     CHECK(isFurniture(MachineType::Chest));
     CHECK(isFurniture(MachineType::CraftingTable));
     CHECK(isFurniture(MachineType::Furnace));
+    CHECK(isFurniture(MachineType::Torch));
 }
 
 TEST_CASE("the machine registry has a row for Item Acceptor: no power role, 1x1")
@@ -533,4 +535,20 @@ TEST_CASE("an Obsidian Chute is OBSIDIAN_TIER_SPEEDUP times faster than an Iron 
 
     CHECK(iron == doctest::Approx(0.5f));
     CHECK(obsidian == doctest::Approx(iron * OBSIDIAN_TIER_SPEEDUP));
+}
+
+TEST_CASE("a Torch is placed as ordinary 1x1 furniture with no power role and no storage")
+{
+    Machines machines;
+    Machine* torch = machines.place(MachineType::Torch, 5, 5, Direction::Right);
+
+    REQUIRE(torch != nullptr);
+    CHECK(torch->storage.slotCount() == 0);
+
+    const MachineInfo& info = machineInfo(MachineType::Torch);
+    CHECK_FALSE(info.generator);
+    CHECK_FALSE(info.consumer);
+    CHECK_FALSE(info.transport);
+    CHECK(info.width == 1);
+    CHECK(info.height == 1);
 }

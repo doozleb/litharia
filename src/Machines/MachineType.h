@@ -52,6 +52,7 @@ enum class MachineType : std::uint8_t
     CraftingTable,
     Furnace,
     ItemAcceptor,
+    Torch,
 
     Count
 };
