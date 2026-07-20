@@ -54,6 +54,42 @@ TEST_CASE("out-of-bounds writes are ignored, not clamped into a real tile")
     CHECK(world.get(5, WORLD_HEIGHT - 1) == BlockType::Air);
 }
 
+TEST_CASE("decoration get/set round-trips and is independent of the terrain layer")
+{
+    World world;
+
+    world.set(10, 20, BlockType::Stone);
+    world.setDecoration(10, 20, BlockType::OakLog);
+
+    CHECK(world.get(10, 20) == BlockType::Stone);
+    CHECK(world.getDecoration(10, 20) == BlockType::OakLog);
+
+    // Changing one layer never touches the other.
+    world.setDecoration(10, 20, BlockType::Air);
+    CHECK(world.get(10, 20) == BlockType::Stone);
+
+    world.set(10, 20, BlockType::Air);
+    world.setDecoration(10, 20, BlockType::OakLeaves);
+    CHECK(world.get(10, 20) == BlockType::Air);
+    CHECK(world.getDecoration(10, 20) == BlockType::OakLeaves);
+}
+
+TEST_CASE("a fresh world has no decoration, and out-of-bounds decoration reads/writes behave like get/set")
+{
+    World world;
+
+    CHECK(world.getDecoration(0, 0) == BlockType::Air);
+    CHECK(world.getDecoration(500, 250) == BlockType::Air);
+
+    CHECK(world.getDecoration(-1, 0) == BlockType::Air);
+    CHECK(world.getDecoration(WORLD_WIDTH, 0) == BlockType::Air);
+
+    world.setDecoration(-1, 5, BlockType::OakLog);
+    world.setDecoration(WORLD_WIDTH, 5, BlockType::OakLog);
+    CHECK(world.getDecoration(0, 5) == BlockType::Air);
+    CHECK(world.getDecoration(WORLD_WIDTH - 1, 5) == BlockType::Air);
+}
+
 TEST_CASE("isSolid agrees with the block registry")
 {
     World world;

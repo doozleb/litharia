@@ -85,7 +85,7 @@ void collectTreeBreak(World& world, int startX, int startY, std::vector<BrokenTi
         const sf::Vector2i pos = stack.back();
         stack.pop_back();
 
-        const BlockType type = world.get(pos.x, pos.y);
+        const BlockType type = world.getDecoration(pos.x, pos.y);
 
         if (!isTreePart(type))
             continue;
@@ -94,7 +94,7 @@ void collectTreeBreak(World& world, int startX, int startY, std::vector<BrokenTi
         // reached a second time from another direction is already Air, so it
         // fails the isTreePart check above and is skipped rather than
         // reprocessed or double-counted.
-        world.set(pos.x, pos.y, BlockType::Air);
+        world.setDecoration(pos.x, pos.y, BlockType::Air);
         out.push_back({type, pos.x, pos.y});
 
         stack.push_back(sf::Vector2i{pos.x - 1, pos.y});
@@ -270,7 +270,10 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
     const int tileX = tileOf(input.cursor.x);
     const int tileY = tileOf(input.cursor.y);
 
-    const BlockType block = world.get(tileX, tileY);
+    // A decoration (tree log/leaves) sits on top of whatever terrain is
+    // underneath it and is what the cursor targets first, if present.
+    const BlockType decoration = world.getDecoration(tileX, tileY);
+    const BlockType block = decoration != BlockType::Air ? decoration : world.get(tileX, tileY);
 
     const ItemInfo& heldInfo = itemInfo(bag.slot(selected).type);
     const BlockInfo& targetInfo = blockInfo(block);
@@ -381,8 +384,11 @@ void Player::place(const PlayerInput& input, World& world, const Machines* machi
     const int tileX = tileOf(input.cursor.x);
     const int tileY = tileOf(input.cursor.y);
 
-    // Only into empty space, and only within reach.
-    if (world.get(tileX, tileY) != BlockType::Air || !inReach(tileX, tileY))
+    // Only into empty space - which now includes not having a decoration
+    // (tree log/leaves) there, since those no longer occupy world.get() - and
+    // only within reach.
+    if (world.get(tileX, tileY) != BlockType::Air ||
+        world.getDecoration(tileX, tileY) != BlockType::Air || !inReach(tileX, tileY))
         return;
 
     // Never onto a tile a piece of factory equipment already occupies.

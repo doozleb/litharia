@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include "../Blocks/Blocks.h"
 #include "../Core/Constants.h"
@@ -13,14 +14,32 @@ namespace
 
 constexpr int CHUNK_PIXELS = CHUNK_SIZE * TILE_SIZE;
 
+// Fluid renders a bit see-through rather than fully opaque, both as a look in
+// its own right and so a decoration (tree log/leaves) underneath a flooded
+// tile is still visible through it.
+constexpr std::uint8_t FLUID_ALPHA = 200;
+
 int chunksAcross(int tiles)
 {
     return (tiles + CHUNK_SIZE - 1) / CHUNK_SIZE;
 }
 
-sf::Color toColor(BlockColor c)
+sf::Color toColor(BlockColor c, std::uint8_t alpha = 255)
 {
-    return sf::Color(c.r, c.g, c.b);
+    return sf::Color(c.r, c.g, c.b, alpha);
+}
+
+// Two triangles per tile: SFML 3 has no quad primitive.
+void appendQuad(sf::VertexArray& vertices, float left, float top, float right, float bottom,
+                 sf::Color color)
+{
+    vertices.append({{left, top}, color});
+    vertices.append({{right, top}, color});
+    vertices.append({{right, bottom}, color});
+
+    vertices.append({{left, top}, color});
+    vertices.append({{right, bottom}, color});
+    vertices.append({{left, bottom}, color});
 }
 
 } // namespace
@@ -65,16 +84,22 @@ void ChunkRenderer::rebuild(Chunk& chunk, int chunkX, int chunkY) const
         for (int x = startX; x < endX; ++x)
         {
             const BlockType type = world.get(x, y);
-
-            if (type == BlockType::Air)
-                continue;
-
-            const sf::Color color = toColor(blockInfo(type).color);
+            const BlockType decoration = world.getDecoration(x, y);
 
             const float left = static_cast<float>(x * TILE_SIZE);
             const float right = left + TILE_SIZE;
             const float bottom = static_cast<float>((y + 1) * TILE_SIZE);
-            float top = static_cast<float>(y * TILE_SIZE);
+            const float top = static_cast<float>(y * TILE_SIZE);
+
+            // Decoration draws first (full tile, opaque) so terrain drawn
+            // after it - in particular translucent fluid - blends on top.
+            if (decoration != BlockType::Air)
+                appendQuad(chunk.vertices, left, top, right, bottom, toColor(blockInfo(decoration).color));
+
+            if (type == BlockType::Air)
+                continue;
+
+            float fluidTop = top;
 
             // A fluid surface tile - one with no fluid directly above it - is
             // drawn only as full as its level: liquid fills the tile from the
@@ -84,17 +109,13 @@ void ChunkRenderer::rebuild(Chunk& chunk, int chunkX, int chunkY) const
             if (isFluid(type) && !isFluid(world.get(x, y - 1)))
             {
                 const float fillHeight = TILE_SIZE * fluidSurfaceHeight(world, x, y);
-                top = bottom - fillHeight;
+                fluidTop = bottom - fillHeight;
             }
 
-            // Two triangles per tile: SFML 3 has no quad primitive.
-            chunk.vertices.append({{left, top}, color});
-            chunk.vertices.append({{right, top}, color});
-            chunk.vertices.append({{right, bottom}, color});
+            const sf::Color color =
+                toColor(blockInfo(type).color, isFluid(type) ? FLUID_ALPHA : std::uint8_t{255});
 
-            chunk.vertices.append({{left, top}, color});
-            chunk.vertices.append({{right, bottom}, color});
-            chunk.vertices.append({{left, bottom}, color});
+            appendQuad(chunk.vertices, left, fluidTop, right, bottom, color);
         }
     }
 

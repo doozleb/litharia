@@ -31,6 +31,22 @@ void World::set(int x, int y, BlockType type)
     tiles[index(x, y)].type = type;
 }
 
+BlockType World::getDecoration(int x, int y) const
+{
+    if (!inBounds(x, y))
+        return BlockType::Air;
+
+    return tiles[index(x, y)].decoration;
+}
+
+void World::setDecoration(int x, int y, BlockType type)
+{
+    if (!inBounds(x, y))
+        return;
+
+    tiles[index(x, y)].decoration = type;
+}
+
 bool World::isSolid(int x, int y) const
 {
     return isSolidBlock(get(x, y));

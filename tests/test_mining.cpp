@@ -35,17 +35,17 @@ sf::Vector2f cursorOn(int tileX, int tileY)
 void buildTree(World& world, int trunkX, int groundY, int height)
 {
     for (int i = 1; i <= height; ++i)
-        world.set(trunkX, groundY - i, BlockType::OakLog);
+        world.setDecoration(trunkX, groundY - i, BlockType::OakLog);
 
     const int topY = groundY - height;
 
-    world.set(trunkX - 1, topY, BlockType::OakLeaves);
-    world.set(trunkX + 1, topY, BlockType::OakLeaves);
+    world.setDecoration(trunkX - 1, topY, BlockType::OakLeaves);
+    world.setDecoration(trunkX + 1, topY, BlockType::OakLeaves);
 
     for (int dx = -1; dx <= 1; ++dx)
-        world.set(trunkX + dx, topY - 1, BlockType::OakLeaves);
+        world.setDecoration(trunkX + dx, topY - 1, BlockType::OakLeaves);
 
-    world.set(trunkX, topY - 2, BlockType::OakLeaves);
+    world.setDecoration(trunkX, topY - 2, BlockType::OakLeaves);
 }
 
 } // namespace
@@ -475,7 +475,7 @@ TEST_CASE("a pickaxe cannot fell a tree")
 {
     World world;
     buildFloor(world, 30);
-    world.set(12, 29, BlockType::OakLog);
+    world.setDecoration(12, 29, BlockType::OakLog);
 
     Player player = standingAt(world, 10.0f, 30);
     player.setSelectedSlot(0); // Pickaxe
@@ -490,7 +490,7 @@ TEST_CASE("a pickaxe cannot fell a tree")
         REQUIRE_FALSE(result.broke);
     }
 
-    CHECK(world.get(12, 29) == BlockType::OakLog);
+    CHECK(world.getDecoration(12, 29) == BlockType::OakLog);
 }
 
 TEST_CASE("an empty hand cannot mine anything")
@@ -545,7 +545,7 @@ TEST_CASE("breaking the bottom log fells the whole tree and drops every log")
 
     // The whole column, trunk and canopy, is gone.
     for (int y = 20; y < 30; ++y)
-        CHECK(world.get(12, y) == BlockType::Air);
+        CHECK(world.getDecoration(12, y) == BlockType::Air);
 }
 
 TEST_CASE("breaking a log partway up a tree only fells what's above the cut")
@@ -578,8 +578,8 @@ TEST_CASE("breaking a log partway up a tree only fells what's above the cut")
     CHECK(result.broken.size() == 3 + 6);
 
     // The untouched lower trunk survives.
-    CHECK(world.get(12, 28) == BlockType::OakLog);
-    CHECK(world.get(12, 29) == BlockType::OakLog);
+    CHECK(world.getDecoration(12, 28) == BlockType::OakLog);
+    CHECK(world.getDecoration(12, 29) == BlockType::OakLog);
 }
 
 TEST_CASE("leaves never drop an item, whether broken directly or as part of a cascade")

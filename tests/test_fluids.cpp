@@ -143,6 +143,49 @@ TEST_CASE("a fluid tile at the left column of the world does not spread out of b
     CHECK(world.get(0, y) == BlockType::Water8);
 }
 
+TEST_CASE("a fluid tile falls through a tile that has a decoration, leaving the decoration untouched")
+{
+    World world;
+    world.set(10, 10, BlockType::Water8);
+    world.setDecoration(10, 11, BlockType::OakLog); // e.g. a tree log the player walks through
+
+    FluidSim sim;
+    sim.activate(10, 10);
+
+    std::vector<sf::Vector2i> changed;
+    sim.tick(world, FLUID_STEP, changed);
+
+    CHECK(world.get(10, 10) == BlockType::Air);
+    CHECK(world.get(10, 11) == BlockType::Water8);
+    CHECK(world.getDecoration(10, 11) == BlockType::OakLog);
+}
+
+TEST_CASE("a fluid tile spreads into a tile that has a decoration, leaving the decoration untouched")
+{
+    World world;
+
+    // Enclose exactly the two cells water can reach, so it settles into a
+    // stable two-tile pool instead of diffusing away to nothing - same
+    // containment pattern as the lava/water reaction test above.
+    world.set(8, 10, BlockType::Stone);  // left wall
+    world.set(11, 10, BlockType::Stone); // right wall
+    world.set(9, 11, BlockType::Stone);  // floor
+    world.set(10, 11, BlockType::Stone); // floor
+
+    world.set(10, 10, BlockType::Water8);
+    world.setDecoration(9, 10, BlockType::OakLeaves); // e.g. a tree the player walks through
+
+    FluidSim sim;
+    sim.activate(10, 10);
+
+    std::vector<sf::Vector2i> changed;
+    for (int i = 0; i < 10; ++i)
+        sim.tick(world, FLUID_STEP, changed);
+
+    CHECK(isWater(world.get(9, 10)));
+    CHECK(world.getDecoration(9, 10) == BlockType::OakLeaves);
+}
+
 TEST_CASE("an adjacent lava pool and water pool react end-to-end, producing obsidian and strictly reducing total fluid")
 {
     World world;

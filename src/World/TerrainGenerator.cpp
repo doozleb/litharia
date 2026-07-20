@@ -557,20 +557,20 @@ void TerrainGenerator::scatterOre(World& world) const
 void TerrainGenerator::placeTree(World& world, int trunkX, int surface, int height) const
 {
     for (int i = 1; i <= height; ++i)
-        world.set(trunkX, surface - i, BlockType::OakLog);
+        world.setDecoration(trunkX, surface - i, BlockType::OakLog);
 
     const int topY = surface - height;
 
     // Flanking the top log.
-    world.set(trunkX - 1, topY, BlockType::OakLeaves);
-    world.set(trunkX + 1, topY, BlockType::OakLeaves);
+    world.setDecoration(trunkX - 1, topY, BlockType::OakLeaves);
+    world.setDecoration(trunkX + 1, topY, BlockType::OakLeaves);
 
     // The 3-wide row above that.
     for (int dx = -1; dx <= 1; ++dx)
-        world.set(trunkX + dx, topY - 1, BlockType::OakLeaves);
+        world.setDecoration(trunkX + dx, topY - 1, BlockType::OakLeaves);
 
     // The single apex tile on top.
-    world.set(trunkX, topY - 2, BlockType::OakLeaves);
+    world.setDecoration(trunkX, topY - 2, BlockType::OakLeaves);
 }
 
 void TerrainGenerator::scatterTrees(World& world) const

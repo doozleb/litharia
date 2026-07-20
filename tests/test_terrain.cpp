@@ -70,15 +70,16 @@ TEST_CASE("every column has a surface, inside the world bounds")
         // down to at least the iron layer" for that pass) or a surface lake's
         // basin has flooded it (a lake is anchored to one column's surface
         // height, so it can spill water across a neighboring column whose own
-        // surface sits higher). Directly above it is open air, unless a
-        // tree's bottom log has grown there instead, or a lake has flooded
-        // that tile too.
+        // surface sits higher). Directly above it is open air (a tree's
+        // bottom log may sit there too, but as a decoration - it no longer
+        // occupies the terrain layer get() reads), unless a lake has flooded
+        // that tile.
         const BlockType surfaceTile = world.get(x, surface);
         CHECK((surfaceTile == BlockType::Grass || surfaceTile == BlockType::Air ||
                isWater(surfaceTile)));
 
         const BlockType above = world.get(x, surface - 1);
-        CHECK((above == BlockType::Air || above == BlockType::OakLog || isWater(above)));
+        CHECK((above == BlockType::Air || isWater(above)));
     }
 }
 
@@ -341,7 +342,7 @@ TEST_CASE("trees stand on the surface, stay within height bounds, and never crow
     {
         const int surface = generator.surfaceHeight(x);
 
-        if (world.get(x, surface - 1) != BlockType::OakLog)
+        if (world.getDecoration(x, surface - 1) != BlockType::OakLog)
             continue;
 
         trunkColumns.push_back(x);
@@ -350,7 +351,7 @@ TEST_CASE("trees stand on the surface, stay within height bounds, and never crow
         int height = 0;
         int y = surface - 1;
 
-        while (world.get(x, y) == BlockType::OakLog)
+        while (world.getDecoration(x, y) == BlockType::OakLog)
         {
             ++height;
             --y;
@@ -392,7 +393,7 @@ TEST_CASE("no two trees' tiles are ever 4-connected, so a break-cascade cannot c
             if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT)
                 return false;
 
-            const BlockType type = world.get(x, y);
+            const BlockType type = world.getDecoration(x, y);
             return type == BlockType::OakLog || type == BlockType::OakLeaves;
         };
 
@@ -400,7 +401,7 @@ TEST_CASE("no two trees' tiles are ever 4-connected, so a break-cascade cannot c
         for (int x = 1; x < WORLD_WIDTH - 1; ++x)
         {
             const int surface = generator.surfaceHeight(x);
-            if (world.get(x, surface - 1) == BlockType::OakLog)
+            if (world.getDecoration(x, surface - 1) == BlockType::OakLog)
                 trunkColumns.push_back(x);
         }
 
@@ -486,7 +487,7 @@ TEST_CASE("forest density blends across the world rather than switching on and o
         for (int x = fromX; x < toX; ++x)
         {
             const int surface = generator.surfaceHeight(x);
-            if (world.get(x, surface - 1) == BlockType::OakLog)
+            if (world.getDecoration(x, surface - 1) == BlockType::OakLog)
                 ++count;
         }
 

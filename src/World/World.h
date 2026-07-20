@@ -19,6 +19,11 @@ public:
     BlockType get(int x, int y) const;
     void set(int x, int y, BlockType type);
 
+    // The decoration layer: independent of get()/set(), never affects
+    // isSolid() or fluid flow. Same out-of-bounds convention as get()/set().
+    BlockType getDecoration(int x, int y) const;
+    void setDecoration(int x, int y, BlockType type);
+
     bool isSolid(int x, int y) const;
 
     void fill(BlockType type);
