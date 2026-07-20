@@ -14,18 +14,18 @@ class Machines;
 // rather than on Tile.
 struct LightLevel
 {
-    std::uint8_t sky : 4;   // 0-8, this tile's sunlight exposure
-    std::uint8_t block : 4; // 0-8, this tile's torch/lava exposure
+    std::uint8_t sky : 4;   // 0-MAX_LIGHT_LEVEL, this tile's sunlight exposure
+    std::uint8_t block : 4; // 0-MAX_LIGHT_LEVEL, this tile's torch/lava exposure
 };
 static_assert(sizeof(LightLevel) == 1, "One byte per tile: a 1000x500 world stays 500 KB.");
 
 // Computes and stores per-tile lighting: how exposed to the sky a tile is
 // (skyLight) and how close it is to a Torch or Lava tile (blockLight), each
-// 0-8 and decaying by 1 per orthogonal step, blocked entirely by solid
-// tiles. A separate grid from World/Tile - light values change on every
-// block/Torch edit (and skyLight's *effective* brightness changes every
-// tick, scaled by the day/night clock - see DayNightClock), which doesn't
-// belong on Tile any more than a fluid's flow state would.
+// 0-MAX_LIGHT_LEVEL and decaying by 1 per orthogonal step, blocked entirely
+// by solid tiles. A separate grid from World/Tile - light values change on
+// every block/Torch edit (and skyLight's *effective* brightness changes
+// every tick, scaled by the day/night clock - see DayNightClock), which
+// doesn't belong on Tile any more than a fluid's flow state would.
 //
 // recomputeAll() rebuilds the whole grid from scratch rather than patching
 // just the changed region: correctly patching only a local region after a
@@ -37,6 +37,13 @@ static_assert(sizeof(LightLevel) == 1, "One byte per tile: a 1000x500 world stay
 class Lighting
 {
 public:
+    // How far light travels before going fully dark: a source (a placed
+    // Torch, a Lava tile, an open sky column) starts at this level and
+    // decays by 1 per orthogonal step, so a tile this many steps away is the
+    // last one that still reads as lit at all - one dimmer at each step in
+    // between.
+    static constexpr int MAX_LIGHT_LEVEL = 3;
+
     Lighting();
 
     // Clears every tile's sky/block level to 0, then floods block light
@@ -45,17 +52,17 @@ public:
     // or placed, or a Torch is placed or removed.
     void recomputeAll(const World& world, const Machines& machines);
 
-    int skyLight(int x, int y) const;   // 0-8; 0 out of bounds
-    int blockLight(int x, int y) const; // 0-8; 0 out of bounds
+    int skyLight(int x, int y) const;   // 0-MAX_LIGHT_LEVEL; 0 out of bounds
+    int blockLight(int x, int y) const; // 0-MAX_LIGHT_LEVEL; 0 out of bounds
 
-    // A single-source flood fill from `source` at level 8 - the same
+    // A single-source flood fill from `source` at MAX_LIGHT_LEVEL - the same
     // brightness and decay/occlusion rule as a placed Torch's own
     // blockLight, but computed fresh every call rather than stored in
     // `levels`. Used for the player's held Torch, which moves with them
-    // every frame: naturally bounded to within 8 steps of `source` (the seed
-    // starts at level 8 and floodFill's decay reaches 0 by then), so this
-    // stays cheap enough to call once a frame without forcing a full
-    // recompute.
+    // every frame: naturally bounded to within MAX_LIGHT_LEVEL steps of
+    // `source` (the seed starts there and floodFill's decay reaches 0 by
+    // then), so this stays cheap enough to call once a frame without forcing
+    // a full recompute.
     std::vector<std::pair<sf::Vector2i, int>> heldTorchLight(const World& world,
                                                               sf::Vector2i source) const;
 

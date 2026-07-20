@@ -28,9 +28,9 @@ TEST_CASE("a lone Lava tile lights itself and decays by 1 per orthogonal step")
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.blockLight(10, 10) == 8);
-    CHECK(lighting.blockLight(9, 10) == 7);
-    CHECK(lighting.blockLight(11, 10) == 7);
+    CHECK(lighting.blockLight(10, 10) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.blockLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.blockLight(11, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
 }
 
 TEST_CASE("block light is blocked entirely by a solid tile")
@@ -47,7 +47,7 @@ TEST_CASE("block light is blocked entirely by a solid tile")
     CHECK(lighting.blockLight(11, 10) == 0);
 }
 
-TEST_CASE("a placed Torch is a level-8 block light source")
+TEST_CASE("a placed Torch is a max-level block light source")
 {
     World world;
     fillSolid(world);
@@ -60,11 +60,11 @@ TEST_CASE("a placed Torch is a level-8 block light source")
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.blockLight(10, 10) == 8);
-    CHECK(lighting.blockLight(9, 10) == 7);
+    CHECK(lighting.blockLight(10, 10) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.blockLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
 }
 
-TEST_CASE("an open vertical shaft stays sky-lit at level 8 at every depth")
+TEST_CASE("an open vertical shaft stays sky-lit at the max level at every depth")
 {
     World world;
     fillSolid(world);
@@ -75,9 +75,9 @@ TEST_CASE("an open vertical shaft stays sky-lit at level 8 at every depth")
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.skyLight(10, 0) == 8);
-    CHECK(lighting.skyLight(10, 25) == 8);
-    CHECK(lighting.skyLight(10, 50) == 8);
+    CHECK(lighting.skyLight(10, 0) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.skyLight(10, 25) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.skyLight(10, 50) == Lighting::MAX_LIGHT_LEVEL);
 }
 
 TEST_CASE("sky light decays by 1 per step spreading sideways from an open shaft")
@@ -92,8 +92,8 @@ TEST_CASE("sky light decays by 1 per step spreading sideways from an open shaft"
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.skyLight(10, 20) == 8);
-    CHECK(lighting.skyLight(11, 20) == 7);
+    CHECK(lighting.skyLight(10, 20) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.skyLight(11, 20) == Lighting::MAX_LIGHT_LEVEL - 1);
 }
 
 TEST_CASE("a cave with no path to an open shaft reads sky 0, even directly beside a lit one")
@@ -130,16 +130,17 @@ TEST_CASE("a column blocked from the surface gets no direct sky seed of its own"
     // every side - this is what actually distinguishes a correct top-down
     // scan that stops (break) at the first solid tile from a buggy one that
     // skips past it (continue): a `continue` bug would keep scanning down
-    // this column and wrongly seed this tile directly at level 8, since it
-    // has no path back to the open shaft above and no other reachable
-    // source, so anything other than 0 here proves the scan is over-seeding.
+    // this column and wrongly seed this tile directly at the max level,
+    // since it has no path back to the open shaft above and no other
+    // reachable source, so anything other than 0 here proves the scan is
+    // over-seeding.
     world.set(10, 10, BlockType::Air);
 
     Machines machines;
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.skyLight(10, 4) == 8);
+    CHECK(lighting.skyLight(10, 4) == Lighting::MAX_LIGHT_LEVEL);
     CHECK(lighting.skyLight(10, 5) == 0);  // solid: never lit
     CHECK(lighting.skyLight(10, 10) == 0); // isolated pocket: no seed, no path
 }
@@ -157,7 +158,7 @@ TEST_CASE("blockLight and skyLight are 0 out of bounds")
     CHECK(lighting.skyLight(0, WORLD_HEIGHT) == 0);
 }
 
-TEST_CASE("heldTorchLight lights its source at level 8 and decays by 1 per step")
+TEST_CASE("heldTorchLight lights its source at the max level and decays by 1 per step")
 {
     World world;
     fillSolid(world);
@@ -179,9 +180,9 @@ TEST_CASE("heldTorchLight lights its source at level 8 and decays by 1 per step"
         return 0;
     };
 
-    CHECK(levelAt(10, 10) == 8);
-    CHECK(levelAt(9, 10) == 7);
-    CHECK(levelAt(8, 10) == 6);
+    CHECK(levelAt(10, 10) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(levelAt(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(levelAt(8, 10) == Lighting::MAX_LIGHT_LEVEL - 2);
 }
 
 TEST_CASE("heldTorchLight is blocked by solid tiles, same as a placed Torch")

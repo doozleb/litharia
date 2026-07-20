@@ -90,7 +90,8 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
                 blockEffective = std::max(blockEffective, it->second);
 
             const float brightness = std::clamp(
-                std::max(skyEffective, static_cast<float>(blockEffective)) / 8.0f, 0.0f, 1.0f);
+                std::max(skyEffective, static_cast<float>(blockEffective)) / Lighting::MAX_LIGHT_LEVEL,
+                0.0f, 1.0f);
 
             const sf::Color tint = blockEffective > skyEffective ? BLOCK_TINT : skyTint;
             const sf::Color overlay = lerp(sf::Color::Black, tint, brightness);

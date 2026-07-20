@@ -64,7 +64,7 @@ void Lighting::recomputeAll(const World& world, const Machines& machines)
             if (world.isSolid(x, y))
                 break;
 
-            skySeeds.push_back({x, y, 8});
+            skySeeds.push_back({x, y, MAX_LIGHT_LEVEL});
         }
     }
 
@@ -73,11 +73,11 @@ void Lighting::recomputeAll(const World& world, const Machines& machines)
     for (int y = 0; y < WORLD_HEIGHT; ++y)
         for (int x = 0; x < WORLD_WIDTH; ++x)
             if (isLava(world.get(x, y)))
-                blockSeeds.push_back({x, y, 8});
+                blockSeeds.push_back({x, y, MAX_LIGHT_LEVEL});
 
     for (const Machine& m : machines.all())
         if (m.type == MachineType::Torch)
-            blockSeeds.push_back({m.x, m.y, 8});
+            blockSeeds.push_back({m.x, m.y, MAX_LIGHT_LEVEL});
 
     const auto skyResult = floodFill(world, skySeeds);
     const auto blockResult = floodFill(world, blockSeeds);
@@ -112,5 +112,5 @@ int Lighting::blockLight(int x, int y) const
 std::vector<std::pair<sf::Vector2i, int>> Lighting::heldTorchLight(const World& world,
                                                                     sf::Vector2i source) const
 {
-    return floodFill(world, {LightSeed{source.x, source.y, 8}});
+    return floodFill(world, {LightSeed{source.x, source.y, MAX_LIGHT_LEVEL}});
 }
