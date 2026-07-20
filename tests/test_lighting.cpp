@@ -64,17 +64,74 @@ TEST_CASE("a placed Torch is a level-8 block light source")
     CHECK(lighting.blockLight(9, 10) == 7);
 }
 
-TEST_CASE("skyLight is 0 everywhere before the sky pass exists")
+TEST_CASE("an open vertical shaft stays sky-lit at level 8 at every depth")
 {
     World world;
     fillSolid(world);
-    world.set(10, 10, BlockType::Air);
+    for (int y = 0; y <= 50; ++y)
+        world.set(10, y, BlockType::Air);
 
     Machines machines;
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.skyLight(10, 10) == 0);
+    CHECK(lighting.skyLight(10, 0) == 8);
+    CHECK(lighting.skyLight(10, 25) == 8);
+    CHECK(lighting.skyLight(10, 50) == 8);
+}
+
+TEST_CASE("sky light decays by 1 per step spreading sideways from an open shaft")
+{
+    World world;
+    fillSolid(world);
+    for (int y = 0; y <= 20; ++y)
+        world.set(10, y, BlockType::Air);
+    world.set(11, 20, BlockType::Air); // one step sideways off the shaft, same depth
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    CHECK(lighting.skyLight(10, 20) == 8);
+    CHECK(lighting.skyLight(11, 20) == 7);
+}
+
+TEST_CASE("a cave with no path to an open shaft reads sky 0, even directly beside a lit one")
+{
+    World world;
+    fillSolid(world);
+    for (int y = 0; y <= 20; ++y)
+        world.set(10, y, BlockType::Air);
+    // A sealed pocket, walled off on every side by Stone - no orthogonal
+    // path back to the shaft exists (the tile between them stays solid).
+    world.set(12, 20, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    CHECK(lighting.skyLight(12, 20) == 0);
+}
+
+TEST_CASE("a column blocked from the surface gets no direct sky seed of its own")
+{
+    World world;
+    fillSolid(world);
+    // Open only near the very top; solid resumes at y=5 and stays solid the
+    // rest of the way down, with no connection to any other open tile.
+    world.set(10, 0, BlockType::Air);
+    world.set(10, 1, BlockType::Air);
+    world.set(10, 2, BlockType::Air);
+    world.set(10, 3, BlockType::Air);
+    world.set(10, 4, BlockType::Air);
+    // (10, 5) onward stays Stone.
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    CHECK(lighting.skyLight(10, 4) == 8);
+    CHECK(lighting.skyLight(10, 5) == 0); // solid: never lit
 }
 
 TEST_CASE("blockLight and skyLight are 0 out of bounds")
