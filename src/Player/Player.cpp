@@ -22,6 +22,11 @@ constexpr float TERMINAL_VELOCITY = 1100.0f; // px/s
 
 constexpr float JUMP_SPEED = 470.0f; // px/s upward, clears roughly 3.5 tiles
 
+// A water jump reuses the 0.3x water gravity below but with its own, lower
+// launch speed, so it caps at roughly 2 tiles above the land jump's ~3.84-tile
+// apex instead of the ~12.8 tiles JUMP_SPEED would reach under weak gravity.
+constexpr float WATER_JUMP_SPEED = 317.5f; // px/s upward
+
 // Fall damage: a landing under FALL_SAFE_TILES of net drop does no harm. Above
 // it, damage scales with the actual vertical distance fallen (not impact
 // speed), tuned so a FALL_LETHAL_TILES drop removes all of MAX_HEALTH.
@@ -203,11 +208,13 @@ void Player::move(const PlayerInput& input, const World& world, float dt)
         speed.x = applyFriction(speed.x, GROUND_FRICTION * dt);
     }
 
+    const bool inFluid = physics::overlapsFluid(body, world);
+
     // Jump is gated on being grounded, so it cannot be spammed in mid-air.
     if (input.jump && grounded)
-        speed.y = -JUMP_SPEED;
+        speed.y = inFluid ? -WATER_JUMP_SPEED : -JUMP_SPEED;
 
-    const float gravity = physics::overlapsFluid(body, world) ? GRAVITY * 0.3f : GRAVITY;
+    const float gravity = inFluid ? GRAVITY * 0.3f : GRAVITY;
     speed.y += gravity * dt;
     speed.y = std::min(speed.y, TERMINAL_VELOCITY);
 

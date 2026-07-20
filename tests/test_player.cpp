@@ -231,6 +231,51 @@ TEST_CASE("gravity is reduced while the player overlaps a fluid tile")
     CHECK(inWater.velocity().y > 0.0f); // still falling, just more slowly
 }
 
+TEST_CASE("a jump from water clears about 2 tiles more than a land jump, not the full water-gravity height")
+{
+    World world;
+    buildFloor(world, 30);
+
+    for (int y = 5; y < 30; ++y)
+        world.set(10, y, BlockType::Water8);
+
+    Player inWater({10.0f * TILE_SIZE, (30.0f - 4.0f) * TILE_SIZE});
+    Player onLand = standing(world, 20.0f, 30.0f);
+
+    for (int i = 0; i < 120; ++i)
+        inWater.update({}, world, STEP);
+
+    REQUIRE(inWater.isGrounded());
+
+    const float waterGroundY = inWater.position().y;
+    const float landGroundY = onLand.position().y;
+
+    PlayerInput jump;
+    jump.jump = true;
+    inWater.update(jump, world, STEP);
+    onLand.update(jump, world, STEP);
+
+    float waterHighest = inWater.position().y;
+    float landHighest = onLand.position().y;
+
+    for (int i = 0; i < 120; ++i)
+    {
+        inWater.update({}, world, STEP);
+        onLand.update({}, world, STEP);
+        waterHighest = std::min(waterHighest, inWater.position().y);
+        landHighest = std::min(landHighest, onLand.position().y);
+    }
+
+    const float waterJumpHeight = waterGroundY - waterHighest;
+    const float landJumpHeight = landGroundY - landHighest;
+
+    // ~2 tiles above the land jump...
+    CHECK(waterJumpHeight > landJumpHeight + 1.0f * TILE_SIZE);
+    CHECK(waterJumpHeight < landJumpHeight + 3.0f * TILE_SIZE);
+    // ...and nowhere near the ~12.8 tiles JUMP_SPEED would reach under 0.3x gravity.
+    CHECK(waterJumpHeight < 8.0f * TILE_SIZE);
+}
+
 TEST_CASE("a fall of exactly the safe height (14 tiles) deals no damage")
 {
     World world;
