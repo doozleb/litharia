@@ -89,7 +89,7 @@ ItemType itemForMachine(MachineType type);
 
 // True for machines placed/removed like a world block (hotbar-select,
 // right-click to place, mine to remove) instead of through the build-mode
-// palette: Chest, Crafting Table, Furnace.
+// palette: Chest, Crafting Table, Furnace, Torch.
 bool isFurniture(MachineType type);
 
 // True for any Drill speed tier (Copper/Iron/Obsidian).
