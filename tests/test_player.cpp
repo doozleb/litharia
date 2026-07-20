@@ -231,12 +231,15 @@ TEST_CASE("gravity is reduced while the player overlaps a fluid tile")
     CHECK(inWater.velocity().y > 0.0f); // still falling, just more slowly
 }
 
-TEST_CASE("a fall within the safe height (under 7 tiles) deals no damage")
+TEST_CASE("a fall of exactly the safe height (14 tiles) deals no damage")
 {
     World world;
     buildFloor(world, 100);
 
-    Player player = dropFrom(world, 20.0f, 100, 5);
+    // dropFrom's starting height is an exact multiple of TILE_SIZE above the
+    // floor, so this lands at precisely 14.0 tiles fallen - the boundary
+    // itself, which the "> FALL_SAFE_TILES" check must treat as still safe.
+    Player player = dropFrom(world, 20.0f, 100, 14);
 
     REQUIRE(player.isGrounded());
     CHECK(player.health() == Player::MAX_HEALTH);
@@ -247,23 +250,49 @@ TEST_CASE("a big fall past the safe height removes health but can be survived")
     World world;
     buildFloor(world, 100);
 
-    Player player = dropFrom(world, 20.0f, 100, 12);
+    Player player = dropFrom(world, 20.0f, 100, 40);
 
     REQUIRE(player.isGrounded());
     CHECK(player.health() < Player::MAX_HEALTH);
     CHECK(player.health() > 0);
 }
 
-TEST_CASE("a terminal-velocity fall is lethal")
+TEST_CASE("a fall of exactly the lethal height (63 tiles) is fatal")
 {
     World world;
     buildFloor(world, 100);
 
-    Player player = dropFrom(world, 20.0f, 100, 60);
+    Player player = dropFrom(world, 20.0f, 100, 63);
 
     REQUIRE(player.isGrounded());
     CHECK(player.health() == 0);
     CHECK(player.isDead());
+}
+
+TEST_CASE("jumping and landing back at the same height deals no fall damage")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+
+    PlayerInput jump;
+    jump.jump = true;
+
+    // One tick to leave the ground, then release: a normal single hop, not a
+    // held bunny-hop. fallStartY should hold the ground height throughout,
+    // and landing back at (near enough) that same height must not fall-damage
+    // a player just for jumping.
+    player.update(jump, world, STEP);
+    REQUIRE_FALSE(player.isGrounded());
+
+    const PlayerInput noInput;
+
+    for (int i = 0; i < 200 && !player.isGrounded(); ++i)
+        player.update(noInput, world, STEP);
+
+    REQUIRE(player.isGrounded());
+    CHECK(player.health() == Player::MAX_HEALTH);
 }
 
 TEST_CASE("respawn restores full health and position, and zeroes velocity")
@@ -271,7 +300,7 @@ TEST_CASE("respawn restores full health and position, and zeroes velocity")
     World world;
     buildFloor(world, 100);
 
-    Player player = dropFrom(world, 20.0f, 100, 60);
+    Player player = dropFrom(world, 20.0f, 100, 80);
     REQUIRE(player.isDead());
 
     const sf::Vector2f spawn{123.0f, 234.0f};

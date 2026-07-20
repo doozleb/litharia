@@ -122,6 +122,12 @@ private:
     int hp = MAX_HEALTH;
     float lavaTimer = 0.0f;
 
+    // The Y position where the player was last resting on solid ground. Kept
+    // up to date every grounded tick and left untouched while airborne, so it
+    // holds the takeoff height for the whole of a jump or a fall off a ledge -
+    // fall damage is the distance from here to where the player lands.
+    float fallStartY;
+
     bool mining = false;
     sf::Vector2i target{0, 0};
     float progress = 0.0f;

@@ -22,12 +22,21 @@ constexpr float TERMINAL_VELOCITY = 1100.0f; // px/s
 
 constexpr float JUMP_SPEED = 470.0f; // px/s upward, clears roughly 3.5 tiles
 
-// Fall damage: a landing under FALL_SAFE_TILES does no harm. Above it, damage
-// scales with how far the impact speed exceeded the speed a safe fall reaches,
-// tuned so a terminal-velocity landing removes all of MAX_HEALTH.
-constexpr int FALL_SAFE_TILES = 7;
-const float FALL_SAFE_SPEED = std::sqrt(2.0f * GRAVITY * FALL_SAFE_TILES * TILE_SIZE);
-const float FALL_DAMAGE_SCALE = Player::MAX_HEALTH / (TERMINAL_VELOCITY - FALL_SAFE_SPEED);
+// Fall damage: a landing under FALL_SAFE_TILES of net drop does no harm. Above
+// it, damage scales with the actual vertical distance fallen (not impact
+// speed), tuned so a FALL_LETHAL_TILES drop removes all of MAX_HEALTH.
+//
+// Distance, not speed, is what lets FALL_LETHAL_TILES exceed what
+// TERMINAL_VELOCITY could ever produce as an impact speed - a fall far past
+// terminal velocity keeps getting more dangerous even though the player's
+// speed itself is capped. Trade-off versus the old impact-speed model: a fall
+// that passes through fluid on the way down (which only slows descent, not
+// the total distance covered) no longer gets any partial cushioning against
+// fall damage from that.
+constexpr int FALL_SAFE_TILES = 14;
+constexpr int FALL_LETHAL_TILES = 63;
+const float FALL_DAMAGE_SCALE =
+    static_cast<float>(Player::MAX_HEALTH) / static_cast<float>(FALL_LETHAL_TILES - FALL_SAFE_TILES);
 
 // Lava: 20 damage per 0.5 s of contact, so three hits (0.5 / 1.0 / 1.5 s) kill.
 constexpr int LAVA_DAMAGE = 20;
@@ -123,6 +132,7 @@ void applyAxeLogBonus(std::vector<BrokenTile>& broken, ToolTier axeTier)
 
 Player::Player(sf::Vector2f topLeft)
     : body{topLeft, {WIDTH, HEIGHT}}
+    , fallStartY(topLeft.y)
 {
     // Mining is gated on holding the right tool, so the player starts with
     // both rather than unable to break anything at all.
@@ -197,23 +207,33 @@ void Player::move(const PlayerInput& input, const World& world, float dt)
     speed.y += gravity * dt;
     speed.y = std::min(speed.y, TERMINAL_VELOCITY);
 
-    // moveAndCollide zeroes speed.y on a landing, so record the speed we are
-    // about to hit at first, for fall-damage.
     const bool wasGrounded = grounded;
-    const float impactSpeed = speed.y;
+    const float priorFallStartY = fallStartY;
 
     const physics::CollisionResult result = physics::moveAndCollide(body, speed, world, dt);
 
     grounded = result.grounded;
 
-    // Fall damage fires once, on the airborne->grounded transition, scaled by how
-    // far the impact speed exceeded a safe FALL_SAFE_TILES fall.
-    if (!wasGrounded && grounded && impactSpeed > FALL_SAFE_SPEED)
+    // Fall damage fires once, on the airborne->grounded transition, scaled by
+    // the net vertical distance fallen since fallStartY was last updated (the
+    // takeoff height, held fixed for the whole airborne excursion below).
+    if (!wasGrounded && grounded)
     {
-        const int damage =
-            static_cast<int>(std::lround((impactSpeed - FALL_SAFE_SPEED) * FALL_DAMAGE_SCALE));
-        applyDamage(damage);
+        const float tilesFallen = (body.position.y - priorFallStartY) / TILE_SIZE;
+
+        if (tilesFallen > FALL_SAFE_TILES)
+        {
+            const int damage = static_cast<int>(
+                std::lround((tilesFallen - FALL_SAFE_TILES) * FALL_DAMAGE_SCALE));
+            applyDamage(damage);
+        }
     }
+
+    // Keep fallStartY tracking the most recent resting height, ready for the
+    // next airborne excursion. Updating this AFTER the check above (not
+    // before) is what lets that check see the pre-landing takeoff height.
+    if (grounded)
+        fallStartY = body.position.y;
 }
 
 bool Player::inReach(int tileX, int tileY) const
@@ -326,6 +346,7 @@ void Player::respawn(sf::Vector2f topLeft)
     grounded = false;
     hp = MAX_HEALTH;
     lavaTimer = 0.0f;
+    fallStartY = topLeft.y;
 }
 
 void Player::place(const PlayerInput& input, World& world, const Machines* machines,
