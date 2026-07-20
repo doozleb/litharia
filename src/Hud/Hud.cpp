@@ -401,6 +401,37 @@ void Hud::drawHealth(sf::RenderWindow& window, int health, int maxHealth)
     window.setView(previous);
 }
 
+void Hud::drawDayNightIndicator(sf::RenderWindow& window, float daylightFactor)
+{
+    const sf::View previous = window.getView();
+    window.setView(currentWindowView(window));
+
+    constexpr float WIDTH = 120.0f;
+    constexpr float HEIGHT = 10.0f;
+
+    const sf::Vector2f hotbar = hotbarOrigin(sf::Vector2f(window.getSize()));
+    const sf::Vector2f pos{hotbar.x, hotbar.y - HEIGHT - MARGIN};
+
+    sf::RectangleShape back({WIDTH, HEIGHT});
+    back.setPosition(pos);
+    back.setFillColor(sf::Color(20, 20, 30));
+    back.setOutlineThickness(2.0f);
+    back.setOutlineColor(sf::Color(10, 10, 15));
+    window.draw(back);
+
+    const float frac = std::clamp(daylightFactor, 0.0f, 1.0f);
+
+    if (frac > 0.0f)
+    {
+        sf::RectangleShape fill({WIDTH * frac, HEIGHT});
+        fill.setPosition(pos);
+        fill.setFillColor(sf::Color(255, 210, 120));
+        window.draw(fill);
+    }
+
+    window.setView(previous);
+}
+
 bool Hud::isHealthBarHovered(sf::Vector2f screenPos) const
 {
     const sf::FloatRect bar({MARGIN, MARGIN}, {HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT});

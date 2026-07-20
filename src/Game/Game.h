@@ -14,7 +14,10 @@
 #include "../Machines/Recipes.h"
 #include "../Player/Player.h"
 #include "../World/Chunks.h"
+#include "../World/DayNightClock.h"
 #include "../World/FluidSim.h"
+#include "../World/Lighting.h"
+#include "../World/LightRenderer.h"
 #include "../World/TerrainGenerator.h"
 #include "../World/World.h"
 
@@ -51,8 +54,8 @@ private:
 
     void tickMachines(float dt);
     void placeMachineAtCursor();
-    void placeFurnitureAtCursor(const PlayerInput& input);
-    void mineFurnitureAtCursor(const PlayerInput& input, float dt);
+    bool placeFurnitureAtCursor(const PlayerInput& input);
+    bool mineFurnitureAtCursor(const PlayerInput& input, float dt);
     void refundMachineItem(MachineType type);
     void removeMachineAtCursor();
     void dropAtPlayer(ItemStack stack);
@@ -106,6 +109,9 @@ private:
     Machines machines;
     MachineRenderer machineRenderer;
     FluidSim fluids;
+    DayNightClock dayNightClock;
+    Lighting lighting;
+    LightRenderer lightRenderer;
 
     bool buildMode = false;
     MachineType buildType = MachineType::CopperBelt;

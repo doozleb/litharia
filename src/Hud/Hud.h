@@ -123,6 +123,11 @@ public:
     // background shows.
     void drawHealthTooltip(sf::RenderWindow& window, int health, int maxHealth);
 
+    // A small bar in the top-right HUD cluster (just above the hotbar)
+    // showing the day/night clock's current daylightFactor as a fill
+    // fraction. Shapes only, like drawHealth - renders fine with no font.
+    void drawDayNightIndicator(sf::RenderWindow& window, float daylightFactor);
+
     // A floating "-N" text bound to the HUD's font, for Game to position and
     // fade over its own lifetime as a damage popup. The returned sf::Text
     // holds a pointer into this Hud's font (see the copy-ban note above) - it

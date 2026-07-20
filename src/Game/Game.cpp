@@ -60,8 +60,26 @@ MachineType furnitureMachineForItem(ItemType item)
         case ItemType::Chest:         return MachineType::Chest;
         case ItemType::CraftingTable: return MachineType::CraftingTable;
         case ItemType::Furnace:       return MachineType::Furnace;
+        case ItemType::Torch:         return MachineType::Torch;
         default:                     return MachineType::None;
     }
+}
+
+constexpr sf::Color NIGHT_SKY(15, 18, 35);
+constexpr sf::Color DAY_SKY(122, 184, 240); // the game's original fixed sky color
+
+sf::Color lerpColor(sf::Color a, sf::Color b, float t)
+{
+    t = std::clamp(t, 0.0f, 1.0f);
+    return sf::Color(
+        static_cast<std::uint8_t>(a.r + (b.r - a.r) * t),
+        static_cast<std::uint8_t>(a.g + (b.g - a.g) * t),
+        static_cast<std::uint8_t>(a.b + (b.b - a.b) * t));
+}
+
+sf::Color skyColor(float daylightFactor)
+{
+    return lerpColor(NIGHT_SKY, DAY_SKY, daylightFactor);
 }
 
 } // namespace
@@ -80,6 +98,7 @@ Game::Game()
 
     spawnSharpRocks();
     fluids.activateAll(world);
+    lighting.recomputeAll(world, machines);
 
     player = Player(findSpawn());
     camera.snapTo(player.center());
@@ -278,21 +297,21 @@ void Game::placeMachineAtCursor()
     player.inventory().removeOne(item);
 }
 
-void Game::placeFurnitureAtCursor(const PlayerInput& input)
+bool Game::placeFurnitureAtCursor(const PlayerInput& input)
 {
     if (!input.place)
-        return;
+        return false;
 
     const ItemStack& held = player.inventory().slot(player.selectedSlot());
     const MachineType type = furnitureMachineForItem(held.type);
 
     if (type == MachineType::None)
-        return;
+        return false;
 
     const sf::Vector2i tile = cursorTile();
 
     if (!player.inReach(tile.x, tile.y))
-        return;
+        return false;
 
     const MachineInfo& info = machineInfo(type);
 
@@ -300,23 +319,24 @@ void Game::placeFurnitureAtCursor(const PlayerInput& input)
         for (int dx = 0; dx < info.width; ++dx)
         {
             if (world.isSolid(tile.x + dx, tile.y + dy))
-                return;
+                return false;
 
             const AABB tileBox{{static_cast<float>((tile.x + dx) * TILE_SIZE),
                                 static_cast<float>((tile.y + dy) * TILE_SIZE)},
                                {static_cast<float>(TILE_SIZE), static_cast<float>(TILE_SIZE)}};
 
             if (physics::overlaps(tileBox, player.box()))
-                return;
+                return false;
         }
 
     if (machines.place(type, tile.x, tile.y, Direction::Right) == nullptr)
-        return;
+        return false;
 
     player.inventory().removeOne(held.type);
+    return true;
 }
 
-void Game::mineFurnitureAtCursor(const PlayerInput& input, float dt)
+bool Game::mineFurnitureAtCursor(const PlayerInput& input, float dt)
 {
     const sf::Vector2i tile = cursorTile();
     const Machine* target = machines.at(tile.x, tile.y);
@@ -327,7 +347,7 @@ void Game::mineFurnitureAtCursor(const PlayerInput& input, float dt)
     {
         miningFurniture = false;
         miningFurnitureProgress = 0.0f;
-        return;
+        return false;
     }
 
     if (!miningFurniture || miningFurnitureTarget.x != tile.x || miningFurnitureTarget.y != tile.y)
@@ -339,18 +359,19 @@ void Game::mineFurnitureAtCursor(const PlayerInput& input, float dt)
 
     miningFurnitureProgress += dt;
     if (miningFurnitureProgress < MINING_FURNITURE_SECONDS)
-        return;
+        return false;
 
     const MachineType type = target->type;
     const Inventory storage = target->storage;
     if (!machines.remove(tile.x, tile.y))
-        return;
+        return false;
 
     refundMachineItem(type);
     spillInventoryToGround(storage);
 
     miningFurniture = false;
     miningFurnitureProgress = 0.0f;
+    return true;
 }
 
 void Game::removeMachineAtCursor()
@@ -914,6 +935,8 @@ void Game::handleEvents()
 
 void Game::fixedUpdate(float dt)
 {
+    dayNightClock.tick(dt);
+
     const PlayerInput input = readInput();
     const ActionResult result = player.update(input, world, dt, &machines);
 
@@ -927,6 +950,8 @@ void Game::fixedUpdate(float dt)
         player.respawn(findSpawn());
         camera.snapTo(player.center());
     }
+
+    bool lightingDirty = result.broke || result.placed;
 
     if (result.broke)
     {
@@ -948,8 +973,13 @@ void Game::fixedUpdate(float dt)
         fluids.activateAround(result.placedX, result.placedY);
     }
 
-    placeFurnitureAtCursor(input);
-    mineFurnitureAtCursor(input, dt);
+    if (placeFurnitureAtCursor(input))
+        lightingDirty = true;
+    if (mineFurnitureAtCursor(input, dt))
+        lightingDirty = true;
+
+    if (lightingDirty)
+        lighting.recomputeAll(world, machines);
 
     updateDrops(dt);
     updateDamagePopups(dt);
@@ -1009,7 +1039,7 @@ void Game::drawMiningHighlight()
 
 void Game::render()
 {
-    window.clear(sf::Color(122, 184, 240));
+    window.clear(skyColor(dayNightClock.daylightFactor()));
 
     window.setView(camera.view());
 
@@ -1043,8 +1073,21 @@ void Game::render()
 
     drawDamagePopups();
 
+    std::vector<std::pair<sf::Vector2i, int>> heldLight;
+    const ItemStack& held = player.inventory().slot(player.selectedSlot());
+    if (held.type == ItemType::Torch)
+    {
+        const sf::Vector2i playerTile{
+            static_cast<int>(std::floor(player.center().x / TILE_SIZE)),
+            static_cast<int>(std::floor(player.center().y / TILE_SIZE))};
+        heldLight = lighting.heldTorchLight(world, playerTile);
+    }
+
+    lightRenderer.draw(window, camera.view(), lighting, dayNightClock.daylightFactor(), heldLight);
+
     hud.draw(window, player.inventory(), player.selectedSlot());
     hud.drawHealth(window, player.health(), Player::MAX_HEALTH);
+    hud.drawDayNightIndicator(window, dayNightClock.daylightFactor());
 
     const sf::Vector2f mouseScreenPos(sf::Mouse::getPosition(window));
     if (hud.isHealthBarHovered(mouseScreenPos))
