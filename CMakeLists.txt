@@ -30,6 +30,7 @@ add_library(Litharia_core STATIC
     src/World/TerrainGenerator.cpp
     src/World/FluidSim.cpp
     src/World/FluidSurface.cpp
+    src/World/DayNightClock.cpp
 
     src/Physics/Physics.cpp
     src/Player/Player.cpp
@@ -103,6 +104,7 @@ add_executable(Litharia_tests
     tests/test_machine_inspect.cpp
     tests/test_extraction.cpp
     tests/test_hud_layout.cpp
+    tests/test_day_night_clock.cpp
 )
 
 target_include_directories(Litharia_tests PRIVATE libs/doctest)
