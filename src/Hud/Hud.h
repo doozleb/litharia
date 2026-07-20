@@ -87,6 +87,12 @@ public:
     static constexpr float CRAFT_BUTTON_WIDTH = 240.0f;
     static constexpr float CRAFT_BUTTON_HEIGHT = 40.0f;
 
+    // The health bar's fixed size, top-left. Shared between drawHealth (which
+    // draws it) and isHealthBarHovered (which hit-tests the same rect), so the
+    // two can never disagree about where the bar actually is.
+    static constexpr float HEALTH_BAR_WIDTH = 200.0f;
+    static constexpr float HEALTH_BAR_HEIGHT = 18.0f;
+
     Hud();
 
     // Every cached sf::Text (the recipe labels and the count/line caches
@@ -104,6 +110,26 @@ public:
     // health/maxHealth over a dark back. Shapes only, so it renders even with no
     // font loaded.
     void drawHealth(sf::RenderWindow& window, int health, int maxHealth);
+
+    // True if the given screen position lands on the health bar (see
+    // drawHealth/HEALTH_BAR_WIDTH/HEALTH_BAR_HEIGHT). Game calls this each
+    // frame against the mouse position to decide whether to also call
+    // drawHealthTooltip.
+    bool isHealthBarHovered(sf::Vector2f screenPos) const;
+
+    // A small panel just below the health bar showing the exact "current /
+    // max" reading. Only meaningful to call while isHealthBarHovered is true.
+    // Degrades like the rest of the HUD: with no font loaded, only the panel
+    // background shows.
+    void drawHealthTooltip(sf::RenderWindow& window, int health, int maxHealth);
+
+    // A floating "-N" text bound to the HUD's font, for Game to position and
+    // fade over its own lifetime as a damage popup. The returned sf::Text
+    // holds a pointer into this Hud's font (see the copy-ban note above) - it
+    // must not outlive it, which every Game outlives its Hud member never
+    // does. nullopt if no font is loaded, matching how the rest of the HUD
+    // degrades rather than drawing broken text.
+    std::optional<sf::Text> makeDamagePopupText(int amount) const;
 
     // The 3 rows of the bag beyond the hotbar (slots HOTBAR_SIZE..slotCount()-1),
     // shown only while the player has the inventory open.
@@ -225,6 +251,10 @@ private:
     std::vector<CachedText> paletteCounts;
     std::optional<CachedText> paletteName;
     std::optional<CachedText> dragCount;
+
+    // The health tooltip's "current / max" text. One instance, since only one
+    // is ever shown at a time.
+    std::optional<CachedText> healthTooltipText;
 
     // Strings that never change: built once, drawn as-is. Nothing to compare,
     // so these are plain texts rather than CachedText.

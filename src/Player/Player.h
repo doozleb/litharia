@@ -52,6 +52,11 @@ struct ActionResult
     bool placed = false;
     int placedX = 0;
     int placedY = 0;
+
+    // Actual health lost this tick (fall and/or lava), already clamped to
+    // what the player had left. 0 most ticks. Game reads this to spawn a
+    // floating damage popup.
+    int damageTaken = 0;
 };
 
 class Player
@@ -121,6 +126,11 @@ private:
     bool grounded = false;
     int hp = MAX_HEALTH;
     float lavaTimer = 0.0f;
+
+    // Actual health lost so far this tick, accumulated across every
+    // applyDamage call (fall, lava). Reset at the top of update() and copied
+    // into ActionResult::damageTaken before it returns.
+    int damageTakenThisTick = 0;
 
     // The Y position where the player was last resting on solid ground. Kept
     // up to date every grounded tick and left untouched while airborne, so it

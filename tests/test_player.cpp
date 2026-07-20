@@ -295,6 +295,61 @@ TEST_CASE("jumping and landing back at the same height deals no fall damage")
     CHECK(player.health() == Player::MAX_HEALTH);
 }
 
+TEST_CASE("ActionResult.damageTaken is 0 on a tick with no damage")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+    const ActionResult result = player.update({}, world, STEP);
+
+    CHECK(result.damageTaken == 0);
+}
+
+TEST_CASE("ActionResult reports the exact fall damage taken, on the landing tick")
+{
+    World world;
+    buildFloor(world, 100);
+
+    const float top = 100 * TILE_SIZE - Player::HEIGHT - 40.0f * TILE_SIZE;
+    Player player({20.0f * TILE_SIZE, top});
+
+    int reportedDamage = 0;
+    for (int i = 0; i < 2000 && !player.isGrounded(); ++i)
+    {
+        const ActionResult result = player.update({}, world, STEP);
+        if (result.damageTaken > 0)
+            reportedDamage = result.damageTaken;
+    }
+
+    REQUIRE(player.isGrounded());
+    // The popup value must match what actually happened to health, not just
+    // be nonzero - this is the exact number Game will show the player.
+    CHECK(reportedDamage == Player::MAX_HEALTH - player.health());
+    CHECK(reportedDamage > 0);
+}
+
+TEST_CASE("ActionResult reports the exact lava damage taken, on the hit tick")
+{
+    World world;
+    for (int x = 8; x <= 12; ++x)
+        for (int y = 10; y <= 16; ++y)
+            world.set(x, y, BlockType::Lava8);
+    for (int x = 8; x <= 12; ++x)
+        world.set(x, 17, BlockType::Stone);
+
+    Player player({10 * TILE_SIZE, 12 * TILE_SIZE});
+
+    int reportedDamage = 0;
+    for (int i = 0; i < 60 && reportedDamage == 0; ++i)
+    {
+        const ActionResult result = player.update({}, world, STEP);
+        reportedDamage = result.damageTaken;
+    }
+
+    CHECK(reportedDamage == 20);
+}
+
 TEST_CASE("respawn restores full health and position, and zeroes velocity")
 {
     World world;

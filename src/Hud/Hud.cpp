@@ -325,6 +325,8 @@ void Hud::buildTextCaches()
     dragCount->text().setOutlineThickness(2.0f);
     dragCount->text().setOutlineColor(sf::Color(10, 10, 12));
 
+    healthTooltipText.emplace(*font, COUNT_FONT_SIZE);
+
     depositLabel.emplace(*font, "Deposit All", 13);
     depositLabel->setFillColor(sf::Color::White);
 
@@ -377,14 +379,11 @@ void Hud::drawHealth(sf::RenderWindow& window, int health, int maxHealth)
     const sf::View previous = window.getView();
     window.setView(currentWindowView(window));
 
-    constexpr float BAR_WIDTH = 200.0f;
-    constexpr float BAR_HEIGHT = 18.0f;
-
     const float frac = maxHealth > 0
         ? std::clamp(static_cast<float>(health) / static_cast<float>(maxHealth), 0.0f, 1.0f)
         : 0.0f;
 
-    sf::RectangleShape back({BAR_WIDTH, BAR_HEIGHT});
+    sf::RectangleShape back({HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT});
     back.setPosition({MARGIN, MARGIN});
     back.setFillColor(sf::Color(40, 20, 20));
     back.setOutlineThickness(2.0f);
@@ -393,13 +392,73 @@ void Hud::drawHealth(sf::RenderWindow& window, int health, int maxHealth)
 
     if (frac > 0.0f)
     {
-        sf::RectangleShape fill({BAR_WIDTH * frac, BAR_HEIGHT});
+        sf::RectangleShape fill({HEALTH_BAR_WIDTH * frac, HEALTH_BAR_HEIGHT});
         fill.setPosition({MARGIN, MARGIN});
         fill.setFillColor(sf::Color(200, 50, 50));
         window.draw(fill);
     }
 
     window.setView(previous);
+}
+
+bool Hud::isHealthBarHovered(sf::Vector2f screenPos) const
+{
+    const sf::FloatRect bar({MARGIN, MARGIN}, {HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT});
+    return bar.contains(screenPos);
+}
+
+void Hud::drawHealthTooltip(sf::RenderWindow& window, int health, int maxHealth)
+{
+    const sf::View previous = window.getView();
+    window.setView(currentWindowView(window));
+
+    const std::string content = std::to_string(health) + " / " + std::to_string(maxHealth);
+
+    constexpr float PADDING = 8.0f;
+    constexpr float CHAR_WIDTH = 7.0f; // rough estimate; only sizes the background panel
+    constexpr float LINE_HEIGHT = 18.0f;
+    constexpr float GAP_BELOW_BAR = 6.0f;
+
+    const float width = static_cast<float>(content.size()) * CHAR_WIDTH + PADDING * 2.0f;
+    const float height = LINE_HEIGHT + PADDING * 2.0f;
+    const sf::Vector2f pos{MARGIN, MARGIN + HEALTH_BAR_HEIGHT + GAP_BELOW_BAR};
+
+    sf::RectangleShape panel({width, height});
+    panel.setPosition(pos);
+    panel.setFillColor(sf::Color(20, 20, 28, 220));
+    panel.setOutlineThickness(-1.0f);
+    panel.setOutlineColor(sf::Color(90, 90, 105));
+    window.draw(panel);
+
+    if (font && healthTooltipText)
+    {
+        sf::Text& text = healthTooltipText->with(content);
+        text.setFillColor(sf::Color::White);
+        text.setPosition({pos.x + PADDING, pos.y + PADDING});
+        window.draw(text);
+    }
+
+    window.setView(previous);
+}
+
+std::optional<sf::Text> Hud::makeDamagePopupText(int amount) const
+{
+    if (!font)
+        return std::nullopt;
+
+    constexpr unsigned int DAMAGE_POPUP_FONT_SIZE = 18;
+
+    sf::Text text(*font, "-" + std::to_string(amount), DAMAGE_POPUP_FONT_SIZE);
+    text.setFillColor(sf::Color(230, 60, 60));
+    text.setOutlineThickness(2.0f);
+    text.setOutlineColor(sf::Color(40, 10, 10));
+
+    // Centre horizontally on its spawn point rather than growing rightward
+    // from it, so "-5" and "-50" both sit centred over the same spot.
+    const sf::FloatRect bounds = text.getLocalBounds();
+    text.setOrigin({bounds.size.x / 2.0f, bounds.size.y / 2.0f});
+
+    return text;
 }
 
 void Hud::drawInventoryPanel(sf::RenderWindow& window, const Inventory& inventory)

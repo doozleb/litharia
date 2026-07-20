@@ -173,11 +173,15 @@ ActionResult Player::update(const PlayerInput& input, World& world, float dt,
 {
     ActionResult result;
 
+    damageTakenThisTick = 0;
+
     move(input, world, dt);
     applyLavaDamage(world, dt);
 
     mine(input, world, result, dt);
     place(input, world, machines, result);
+
+    result.damageTaken = damageTakenThisTick;
 
     return result;
 }
@@ -318,7 +322,9 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
 
 void Player::applyDamage(int amount)
 {
-    hp = std::max(0, hp - amount);
+    const int actual = std::clamp(amount, 0, hp);
+    hp -= actual;
+    damageTakenThisTick += actual;
 }
 
 void Player::applyLavaDamage(const World& world, float dt)

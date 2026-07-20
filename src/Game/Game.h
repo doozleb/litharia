@@ -73,6 +73,21 @@ private:
     sf::Vector2i cursorTile() const;
     void drawMachineTooltip();
 
+    // A floating "-N" that rises and fades near the player when they take
+    // damage. Position is world-space (it needs to drift with the world, not
+    // the screen) so it is drawn among the other world-space draws in
+    // render(), before the HUD's screen-space calls.
+    struct DamagePopup
+    {
+        sf::Text text;
+        sf::Vector2f worldPos;
+        float age = 0.0f;
+    };
+
+    void spawnDamagePopup(int amount);
+    void updateDamagePopups(float dt);
+    void drawDamagePopups();
+
     sf::RenderWindow window;
 
     World world;
@@ -83,6 +98,7 @@ private:
     Hud hud;
 
     std::vector<ItemEntity> drops;
+    std::vector<DamagePopup> damagePopups;
 
     float sharpRockRespawnTimer = 0.0f;
     int sharpRockSpawnCounter = 0;

@@ -33,6 +33,12 @@ constexpr float MAX_FRAME_TIME = 0.25f;
 // take it back down.
 constexpr float MINING_FURNITURE_SECONDS = 1.0f;
 
+// A damage popup rises this fast (world px/s) and is gone after this long -
+// shared by updateDamagePopups (aging/motion) and drawDamagePopups (the fade
+// curve), so the two can never disagree about when a popup has expired.
+constexpr float DAMAGE_POPUP_RISE_SPEED = 40.0f;
+constexpr float DAMAGE_POPUP_LIFETIME = 1.0f;
+
 sf::Color toColor(BlockColor c)
 {
     return sf::Color(c.r, c.g, c.b);
@@ -196,6 +202,53 @@ void Game::updateDrops(float dt)
     // A stack absorbed in full is gone; one that only partly fitted stays on the
     // ground holding its leftovers.
     std::erase_if(drops, [](const ItemEntity& drop) { return drop.stack().empty(); });
+}
+
+void Game::spawnDamagePopup(int amount)
+{
+    std::optional<sf::Text> text = hud.makeDamagePopupText(amount);
+
+    // Degrades like the rest of the HUD: with no font loaded, there is
+    // nothing sensible to draw, so no popup is tracked at all.
+    if (!text.has_value())
+        return;
+
+    const sf::Vector2f spawnPos{player.center().x, player.position().y - 10.0f};
+
+    damagePopups.push_back({std::move(*text), spawnPos});
+}
+
+void Game::updateDamagePopups(float dt)
+{
+    for (DamagePopup& popup : damagePopups)
+    {
+        popup.age += dt;
+        popup.worldPos.y -= DAMAGE_POPUP_RISE_SPEED * dt;
+    }
+
+    std::erase_if(damagePopups, [](const DamagePopup& p) { return p.age >= DAMAGE_POPUP_LIFETIME; });
+}
+
+void Game::drawDamagePopups()
+{
+    for (DamagePopup& popup : damagePopups)
+    {
+        // Fades out over its whole life rather than snapping away, so it
+        // reads as dissolving rather than disappearing.
+        const float alphaFrac = std::clamp(1.0f - popup.age / DAMAGE_POPUP_LIFETIME, 0.0f, 1.0f);
+        const std::uint8_t alpha = static_cast<std::uint8_t>(alphaFrac * 255.0f);
+
+        sf::Color fill = popup.text.getFillColor();
+        fill.a = alpha;
+        popup.text.setFillColor(fill);
+
+        sf::Color outline = popup.text.getOutlineColor();
+        outline.a = alpha;
+        popup.text.setOutlineColor(outline);
+
+        popup.text.setPosition(popup.worldPos);
+        window.draw(popup.text);
+    }
 }
 
 sf::Vector2i Game::cursorTile() const
@@ -864,6 +917,11 @@ void Game::fixedUpdate(float dt)
     const PlayerInput input = readInput();
     const ActionResult result = player.update(input, world, dt, &machines);
 
+    // Spawn at the position the hit landed, before a fatal hit's respawn (just
+    // below) moves the player away from it.
+    if (result.damageTaken > 0)
+        spawnDamagePopup(result.damageTaken);
+
     if (player.isDead())
     {
         player.respawn(findSpawn());
@@ -894,6 +952,7 @@ void Game::fixedUpdate(float dt)
     mineFurnitureAtCursor(input, dt);
 
     updateDrops(dt);
+    updateDamagePopups(dt);
     respawnSharpRocksIfNeeded(dt);
     tickMachines(dt);
     updateCrafting(dt);
@@ -982,8 +1041,14 @@ void Game::render()
 
     window.draw(body);
 
+    drawDamagePopups();
+
     hud.draw(window, player.inventory(), player.selectedSlot());
     hud.drawHealth(window, player.health(), Player::MAX_HEALTH);
+
+    const sf::Vector2f mouseScreenPos(sf::Mouse::getPosition(window));
+    if (hud.isHealthBarHovered(mouseScreenPos))
+        hud.drawHealthTooltip(window, player.health(), Player::MAX_HEALTH);
 
     if (buildMode)
         hud.drawBuildPalette(window, buildType, player.inventory());
