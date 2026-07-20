@@ -91,16 +91,16 @@ ItemType itemForMachine(MachineType type);
 // palette: Chest, Crafting Table, Furnace.
 bool isFurniture(MachineType type);
 
-// True for CopperDrill or IronDrill - the two speed tiers of the same machine.
+// True for any Drill speed tier (Copper/Iron/Obsidian).
 bool isDrill(MachineType type);
 
-// True for CopperBelt or IronBelt - the two speed tiers of the same machine.
+// True for any Belt speed tier (Copper/Iron/Obsidian).
 bool isBelt(MachineType type);
 
-// True for CopperChute or IronChute - the two speed tiers of the same machine.
+// True for any Chute speed tier (Copper/Iron/Obsidian).
 bool isChute(MachineType type);
 
-// True for CopperSmelter or IronSmelter - the two speed tiers of the same machine.
+// True for any Smelter speed tier (Copper/Iron/Obsidian).
 bool isSmelter(MachineType type);
 
 // "Copper Ore, Iron Ore, Coal" - one segment per entry, joined by ", ". An

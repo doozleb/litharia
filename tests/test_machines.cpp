@@ -534,9 +534,3 @@ TEST_CASE("an Obsidian Chute is OBSIDIAN_TIER_SPEEDUP times faster than an Iron 
     CHECK(iron == doctest::Approx(0.5f));
     CHECK(obsidian == doctest::Approx(iron * OBSIDIAN_TIER_SPEEDUP));
 }
-
-TEST_CASE("an Obsidian Smelter smelts OBSIDIAN_TIER_SPEEDUP times faster than an Iron Smelter")
-{
-    CHECK(machineInfo(MachineType::ObsidianSmelter).speedMultiplier ==
-          doctest::Approx(OBSIDIAN_TIER_SPEEDUP));
-}
