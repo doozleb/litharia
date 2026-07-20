@@ -108,3 +108,9 @@ int Lighting::blockLight(int x, int y) const
 
     return levels[static_cast<std::size_t>(y) * WORLD_WIDTH + x].block;
 }
+
+std::vector<std::pair<sf::Vector2i, int>> Lighting::heldTorchLight(const World& world,
+                                                                    sf::Vector2i source) const
+{
+    return floodFill(world, {LightSeed{source.x, source.y, 8}});
+}

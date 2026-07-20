@@ -156,3 +156,69 @@ TEST_CASE("blockLight and skyLight are 0 out of bounds")
     CHECK(lighting.skyLight(0, -1) == 0);
     CHECK(lighting.skyLight(0, WORLD_HEIGHT) == 0);
 }
+
+TEST_CASE("heldTorchLight lights its source at level 8 and decays by 1 per step")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+    world.set(9, 10, BlockType::Air);
+    world.set(8, 10, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    const auto result = lighting.heldTorchLight(world, {10, 10});
+
+    auto levelAt = [&](int x, int y) -> int
+    {
+        for (const auto& [tile, level] : result)
+            if (tile.x == x && tile.y == y)
+                return level;
+        return 0;
+    };
+
+    CHECK(levelAt(10, 10) == 8);
+    CHECK(levelAt(9, 10) == 7);
+    CHECK(levelAt(8, 10) == 6);
+}
+
+TEST_CASE("heldTorchLight is blocked by solid tiles, same as a placed Torch")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+    // (11, 10) stays Stone: solid, unreachable.
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    const auto result = lighting.heldTorchLight(world, {10, 10});
+
+    for (const auto& [tile, level] : result)
+    {
+        if (tile.x == 11 && tile.y == 10)
+            CHECK(false);
+    }
+}
+
+TEST_CASE("heldTorchLight never writes to the stored grid")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+    world.set(9, 10, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    lighting.heldTorchLight(world, {10, 10});
+
+    // No Torch or Lava anywhere in this world, so the stored grid must still
+    // read 0 - heldTorchLight is a pure query, not a mutation.
+    CHECK(lighting.blockLight(10, 10) == 0);
+    CHECK(lighting.blockLight(9, 10) == 0);
+}

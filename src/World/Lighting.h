@@ -48,6 +48,17 @@ public:
     int skyLight(int x, int y) const;   // 0-8; 0 out of bounds
     int blockLight(int x, int y) const; // 0-8; 0 out of bounds
 
+    // A single-source flood fill from `source` at level 8 - the same
+    // brightness and decay/occlusion rule as a placed Torch's own
+    // blockLight, but computed fresh every call rather than stored in
+    // `levels`. Used for the player's held Torch, which moves with them
+    // every frame: naturally bounded to within 8 steps of `source` (the seed
+    // starts at level 8 and floodFill's decay reaches 0 by then), so this
+    // stays cheap enough to call once a frame without forcing a full
+    // recompute.
+    std::vector<std::pair<sf::Vector2i, int>> heldTorchLight(const World& world,
+                                                              sf::Vector2i source) const;
+
 private:
     struct LightSeed
     {
