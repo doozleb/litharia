@@ -55,6 +55,7 @@ TEST_CASE("the machine registry has a valid row per type")
     CHECK(machineInfo(MachineType::ObsidianBelt).transport); // <-- new line
     CHECK(machineInfo(MachineType::CopperChute).transport);
     CHECK(machineInfo(MachineType::IronChute).transport);
+    CHECK(machineInfo(MachineType::ObsidianChute).transport); // <-- new line
 }
 
 TEST_CASE("a default machine is empty")
@@ -229,10 +230,11 @@ TEST_CASE("itemForMachine maps every placeable machine to its own item")
     CHECK(itemForMachine(MachineType::CraftingTable) == ItemType::CraftingTable);
 }
 
-TEST_CASE("itemForMachine maps both Chute tiers to their own item")
+TEST_CASE("itemForMachine maps every Chute tier to its own item")
 {
     CHECK(itemForMachine(MachineType::CopperChute) == ItemType::CopperChute);
     CHECK(itemForMachine(MachineType::IronChute) == ItemType::IronChute);
+    CHECK(itemForMachine(MachineType::ObsidianChute) == ItemType::ObsidianChute);
 }
 
 TEST_CASE("itemForMachine(None) has no matching item")
@@ -375,6 +377,7 @@ TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
     CHECK_FALSE(isFurniture(MachineType::ObsidianBelt)); // <-- new line
     CHECK_FALSE(isFurniture(MachineType::CopperChute));
     CHECK_FALSE(isFurniture(MachineType::IronChute));
+    CHECK_FALSE(isFurniture(MachineType::ObsidianChute)); // <-- new line
     CHECK_FALSE(isFurniture(MachineType::CopperSmelter));
     CHECK_FALSE(isFurniture(MachineType::IronSmelter));
 
@@ -474,10 +477,11 @@ TEST_CASE("a Copper Chute is COPPER_TIER_SLOWDOWN times slower than an Iron Chut
     CHECK(copper == doctest::Approx(iron * COPPER_TIER_SLOWDOWN));
 }
 
-TEST_CASE("isChute is true for exactly Copper Chute and Iron Chute")
+TEST_CASE("isChute is true for exactly Copper Chute, Iron Chute, and Obsidian Chute")
 {
     CHECK(isChute(MachineType::CopperChute));
     CHECK(isChute(MachineType::IronChute));
+    CHECK(isChute(MachineType::ObsidianChute));
     CHECK_FALSE(isChute(MachineType::None));
     CHECK_FALSE(isChute(MachineType::IronBelt));
 }
@@ -514,5 +518,14 @@ TEST_CASE("an Obsidian Drill is OBSIDIAN_TIER_SPEEDUP times faster than an Iron 
     const float obsidian = machineInfo(MachineType::ObsidianDrill).actionTime;
 
     CHECK(iron == doctest::Approx(3.0f));
+    CHECK(obsidian == doctest::Approx(iron * OBSIDIAN_TIER_SPEEDUP));
+}
+
+TEST_CASE("an Obsidian Chute is OBSIDIAN_TIER_SPEEDUP times faster than an Iron Chute")
+{
+    const float iron = machineInfo(MachineType::IronChute).actionTime;
+    const float obsidian = machineInfo(MachineType::ObsidianChute).actionTime;
+
+    CHECK(iron == doctest::Approx(0.5f));
     CHECK(obsidian == doctest::Approx(iron * OBSIDIAN_TIER_SPEEDUP));
 }

@@ -50,6 +50,7 @@ bool isOutputSide(const Machine& m, Direction side)
 
         case MachineType::CopperChute:
         case MachineType::IronChute:
+        case MachineType::ObsidianChute:
             return side == Direction::Down;
 
         default:

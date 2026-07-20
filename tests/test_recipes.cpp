@@ -56,6 +56,7 @@ TEST_CASE("every placeable machine has a matching craftable item")
     CHECK(itemInfo(ItemType::ObsidianBelt).name == "Obsidian Belt"); // <-- new line
     CHECK(itemInfo(ItemType::CopperChute).name == "Copper Chute");
     CHECK(itemInfo(ItemType::IronChute).name == "Iron Chute");
+    CHECK(itemInfo(ItemType::ObsidianChute).name == "Obsidian Chute"); // <-- new line
     CHECK(itemInfo(ItemType::CopperSmelter).name == "Copper Smelter");
     CHECK(itemInfo(ItemType::IronSmelter).name == "Iron Smelter");
     CHECK(itemInfo(ItemType::Chest).name == "Chest");
@@ -66,7 +67,7 @@ TEST_CASE("every placeable machine has a matching craftable item")
 TEST_CASE("allCraftRecipes exposes every craftable item exactly once")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
-    CHECK(all.size() == 24);
+    CHECK(all.size() == 25);
 }
 
 TEST_CASE("the Chest recipe costs 8 oak logs and 2 copper plates")
@@ -441,6 +442,21 @@ TEST_CASE("the Obsidian Belt recipe costs 2 obsidian and 2 stone, no plate neede
     CHECK(it->requiresCraftingTable);
     CHECK(it->ingredients[0].item == ItemType::Obsidian);
     CHECK(it->ingredients[0].count == 2);
+    CHECK(it->ingredients[1].item == ItemType::Stone);
+    CHECK(it->ingredients[1].count == 2);
+    CHECK(it->seconds == doctest::Approx(1.0f));
+}
+
+TEST_CASE("the Obsidian Chute recipe costs 1 obsidian and 2 stone, no plate needed")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::ObsidianChute; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Obsidian);
+    CHECK(it->ingredients[0].count == 1);
     CHECK(it->ingredients[1].item == ItemType::Stone);
     CHECK(it->ingredients[1].count == 2);
     CHECK(it->seconds == doctest::Approx(1.0f));
