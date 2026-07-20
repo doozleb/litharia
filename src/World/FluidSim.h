@@ -30,13 +30,11 @@ class FluidSim
 {
 public:
     // Seconds between simulation steps - independent of the 60Hz physics step,
-    // so flow reads as a visible process rather than an instant teleport. Tuned
-    // to 4x the original 0.1s: the settle rule moves one fluid unit per tile
-    // per step, so tick rate is what "speed" means here - ticking 4x more often
-    // settles a pool 4x faster in real time without changing the conservative,
-    // convergent move logic at all (CPU cost is trivial either way; a step
-    // averages well under a millisecond).
-    static constexpr float TICK_INTERVAL = 0.025f;
+    // so flow reads as a visible process rather than an instant teleport. The
+    // settle rule moves one fluid unit per tile per step, so tick rate is what
+    // "speed" means here (CPU cost is trivial either way; a step averages well
+    // under a millisecond).
+    static constexpr float TICK_INTERVAL = 0.05f;
 
     // Lava flows on one in every this-many steps; water flows every step. This
     // is the whole of "lava moves slower than water".
