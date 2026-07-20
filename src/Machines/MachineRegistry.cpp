@@ -21,6 +21,7 @@ constexpr std::array<MachineInfo, static_cast<std::size_t>(MachineType::Count)> 
     {"Obsidian Chute",    { 75,  55,  90}, false, false, true,  0.0f,  0.5f * OBSIDIAN_TIER_SPEEDUP,   1, 1},
     {"Copper Smelter",    {201, 103,  63}, false, true,  false, 5.0f,  0.0f, 1, 1, COPPER_TIER_SLOWDOWN},
     {"Iron Smelter",      {183, 132, 130}, false, true,  false, 5.0f,  0.0f, 1, 1, 1.0f},
+    {"Obsidian Smelter",  { 95,  65, 100}, false, true,  false, 5.0f,  0.0f, 1, 1, OBSIDIAN_TIER_SPEEDUP},
     {"Chest",             {140,  95,  50}, false, false, false, 0.0f,  0.0f,  1, 1},
     {"Crafting Table",    {120,  80,  40}, false, false, false, 0.0f,  0.0f,  2, 1},
     {"Furnace",           {110, 110, 115}, false, false, false, 0.0f,  0.0f,  2, 2},
@@ -70,6 +71,7 @@ ItemType itemForMachine(MachineType type)
         case MachineType::ObsidianChute:   return ItemType::ObsidianChute;
         case MachineType::CopperSmelter:   return ItemType::CopperSmelter;
         case MachineType::IronSmelter:     return ItemType::IronSmelter;
+        case MachineType::ObsidianSmelter: return ItemType::ObsidianSmelter;
         case MachineType::Chest:           return ItemType::Chest;
         case MachineType::CraftingTable:   return ItemType::CraftingTable;
         case MachineType::Furnace:         return ItemType::Furnace;
@@ -104,5 +106,6 @@ bool isChute(MachineType type)
 
 bool isSmelter(MachineType type)
 {
-    return type == MachineType::CopperSmelter || type == MachineType::IronSmelter;
+    return type == MachineType::CopperSmelter || type == MachineType::IronSmelter
+        || type == MachineType::ObsidianSmelter;
 }

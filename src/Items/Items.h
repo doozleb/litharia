@@ -45,6 +45,7 @@ enum class ItemType : std::uint8_t
     ObsidianChute,
     CopperSmelter,
     IronSmelter,
+    ObsidianSmelter,
     Chest,
     Furnace,
     ItemAcceptor,

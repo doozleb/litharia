@@ -118,3 +118,20 @@ TEST_CASE("a copper belt never shows a bar")
 
     CHECK(barStatus(m).bar == MachineBar::None);
 }
+
+TEST_CASE("an Obsidian Smelter mid-smelt shows progress against recipe seconds times its own multiplier")
+{
+    Machine m;
+    m.type = MachineType::ObsidianSmelter;
+    m.input = {ItemType::CopperOre, 1};
+
+    const SmeltRecipe* recipe = smeltRecipeFor(ItemType::CopperOre);
+    REQUIRE(recipe != nullptr);
+    const float fullTime = recipe->seconds * machineInfo(MachineType::ObsidianSmelter).speedMultiplier;
+    m.progress = fullTime * 0.5f;
+
+    const MachineStatus status = barStatus(m);
+
+    CHECK(status.bar == MachineBar::Progress);
+    CHECK(status.fraction == doctest::Approx(0.5f));
+}

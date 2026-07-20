@@ -43,6 +43,7 @@ constexpr std::array<ItemInfo, static_cast<std::size_t>(ItemType::Count)> regist
     {"Obsidian Chute",    50,  BlockType::Air,       ToolType::None,    { 75,  55,  90}},
     {"Copper Smelter",    10,  BlockType::Air,       ToolType::None,    {201, 103,  63}},
     {"Iron Smelter",      10,  BlockType::Air,       ToolType::None,    {183, 132, 130}},
+    {"Obsidian Smelter",  10,  BlockType::Air,       ToolType::None,    { 95,  65, 100}},
     {"Chest",            10,  BlockType::Air,       ToolType::None,    {140,  95,  50}},
     {"Furnace",          10,  BlockType::Air,       ToolType::None,    {110, 110, 115}},
     {"Item Acceptor",    10,  BlockType::Air,       ToolType::None,    { 80, 140, 190}},

@@ -47,6 +47,7 @@ enum class MachineType : std::uint8_t
     ObsidianChute,
     CopperSmelter,
     IronSmelter,
+    ObsidianSmelter,
     Chest,
     CraftingTable,
     Furnace,

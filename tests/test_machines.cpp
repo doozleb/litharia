@@ -48,6 +48,7 @@ TEST_CASE("the machine registry has a valid row per type")
     CHECK(machineInfo(MachineType::ObsidianDrill).consumer); // <-- new line
     CHECK(machineInfo(MachineType::CopperSmelter).consumer);
     CHECK(machineInfo(MachineType::IronSmelter).consumer);
+    CHECK(machineInfo(MachineType::ObsidianSmelter).consumer);
 
     // Transport machines move items and are neither source nor sink of power.
     CHECK(machineInfo(MachineType::CopperBelt).transport);
@@ -226,6 +227,7 @@ TEST_CASE("itemForMachine maps every placeable machine to its own item")
     CHECK(itemForMachine(MachineType::IronChute) == ItemType::IronChute);
     CHECK(itemForMachine(MachineType::CopperSmelter) == ItemType::CopperSmelter);
     CHECK(itemForMachine(MachineType::IronSmelter) == ItemType::IronSmelter);
+    CHECK(itemForMachine(MachineType::ObsidianSmelter) == ItemType::ObsidianSmelter);
     CHECK(itemForMachine(MachineType::Chest) == ItemType::Chest);
     CHECK(itemForMachine(MachineType::CraftingTable) == ItemType::CraftingTable);
 }
@@ -380,6 +382,7 @@ TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
     CHECK_FALSE(isFurniture(MachineType::ObsidianChute)); // <-- new line
     CHECK_FALSE(isFurniture(MachineType::CopperSmelter));
     CHECK_FALSE(isFurniture(MachineType::IronSmelter));
+    CHECK_FALSE(isFurniture(MachineType::ObsidianSmelter));
 
     CHECK(isFurniture(MachineType::Chest));
     CHECK(isFurniture(MachineType::CraftingTable));
@@ -486,10 +489,11 @@ TEST_CASE("isChute is true for exactly Copper Chute, Iron Chute, and Obsidian Ch
     CHECK_FALSE(isChute(MachineType::IronBelt));
 }
 
-TEST_CASE("Copper Smelter and Iron Smelter carry the expected speedMultiplier")
+TEST_CASE("Copper, Iron, and Obsidian Smelters carry the expected speedMultiplier")
 {
     CHECK(machineInfo(MachineType::IronSmelter).speedMultiplier == doctest::Approx(1.0f));
     CHECK(machineInfo(MachineType::CopperSmelter).speedMultiplier == doctest::Approx(COPPER_TIER_SLOWDOWN));
+    CHECK(machineInfo(MachineType::ObsidianSmelter).speedMultiplier == doctest::Approx(OBSIDIAN_TIER_SPEEDUP));
 }
 
 TEST_CASE("every non-Smelter machine defaults to a speedMultiplier of 1.0")
@@ -504,10 +508,11 @@ TEST_CASE("every non-Smelter machine defaults to a speedMultiplier of 1.0")
     }
 }
 
-TEST_CASE("isSmelter is true for exactly Copper Smelter and Iron Smelter")
+TEST_CASE("isSmelter is true for exactly Copper Smelter, Iron Smelter, and Obsidian Smelter")
 {
     CHECK(isSmelter(MachineType::CopperSmelter));
     CHECK(isSmelter(MachineType::IronSmelter));
+    CHECK(isSmelter(MachineType::ObsidianSmelter));
     CHECK_FALSE(isSmelter(MachineType::None));
     CHECK_FALSE(isSmelter(MachineType::IronDrill));
 }
@@ -528,4 +533,10 @@ TEST_CASE("an Obsidian Chute is OBSIDIAN_TIER_SPEEDUP times faster than an Iron 
 
     CHECK(iron == doctest::Approx(0.5f));
     CHECK(obsidian == doctest::Approx(iron * OBSIDIAN_TIER_SPEEDUP));
+}
+
+TEST_CASE("an Obsidian Smelter smelts OBSIDIAN_TIER_SPEEDUP times faster than an Iron Smelter")
+{
+    CHECK(machineInfo(MachineType::ObsidianSmelter).speedMultiplier ==
+          doctest::Approx(OBSIDIAN_TIER_SPEEDUP));
 }

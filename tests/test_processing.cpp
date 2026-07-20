@@ -316,3 +316,40 @@ TEST_CASE("an Obsidian Drill takes OBSIDIAN_TIER_SPEEDUP times less time to mine
     CHECK_FALSE(obsidianMachines.at(1, 0)->output.empty());
     CHECK(ironMachines.at(1, 0)->output.empty());
 }
+
+TEST_CASE("an Obsidian Smelter finishes a recipe in less time than an Iron Smelter")
+{
+    World world;
+
+    Machines ironMachines;
+    ironMachines.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    ironMachines.place(MachineType::IronSmelter, 1, 0, Direction::Right);
+    REQUIRE(ironMachines.tryInsert(0, 0, ItemType::Coal));
+    REQUIRE(ironMachines.tryInsert(1, 0, ItemType::CopperOre));
+
+    Machines obsidianMachines;
+    obsidianMachines.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    obsidianMachines.place(MachineType::ObsidianSmelter, 1, 0, Direction::Right);
+    REQUIRE(obsidianMachines.tryInsert(0, 0, ItemType::Coal));
+    REQUIRE(obsidianMachines.tryInsert(1, 0, ItemType::CopperOre));
+
+    const SmeltRecipe* recipe = smeltRecipeFor(ItemType::CopperOre);
+    REQUIRE(recipe != nullptr);
+
+    const float obsidianTime = recipe->seconds * machineInfo(MachineType::ObsidianSmelter).speedMultiplier;
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+
+    // Comfortably past the Obsidian Smelter's own (shorter) time, but well
+    // short of the Iron Smelter's: Obsidian is done, Iron is not yet.
+    const int obsidianTicks = static_cast<int>((obsidianTime + 0.2f) / step);
+    for (int i = 0; i < obsidianTicks; ++i)
+    {
+        ironMachines.tick(world, step, mined);
+        obsidianMachines.tick(world, step, mined);
+    }
+
+    CHECK_FALSE(obsidianMachines.at(1, 0)->output.empty());
+    CHECK(ironMachines.at(1, 0)->output.empty());
+}
