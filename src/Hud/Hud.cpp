@@ -799,7 +799,7 @@ void Hud::drawMachineTooltip(sf::RenderWindow& window,
 }
 
 void Hud::drawCraftPanel(sf::RenderWindow& window, const Inventory& bag, bool advanced, bool crafting,
-                          int craftingRecipeIndex, float craftProgress)
+                          int craftingRecipeIndex, float craftProgress, int scrollOffset)
 {
     const sf::View previous = window.getView();
     window.setView(currentWindowView(window));
@@ -807,15 +807,20 @@ void Hud::drawCraftPanel(sf::RenderWindow& window, const Inventory& bag, bool ad
     const std::span<const CraftRecipe> all = allCraftRecipes();
     const sf::Vector2f origin = craftPanelOrigin(sf::Vector2f(window.getSize()));
 
-    int row = 0;
+    int matchIndex = -1;
     for (std::size_t i = 0; i < all.size(); ++i)
     {
         if (all[i].requiresCraftingTable != advanced)
             continue;
 
+        ++matchIndex;
+
+        const int row = matchIndex - scrollOffset;
+        if (row < 0 || row >= CRAFT_PANEL_VISIBLE_ROWS)
+            continue;
+
         const CraftRecipe& recipe = all[i];
         const sf::Vector2f pos{origin.x, origin.y + row * (CRAFT_BUTTON_HEIGHT + SLOT_GAP)};
-        ++row;
 
         bool affordable = true;
         for (const CraftIngredient& ing : recipe.ingredients)
@@ -854,20 +859,25 @@ void Hud::drawCraftPanel(sf::RenderWindow& window, const Inventory& bag, bool ad
     window.setView(previous);
 }
 
-std::optional<int> Hud::hitTestCraftButton(sf::Vector2f screenPos, sf::Vector2f windowSize,
-                                            bool advanced) const
+std::optional<int> Hud::hitTestCraftButton(sf::Vector2f screenPos, sf::Vector2f windowSize, bool advanced,
+                                            int scrollOffset) const
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
     const sf::Vector2f origin = craftPanelOrigin(windowSize);
 
-    int row = 0;
+    int matchIndex = -1;
     for (std::size_t i = 0; i < all.size(); ++i)
     {
         if (all[i].requiresCraftingTable != advanced)
             continue;
 
+        ++matchIndex;
+
+        const int row = matchIndex - scrollOffset;
+        if (row < 0 || row >= CRAFT_PANEL_VISIBLE_ROWS)
+            continue;
+
         const sf::Vector2f pos{origin.x, origin.y + row * (CRAFT_BUTTON_HEIGHT + SLOT_GAP)};
-        ++row;
 
         const sf::FloatRect rect(pos, {CRAFT_BUTTON_WIDTH, CRAFT_BUTTON_HEIGHT});
         if (rect.contains(screenPos))
@@ -875,6 +885,18 @@ std::optional<int> Hud::hitTestCraftButton(sf::Vector2f screenPos, sf::Vector2f 
     }
 
     return std::nullopt;
+}
+
+int Hud::craftRecipeCount(bool advanced)
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+
+    int count = 0;
+    for (const CraftRecipe& recipe : all)
+        if (recipe.requiresCraftingTable == advanced)
+            ++count;
+
+    return count;
 }
 
 void Hud::drawSmeltPanel(sf::RenderWindow& window, const Inventory& bag, bool smelting,

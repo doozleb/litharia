@@ -493,6 +493,7 @@ void Game::toggleInventory()
         openStorageTile.reset();
         openCraftingTableTile.reset();
         openFurnaceTile.reset();
+        craftPanelScroll = 0;
         return;
     }
 
@@ -502,6 +503,7 @@ void Game::toggleInventory()
     openStorageTile.reset();
     openCraftingTableTile.reset();
     openFurnaceTile.reset();
+    craftPanelScroll = 0;
 
     if (machine != nullptr
         && (machine->type == MachineType::Chest || machine->type == MachineType::ItemAcceptor))
@@ -558,7 +560,7 @@ void Game::drawInventoryPanels()
     else
     {
         hud.drawCraftPanel(window, player.inventory(), openCraftingTableTile.has_value(), crafting,
-                            craftingRecipeIndex, craftProgress);
+                            craftingRecipeIndex, craftProgress, craftPanelScroll);
     }
 }
 
@@ -667,6 +669,14 @@ void Game::collectAllFromStorage()
         if (leftover > 0)
             storage.exchange(i, {taken.type, leftover});
     }
+}
+
+void Game::scrollCraftPanel(int delta)
+{
+    const int count = Hud::craftRecipeCount(openCraftingTableTile.has_value());
+    const int maxScroll = std::max(0, count - Hud::CRAFT_PANEL_VISIBLE_ROWS);
+
+    craftPanelScroll = std::clamp(craftPanelScroll + delta, 0, maxScroll);
 }
 
 void Game::startCraft(int recipeIndex)
@@ -838,7 +848,12 @@ void Game::handleEvents()
         }
         else if (const auto* scroll = event->getIf<sf::Event::MouseWheelScrolled>())
         {
-            if (buildMode)
+            const bool craftPanelShown =
+                inventoryOpen && !openStorageTile.has_value() && !openFurnaceTile.has_value();
+
+            if (craftPanelShown)
+                scrollCraftPanel(scroll->delta > 0.0f ? -1 : 1);
+            else if (buildMode)
                 cycleBuildType(scroll->delta > 0.0f ? -1 : 1);
             else
                 // Scroll up moves toward slot 1, scroll down toward slot 0.
@@ -920,8 +935,8 @@ void Game::handleEvents()
                 }
                 else
                 {
-                    const auto craftHit =
-                        hud.hitTestCraftButton(screenPos, windowSize, openCraftingTableTile.has_value());
+                    const auto craftHit = hud.hitTestCraftButton(
+                        screenPos, windowSize, openCraftingTableTile.has_value(), craftPanelScroll);
 
                     if (craftHit.has_value())
                         startCraft(*craftHit);

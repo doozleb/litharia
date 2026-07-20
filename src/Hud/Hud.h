@@ -87,6 +87,11 @@ public:
     static constexpr float CRAFT_BUTTON_WIDTH = 240.0f;
     static constexpr float CRAFT_BUTTON_HEIGHT = 40.0f;
 
+    // At most this many recipe buttons show at once - the advanced (table)
+    // recipe list is long enough to run off the bottom of the window
+    // otherwise. Game scrolls through the rest via craftPanelScroll.
+    static constexpr int CRAFT_PANEL_VISIBLE_ROWS = 8;
+
     // The health bar's fixed size, top-left. Shared between drawHealth (which
     // draws it) and isHealthBarHovered (which hit-tests the same rect), so the
     // two can never disagree about where the bar actually is.
@@ -175,16 +180,25 @@ public:
     // Crafting Table; advanced: every recipe that requires one), each showing
     // its name and ingredient cost. Every button renders dimmed/disabled while
     // `crafting` is true (one craft at a time); the in-progress one additionally
-    // shows a fill bar for craftProgress / that recipe's seconds.
+    // shows a fill bar for craftProgress / that recipe's seconds. Only
+    // CRAFT_PANEL_VISIBLE_ROWS matching recipes starting at `scrollOffset`
+    // are drawn - Game owns and clamps the scroll position.
     void drawCraftPanel(sf::RenderWindow& window, const Inventory& bag, bool advanced, bool crafting,
-                         int craftingRecipeIndex, float craftProgress);
+                         int craftingRecipeIndex, float craftProgress, int scrollOffset);
 
     // Screen position -> index into allCraftRecipes() for the button it lands
-    // on, filtered identically to drawCraftPanel (same order, same `advanced`
-    // split) so drawing and hit-testing can never disagree. nullopt if the
-    // point misses every button.
-    std::optional<int> hitTestCraftButton(sf::Vector2f screenPos, sf::Vector2f windowSize,
-                                           bool advanced) const;
+    // on, filtered and scrolled identically to drawCraftPanel (same order,
+    // same `advanced` split, same `scrollOffset`) so drawing and hit-testing
+    // can never disagree. nullopt if the point misses every visible button.
+    std::optional<int> hitTestCraftButton(sf::Vector2f screenPos, sf::Vector2f windowSize, bool advanced,
+                                           int scrollOffset) const;
+
+    // How many defined recipes currently match `advanced` (basic: just the
+    // Crafting Table; advanced: every recipe that requires one) - what
+    // scrollOffset is clamped against. Shared by drawCraftPanel,
+    // hitTestCraftButton, and Game's scroll-wheel handler so none of the
+    // three can disagree about the list's true length.
+    static int craftRecipeCount(bool advanced);
 
     // The Furnace's manual-smelting panel: one button per FurnaceRecipe
     // (always both ore->plate conversions - no basic/advanced split, since

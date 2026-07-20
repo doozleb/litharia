@@ -71,6 +71,7 @@ private:
     void collectAllFromStorage();
     void startCraft(int recipeIndex);
     void updateCrafting(float dt);
+    void scrollCraftPanel(int delta);
     void startSmelt(int recipeIndex);
     void updateSmelting(float dt);
     sf::Vector2i cursorTile() const;
@@ -129,6 +130,11 @@ private:
     std::optional<sf::Vector2i> openStorageTile;
     std::optional<sf::Vector2i> openCraftingTableTile;
     std::optional<sf::Vector2i> openFurnaceTile;
+
+    // How many rows scrolled into the craft panel's recipe list (see
+    // Hud::CRAFT_PANEL_VISIBLE_ROWS) - reset whenever the inventory closes,
+    // clamped on every scroll-wheel tick against Hud::craftRecipeCount.
+    int craftPanelScroll = 0;
 
     bool smelting = false;
     int smeltingRecipeIndex = -1;
