@@ -14,7 +14,8 @@ constexpr std::array<MachineInfo, static_cast<std::size_t>(MachineType::Count)> 
     {"Iron Drill",        {158, 162, 175}, false, true,  false, 5.0f,  3.0f,                          1, 1},
     {"Obsidian Drill",    { 90,  70, 100}, false, true,  false, 5.0f,  3.0f * OBSIDIAN_TIER_SPEEDUP,   1, 1},
     {"Copper Belt",       {146, 103,  78}, false, false, true,  0.0f,  0.5f * COPPER_TIER_SLOWDOWN, 1, 1},
-    {"Iron Belt",         {128, 132, 145}, false, false, true,  0.0f,  0.5f,                         1, 1},
+    {"Iron Belt",         {128, 132, 145}, false, false, true,  0.0f,  0.5f,                          1, 1},
+    {"Obsidian Belt",     { 80,  60,  95}, false, false, true,  0.0f,  0.5f * OBSIDIAN_TIER_SPEEDUP,   1, 1},
     {"Copper Chute",      {136,  93,  68}, false, false, true,  0.0f,  0.5f * COPPER_TIER_SLOWDOWN, 1, 1},
     {"Iron Chute",        {118, 122, 135}, false, false, true,  0.0f,  0.5f,                         1, 1},
     {"Copper Smelter",    {201, 103,  63}, false, true,  false, 5.0f,  0.0f, 1, 1, COPPER_TIER_SLOWDOWN},
@@ -62,6 +63,7 @@ ItemType itemForMachine(MachineType type)
         case MachineType::ObsidianDrill:   return ItemType::ObsidianDrill;
         case MachineType::CopperBelt:      return ItemType::CopperBelt;
         case MachineType::IronBelt:        return ItemType::IronBelt;
+        case MachineType::ObsidianBelt:    return ItemType::ObsidianBelt;
         case MachineType::CopperChute:     return ItemType::CopperChute;
         case MachineType::IronChute:       return ItemType::IronChute;
         case MachineType::CopperSmelter:   return ItemType::CopperSmelter;
@@ -88,7 +90,8 @@ bool isDrill(MachineType type)
 
 bool isBelt(MachineType type)
 {
-    return type == MachineType::CopperBelt || type == MachineType::IronBelt;
+    return type == MachineType::CopperBelt || type == MachineType::IronBelt
+        || type == MachineType::ObsidianBelt;
 }
 
 bool isChute(MachineType type)

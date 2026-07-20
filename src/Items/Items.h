@@ -39,6 +39,7 @@ enum class ItemType : std::uint8_t
     ObsidianDrill,
     CopperBelt,
     IronBelt,
+    ObsidianBelt,
     CopperChute,
     IronChute,
     CopperSmelter,

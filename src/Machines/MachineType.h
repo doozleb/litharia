@@ -41,6 +41,7 @@ enum class MachineType : std::uint8_t
     ObsidianDrill,
     CopperBelt,
     IronBelt,
+    ObsidianBelt,
     CopperChute,
     IronChute,
     CopperSmelter,

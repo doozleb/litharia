@@ -52,6 +52,7 @@ TEST_CASE("the machine registry has a valid row per type")
     // Transport machines move items and are neither source nor sink of power.
     CHECK(machineInfo(MachineType::CopperBelt).transport);
     CHECK(machineInfo(MachineType::IronBelt).transport);
+    CHECK(machineInfo(MachineType::ObsidianBelt).transport); // <-- new line
     CHECK(machineInfo(MachineType::CopperChute).transport);
     CHECK(machineInfo(MachineType::IronChute).transport);
 }
@@ -219,6 +220,7 @@ TEST_CASE("itemForMachine maps every placeable machine to its own item")
     CHECK(itemForMachine(MachineType::ObsidianDrill) == ItemType::ObsidianDrill); // <-- new line
     CHECK(itemForMachine(MachineType::CopperBelt) == ItemType::CopperBelt);
     CHECK(itemForMachine(MachineType::IronBelt) == ItemType::IronBelt);
+    CHECK(itemForMachine(MachineType::ObsidianBelt) == ItemType::ObsidianBelt); // <-- new line
     CHECK(itemForMachine(MachineType::CopperChute) == ItemType::CopperChute);
     CHECK(itemForMachine(MachineType::IronChute) == ItemType::IronChute);
     CHECK(itemForMachine(MachineType::CopperSmelter) == ItemType::CopperSmelter);
@@ -370,6 +372,7 @@ TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
     CHECK_FALSE(isFurniture(MachineType::ObsidianDrill)); // <-- new line
     CHECK_FALSE(isFurniture(MachineType::CopperBelt));
     CHECK_FALSE(isFurniture(MachineType::IronBelt));
+    CHECK_FALSE(isFurniture(MachineType::ObsidianBelt)); // <-- new line
     CHECK_FALSE(isFurniture(MachineType::CopperChute));
     CHECK_FALSE(isFurniture(MachineType::IronChute));
     CHECK_FALSE(isFurniture(MachineType::CopperSmelter));
@@ -442,10 +445,20 @@ TEST_CASE("a Copper Belt is COPPER_TIER_SLOWDOWN times slower than an Iron Belt"
     CHECK(copper == doctest::Approx(iron * COPPER_TIER_SLOWDOWN));
 }
 
-TEST_CASE("isBelt is true for exactly Copper Belt and Iron Belt")
+TEST_CASE("an Obsidian Belt is OBSIDIAN_TIER_SPEEDUP times faster than an Iron Belt")
+{
+    const float iron = machineInfo(MachineType::IronBelt).actionTime;
+    const float obsidian = machineInfo(MachineType::ObsidianBelt).actionTime;
+
+    CHECK(iron == doctest::Approx(0.5f));
+    CHECK(obsidian == doctest::Approx(iron * OBSIDIAN_TIER_SPEEDUP));
+}
+
+TEST_CASE("isBelt is true for exactly Copper Belt, Iron Belt, and Obsidian Belt")
 {
     CHECK(isBelt(MachineType::CopperBelt));
     CHECK(isBelt(MachineType::IronBelt));
+    CHECK(isBelt(MachineType::ObsidianBelt));
     CHECK_FALSE(isBelt(MachineType::None));
     CHECK_FALSE(isBelt(MachineType::CopperChute));
     CHECK_FALSE(isBelt(MachineType::IronChute));
