@@ -126,12 +126,22 @@ TEST_CASE("a column blocked from the surface gets no direct sky seed of its own"
     world.set(10, 4, BlockType::Air);
     // (10, 5) onward stays Stone.
 
+    // An isolated open tile further down the same column, walled off on
+    // every side - this is what actually distinguishes a correct top-down
+    // scan that stops (break) at the first solid tile from a buggy one that
+    // skips past it (continue): a `continue` bug would keep scanning down
+    // this column and wrongly seed this tile directly at level 8, since it
+    // has no path back to the open shaft above and no other reachable
+    // source, so anything other than 0 here proves the scan is over-seeding.
+    world.set(10, 10, BlockType::Air);
+
     Machines machines;
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
     CHECK(lighting.skyLight(10, 4) == 8);
-    CHECK(lighting.skyLight(10, 5) == 0); // solid: never lit
+    CHECK(lighting.skyLight(10, 5) == 0);  // solid: never lit
+    CHECK(lighting.skyLight(10, 10) == 0); // isolated pocket: no seed, no path
 }
 
 TEST_CASE("blockLight and skyLight are 0 out of bounds")
