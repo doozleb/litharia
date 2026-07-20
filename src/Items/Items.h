@@ -36,6 +36,7 @@ enum class ItemType : std::uint8_t
     BurnerGenerator,
     CopperDrill,
     IronDrill,
+    ObsidianDrill,
     CopperBelt,
     IronBelt,
     CopperChute,

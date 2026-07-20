@@ -283,3 +283,36 @@ TEST_CASE("a Copper Smelter takes COPPER_TIER_SLOWDOWN times longer than an Iron
 
     CHECK_FALSE(copperMachines.at(1, 0)->output.empty());
 }
+
+TEST_CASE("an Obsidian Drill takes OBSIDIAN_TIER_SPEEDUP times less time to mine than an Iron Drill")
+{
+    World world;
+    world.fill(BlockType::Air);
+    world.set(1, 1, BlockType::CopperOre);
+
+    Machines ironMachines;
+    ironMachines.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    ironMachines.place(MachineType::IronDrill, 1, 0, Direction::Up); // nothing to receive output
+    REQUIRE(ironMachines.tryInsert(0, 0, ItemType::Coal));
+
+    Machines obsidianMachines;
+    obsidianMachines.place(MachineType::BurnerGenerator, 0, 0, Direction::Right);
+    obsidianMachines.place(MachineType::ObsidianDrill, 1, 0, Direction::Up);
+    REQUIRE(obsidianMachines.tryInsert(0, 0, ItemType::Coal));
+
+    std::vector<sf::Vector2i> mined;
+    const float step = 1.0f / 60.0f;
+
+    // Comfortably past the Obsidian Drill's own (shorter) time, but nowhere
+    // near the Iron Drill's: Obsidian is done, Iron is not yet.
+    const int obsidianTicks = static_cast<int>(
+        (machineInfo(MachineType::ObsidianDrill).actionTime + 0.2f) / step);
+    for (int i = 0; i < obsidianTicks; ++i)
+    {
+        ironMachines.tick(world, step, mined);
+        obsidianMachines.tick(world, step, mined);
+    }
+
+    CHECK_FALSE(obsidianMachines.at(1, 0)->output.empty());
+    CHECK(ironMachines.at(1, 0)->output.empty());
+}

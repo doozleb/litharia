@@ -45,6 +45,7 @@ TEST_CASE("the machine registry has a valid row per type")
     CHECK(machineInfo(MachineType::BurnerGenerator).generator);
     CHECK(machineInfo(MachineType::CopperDrill).consumer);
     CHECK(machineInfo(MachineType::IronDrill).consumer);
+    CHECK(machineInfo(MachineType::ObsidianDrill).consumer); // <-- new line
     CHECK(machineInfo(MachineType::CopperSmelter).consumer);
     CHECK(machineInfo(MachineType::IronSmelter).consumer);
 
@@ -215,6 +216,7 @@ TEST_CASE("itemForMachine maps every placeable machine to its own item")
     CHECK(itemForMachine(MachineType::BurnerGenerator) == ItemType::BurnerGenerator);
     CHECK(itemForMachine(MachineType::CopperDrill) == ItemType::CopperDrill);
     CHECK(itemForMachine(MachineType::IronDrill) == ItemType::IronDrill);
+    CHECK(itemForMachine(MachineType::ObsidianDrill) == ItemType::ObsidianDrill); // <-- new line
     CHECK(itemForMachine(MachineType::CopperBelt) == ItemType::CopperBelt);
     CHECK(itemForMachine(MachineType::IronBelt) == ItemType::IronBelt);
     CHECK(itemForMachine(MachineType::CopperChute) == ItemType::CopperChute);
@@ -365,6 +367,7 @@ TEST_CASE("isFurniture is true for exactly Chest, Crafting Table, and Furnace")
     CHECK_FALSE(isFurniture(MachineType::BurnerGenerator));
     CHECK_FALSE(isFurniture(MachineType::CopperDrill));
     CHECK_FALSE(isFurniture(MachineType::IronDrill));
+    CHECK_FALSE(isFurniture(MachineType::ObsidianDrill)); // <-- new line
     CHECK_FALSE(isFurniture(MachineType::CopperBelt));
     CHECK_FALSE(isFurniture(MachineType::IronBelt));
     CHECK_FALSE(isFurniture(MachineType::CopperChute));
@@ -418,10 +421,11 @@ TEST_CASE("a Copper Drill is COPPER_TIER_SLOWDOWN times slower than an Iron Dril
     CHECK(copper == doctest::Approx(iron * COPPER_TIER_SLOWDOWN));
 }
 
-TEST_CASE("isDrill is true for exactly Copper Drill and Iron Drill")
+TEST_CASE("isDrill is true for exactly Copper Drill, Iron Drill, and Obsidian Drill")
 {
     CHECK(isDrill(MachineType::CopperDrill));
     CHECK(isDrill(MachineType::IronDrill));
+    CHECK(isDrill(MachineType::ObsidianDrill));
     CHECK_FALSE(isDrill(MachineType::None));
     CHECK_FALSE(isDrill(MachineType::BurnerGenerator));
     CHECK_FALSE(isDrill(MachineType::IronSmelter));
@@ -489,4 +493,13 @@ TEST_CASE("isSmelter is true for exactly Copper Smelter and Iron Smelter")
     CHECK(isSmelter(MachineType::IronSmelter));
     CHECK_FALSE(isSmelter(MachineType::None));
     CHECK_FALSE(isSmelter(MachineType::IronDrill));
+}
+
+TEST_CASE("an Obsidian Drill is OBSIDIAN_TIER_SPEEDUP times faster than an Iron Drill")
+{
+    const float iron = machineInfo(MachineType::IronDrill).actionTime;
+    const float obsidian = machineInfo(MachineType::ObsidianDrill).actionTime;
+
+    CHECK(iron == doctest::Approx(3.0f));
+    CHECK(obsidian == doctest::Approx(iron * OBSIDIAN_TIER_SPEEDUP));
 }

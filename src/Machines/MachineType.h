@@ -18,6 +18,10 @@ inline constexpr int DRILL_REACH = 4;
 // Copper-tier machines run this much slower than their Iron-tier equivalent.
 inline constexpr float COPPER_TIER_SLOWDOWN = 1.75f;
 
+// Obsidian-tier machines run this much faster than their Iron-tier
+// equivalent (multiplies actionTime/speedMultiplier down, not up).
+inline constexpr float OBSIDIAN_TIER_SPEEDUP = 0.6f;
+
 // How many item slots a chest holds (2 rows of 10 in the UI).
 inline constexpr int CHEST_SLOTS = 20;
 
@@ -34,6 +38,7 @@ enum class MachineType : std::uint8_t
     BurnerGenerator,
     CopperDrill,
     IronDrill,
+    ObsidianDrill,
     CopperBelt,
     IronBelt,
     CopperChute,

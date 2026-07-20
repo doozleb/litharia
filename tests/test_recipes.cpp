@@ -50,6 +50,7 @@ TEST_CASE("every placeable machine has a matching craftable item")
     CHECK(itemInfo(ItemType::BurnerGenerator).name == "Burner Generator");
     CHECK(itemInfo(ItemType::CopperDrill).name == "Copper Drill");
     CHECK(itemInfo(ItemType::IronDrill).name == "Iron Drill");
+    CHECK(itemInfo(ItemType::ObsidianDrill).name == "Obsidian Drill"); // <-- new line
     CHECK(itemInfo(ItemType::CopperBelt).name == "Copper Belt");
     CHECK(itemInfo(ItemType::IronBelt).name == "Iron Belt");
     CHECK(itemInfo(ItemType::CopperChute).name == "Copper Chute");
@@ -64,7 +65,7 @@ TEST_CASE("every placeable machine has a matching craftable item")
 TEST_CASE("allCraftRecipes exposes every craftable item exactly once")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();
-    CHECK(all.size() == 22);
+    CHECK(all.size() == 23);
 }
 
 TEST_CASE("the Chest recipe costs 8 oak logs and 2 copper plates")
@@ -412,4 +413,19 @@ TEST_CASE("the Obsidian Axe recipe costs 2 sticks and 2 obsidian")
     CHECK(it->ingredients[0].count == 2);
     CHECK(it->ingredients[1].item == ItemType::Obsidian);
     CHECK(it->ingredients[1].count == 2);
+}
+
+TEST_CASE("the Obsidian Drill recipe costs 4 obsidian and 2 stone, no plate needed")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::ObsidianDrill; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Obsidian);
+    CHECK(it->ingredients[0].count == 4);
+    CHECK(it->ingredients[1].item == ItemType::Stone);
+    CHECK(it->ingredients[1].count == 2);
+    CHECK(it->seconds == doctest::Approx(4.0f));
 }
