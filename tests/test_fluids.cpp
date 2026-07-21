@@ -1,6 +1,10 @@
 #include "doctest.h"
 
+#include <algorithm>
+
 #include "Blocks/Blocks.h"
+#include "Items/Items.h"
+#include "Machines/MachineType.h"
 
 TEST_CASE("isWater/isLava/isFluid correctly classify every fluid level, and nothing else")
 {
@@ -37,6 +41,20 @@ TEST_CASE("isOre is true for exactly CopperOre, IronOre, and Coal")
     CHECK_FALSE(isOre(BlockType::Obsidian));
     CHECK_FALSE(isOre(BlockType::Water8));
     CHECK_FALSE(isOre(BlockType::Lava8));
+}
+
+TEST_CASE("isOre agrees with DRILL_ORES for every BlockType, so a drill can never mine an ore its "
+          "own tooltip doesn't list (or vice versa)")
+{
+    for (int i = 0; i < static_cast<int>(BlockType::Count); ++i)
+    {
+        const auto type = static_cast<BlockType>(i);
+        const ItemType item = itemForBlock(type);
+        const bool listedAsDrillOre =
+            std::find(DRILL_ORES.begin(), DRILL_ORES.end(), item) != DRILL_ORES.end();
+
+        CHECK(isOre(type) == listedAsDrillOre);
+    }
 }
 
 TEST_CASE("fluidLevel round-trips with waterAtLevel/lavaAtLevel, and is 0 for non-fluid blocks")

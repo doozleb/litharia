@@ -96,10 +96,25 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
                 // assigns a solid tile its own light, so a neighbour that's
                 // itself solid always reads 0 here already, no separate
                 // isSolid check needed on the neighbours themselves.
+                //
+                // Torch is the one channel with a "held" equivalent: the
+                // player's held Torch (heldMap) lights open tiles the same
+                // way a placed Torch would, but never touches the stored
+                // grid, so a neighbour lookup that only reads
+                // lighting.torchLight would miss it - fold heldMap into the
+                // neighbour lookup too, same as the tile-itself case below.
+                const auto torchAt = [&lighting, &heldMap](int nx, int ny) {
+                    int level = lighting.torchLight(nx, ny);
+                    const auto it = heldMap.find(tileKey(nx, ny));
+                    if (it != heldMap.end())
+                        level = std::max(level, it->second);
+                    return level;
+                };
+
                 const int skyN = std::max({lighting.skyLight(x - 1, y), lighting.skyLight(x + 1, y),
                                             lighting.skyLight(x, y - 1), lighting.skyLight(x, y + 1)});
-                const int torchN = std::max({lighting.torchLight(x - 1, y), lighting.torchLight(x + 1, y),
-                                              lighting.torchLight(x, y - 1), lighting.torchLight(x, y + 1)});
+                const int torchN = std::max({torchAt(x - 1, y), torchAt(x + 1, y),
+                                              torchAt(x, y - 1), torchAt(x, y + 1)});
                 const int lavaN = std::max({lighting.lavaLight(x - 1, y), lighting.lavaLight(x + 1, y),
                                              lighting.lavaLight(x, y - 1), lighting.lavaLight(x, y + 1)});
 
