@@ -129,3 +129,71 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::heldTorchLight(const World& 
 {
     return floodFill(world, {LightSeed{source.x, source.y, MAX_LIGHT_LEVEL}});
 }
+
+std::vector<std::pair<sf::Vector2i, int>> Lighting::ambientOutline(const World& world,
+                                                                    sf::Vector2i playerTile) const
+{
+    // A reachability BFS through open tiles only, bounded by step count
+    // rather than a decaying value (every reached tile gets the same flat
+    // level) - reuses the same "visit each tile at most once, solid tiles
+    // are walls" shape as floodFill, but floodFill's early-exit is keyed on
+    // a *level* reaching 0, which doesn't fit "same value everywhere, cut
+    // off by distance" - so this is its own small BFS instead of a floodFill
+    // call.
+    if (!world.inBounds(playerTile.x, playerTile.y) || world.isSolid(playerTile.x, playerTile.y))
+        return {};
+
+    std::vector<std::int8_t> visited(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, 0);
+    std::vector<int> stepOf(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, 0);
+    std::vector<sf::Vector2i> queue{playerTile};
+
+    visited[static_cast<std::size_t>(playerTile.y) * WORLD_WIDTH + playerTile.x] = 1;
+
+    for (std::size_t head = 0; head < queue.size(); ++head)
+    {
+        const sf::Vector2i tile = queue[head];
+        const int steps = stepOf[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x];
+
+        if (steps >= AMBIENT_OUTLINE_RADIUS)
+            continue;
+
+        const sf::Vector2i neighbors[4] = {
+            {tile.x - 1, tile.y}, {tile.x + 1, tile.y}, {tile.x, tile.y - 1}, {tile.x, tile.y + 1}};
+
+        for (const sf::Vector2i& n : neighbors)
+        {
+            if (!world.inBounds(n.x, n.y) || world.isSolid(n.x, n.y))
+                continue;
+
+            const std::size_t i = static_cast<std::size_t>(n.y) * WORLD_WIDTH + n.x;
+            if (visited[i])
+                continue;
+
+            visited[i] = 1;
+            stepOf[i] = steps + 1;
+            queue.push_back(n);
+        }
+    }
+
+    std::vector<std::pair<sf::Vector2i, int>> result;
+    result.reserve(queue.size() * 5);
+
+    for (const sf::Vector2i& tile : queue)
+    {
+        result.push_back({tile, AMBIENT_OUTLINE_LEVEL});
+
+        const sf::Vector2i neighbors[4] = {
+            {tile.x - 1, tile.y}, {tile.x + 1, tile.y}, {tile.x, tile.y - 1}, {tile.x, tile.y + 1}};
+
+        for (const sf::Vector2i& n : neighbors)
+        {
+            if (!world.inBounds(n.x, n.y) || !world.isSolid(n.x, n.y))
+                continue;
+
+            const int level = isOre(world.get(n.x, n.y)) ? AMBIENT_OUTLINE_ORE_LEVEL : AMBIENT_OUTLINE_LEVEL;
+            result.push_back({n, level});
+        }
+    }
+
+    return result;
+}

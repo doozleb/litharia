@@ -49,6 +49,23 @@ public:
     // between.
     static constexpr int MAX_LIGHT_LEVEL = 9;
 
+    // How far the player's own "eyes adjusting to the dark" ambient
+    // visibility reaches - much further than MAX_LIGHT_LEVEL, since it's not
+    // real light, just enough to make out shapes and ore nearby. See
+    // ambientOutline().
+    static constexpr int AMBIENT_OUTLINE_RADIUS = 20;
+
+    // Flat (non-decaying) brightness ambientOutline() assigns to a plain
+    // solid tile or reachable open tile within range - deliberately small
+    // relative to MAX_LIGHT_LEVEL so it reads as "barely lightens," not as
+    // real light.
+    static constexpr int AMBIENT_OUTLINE_LEVEL = 1;
+
+    // Same as AMBIENT_OUTLINE_LEVEL, but for a solid tile that is itself an
+    // ore (see isOre) - slightly brighter so ore reads as "there's something
+    // here worth digging" without revealing which ore or how much.
+    static constexpr int AMBIENT_OUTLINE_ORE_LEVEL = 2;
+
     Lighting();
 
     // Clears every tile's sky/torch/lava level to 0, then floods sky light
@@ -71,6 +88,21 @@ public:
     // a full recompute.
     std::vector<std::pair<sf::Vector2i, int>> heldTorchLight(const World& world,
                                                               sf::Vector2i source) const;
+
+    // A short-range, uncolored visibility floor around the player's current
+    // tile, recomputed fresh every frame (never stored, never forcing a
+    // recompute) - the "you can make out shapes and ore nearby even with no
+    // light" mechanic that replaces solid ground's old always-fully-visible
+    // behavior. A bounded BFS from `playerTile`, traveling only through open
+    // tiles up to AMBIENT_OUTLINE_RADIUS steps (so a sealed pocket with no
+    // path back to the player gets nothing, exactly like real light) -
+    // every open tile reached this way, and every solid tile bordering one,
+    // is included in the result at AMBIENT_OUTLINE_LEVEL (AMBIENT_OUTLINE_ORE_LEVEL
+    // if the solid tile is ore). Unlike real light, this value does not
+    // decay with distance inside the radius - it's a flat floor, not a
+    // gradient.
+    std::vector<std::pair<sf::Vector2i, int>> ambientOutline(const World& world,
+                                                              sf::Vector2i playerTile) const;
 
 private:
     struct LightSeed

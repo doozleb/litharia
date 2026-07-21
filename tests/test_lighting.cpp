@@ -269,3 +269,125 @@ TEST_CASE("heldTorchLight never writes to the stored grid")
     CHECK(lighting.torchLight(10, 10) == 0);
     CHECK(lighting.torchLight(9, 10) == 0);
 }
+
+TEST_CASE("ambientOutline marks a solid tile bordering the player's reachable open space")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+    // (11, 10) stays Stone: the wall immediately beside the player.
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    const auto result = lighting.ambientOutline(world, {10, 10});
+
+    auto levelAt = [&](int x, int y) -> int
+    {
+        for (const auto& [tile, level] : result)
+            if (tile.x == x && tile.y == y)
+                return level;
+        return 0;
+    };
+
+    CHECK(levelAt(11, 10) == Lighting::AMBIENT_OUTLINE_LEVEL);
+}
+
+TEST_CASE("ambientOutline marks an ore tile brighter than a plain stone tile at the same distance")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+    world.set(9, 10, BlockType::Air);
+    world.set(10, 9, BlockType::Air);
+    world.set(11, 9, BlockType::CopperOre);
+    // (8, 10) stays Stone - a plain neighbor at the same one-step distance.
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    const auto result = lighting.ambientOutline(world, {10, 10});
+
+    auto levelAt = [&](int x, int y) -> int
+    {
+        for (const auto& [tile, level] : result)
+            if (tile.x == x && tile.y == y)
+                return level;
+        return 0;
+    };
+
+    CHECK(levelAt(11, 9) == Lighting::AMBIENT_OUTLINE_ORE_LEVEL);
+    CHECK(levelAt(8, 10) == Lighting::AMBIENT_OUTLINE_LEVEL);
+    CHECK(Lighting::AMBIENT_OUTLINE_ORE_LEVEL > Lighting::AMBIENT_OUTLINE_LEVEL);
+}
+
+TEST_CASE("ambientOutline reveals open tiles within reach even with no light, but not disconnected ones")
+{
+    World world;
+    fillSolid(world);
+    for (int x = 10; x <= 15; ++x)
+        world.set(x, 10, BlockType::Air);
+    // A sealed pocket, walled off on every side - no path back to the player.
+    world.set(20, 10, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    const auto result = lighting.ambientOutline(world, {10, 10});
+
+    auto levelAt = [&](int x, int y) -> int
+    {
+        for (const auto& [tile, level] : result)
+            if (tile.x == x && tile.y == y)
+                return level;
+        return 0;
+    };
+
+    CHECK(levelAt(15, 10) == Lighting::AMBIENT_OUTLINE_LEVEL);
+    CHECK(levelAt(20, 10) == 0);
+}
+
+TEST_CASE("ambientOutline does not reach past AMBIENT_OUTLINE_RADIUS steps from the player")
+{
+    World world;
+    fillSolid(world);
+    for (int x = 10; x <= 10 + Lighting::AMBIENT_OUTLINE_RADIUS + 5; ++x)
+        world.set(x, 10, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    const auto result = lighting.ambientOutline(world, {10, 10});
+
+    auto levelAt = [&](int x, int y) -> int
+    {
+        for (const auto& [tile, level] : result)
+            if (tile.x == x && tile.y == y)
+                return level;
+        return 0;
+    };
+
+    CHECK(levelAt(10 + Lighting::AMBIENT_OUTLINE_RADIUS - 1, 10) == Lighting::AMBIENT_OUTLINE_LEVEL);
+    CHECK(levelAt(10 + Lighting::AMBIENT_OUTLINE_RADIUS + 5, 10) == 0);
+}
+
+TEST_CASE("ambientOutline never writes to the stored grid")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    lighting.ambientOutline(world, {10, 10});
+
+    CHECK(lighting.torchLight(10, 10) == 0);
+    CHECK(lighting.lavaLight(10, 10) == 0);
+    CHECK(lighting.skyLight(10, 10) == 0);
+}
