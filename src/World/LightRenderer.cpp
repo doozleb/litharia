@@ -56,6 +56,16 @@ void appendQuad(sf::VertexArray& vertices, float left, float top, float right, f
 // dark. Distance 1 alone reproduces today's 4-neighbour behaviour exactly.
 constexpr int WALL_PENETRATION_DEPTH = 3;
 
+// Per-distance brightness penalty for the wall-penetration search above -
+// steeper than the general "-1 per step" light-decay rate used everywhere
+// else in this system, so the fade across those 3 tiles actually reads as a
+// fade instead of three near-identical shades: distance 1 stays reasonably
+// bright, distance 2 reads as "just dark," distance 3 as "very dark" (only
+// a source at or near Lighting::MAX_LIGHT_LEVEL has any brightness budget
+// left by then). Indexed by distance - 1, since wallPenetrationOffsets only
+// ever produces distances 1..WALL_PENETRATION_DEPTH.
+constexpr int WALL_PENETRATION_PENALTY[WALL_PENETRATION_DEPTH] = {2, 5, 8};
+
 // Every (dx, dy, distance) offset within Manhattan distance 1..WALL_PENETRATION_DEPTH
 // of a tile - a 24-cell diamond (4 tiles at distance 1, 8 at distance 2, 12
 // at distance 3). Built once (see the function-local static in draw()); no
@@ -156,10 +166,11 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
                 {
                     const int nx = x + dx;
                     const int ny = y + dy;
+                    const int penalty = WALL_PENETRATION_PENALTY[distance - 1];
 
-                    skyBest = std::max(skyBest, lighting.skyLight(nx, ny) - distance);
-                    torchBest = std::max(torchBest, torchAt(nx, ny) - distance);
-                    lavaBest = std::max(lavaBest, lighting.lavaLight(nx, ny) - distance);
+                    skyBest = std::max(skyBest, lighting.skyLight(nx, ny) - penalty);
+                    torchBest = std::max(torchBest, torchAt(nx, ny) - penalty);
+                    lavaBest = std::max(lavaBest, lighting.lavaLight(nx, ny) - penalty);
                 }
 
                 // skyBest/torchBest/lavaBest start at 0 and are only ever
