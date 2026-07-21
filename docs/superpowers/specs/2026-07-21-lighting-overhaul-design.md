@@ -42,9 +42,9 @@ more" band around the player.
 ```cpp
 struct LightLevel
 {
-    std::uint16_t sky : 5;   // 0-MAX_LIGHT_LEVEL, this tile's sunlight exposure
-    std::uint16_t torch : 5; // 0-MAX_LIGHT_LEVEL, this tile's Torch exposure
-    std::uint16_t lava : 5;  // 0-MAX_LIGHT_LEVEL, this tile's Lava exposure
+    std::uint16_t sky : 4;   // 0-MAX_LIGHT_LEVEL, this tile's sunlight exposure
+    std::uint16_t torch : 4; // 0-MAX_LIGHT_LEVEL, this tile's Torch exposure
+    std::uint16_t lava : 4;  // 0-MAX_LIGHT_LEVEL, this tile's Lava exposure
 };
 static_assert(sizeof(LightLevel) == 2, "Two bytes per tile: a 1000x500 world stays 1 MB.");
 ```
@@ -54,9 +54,11 @@ different colors (warm yellow vs. hot red-orange) instead of being
 indistinguishable. Same reasoning as the original two-channel split: these
 are independent sources that decay and combine differently at render time,
 so they don't get folded into one number just because it happens to save a
-few bits. 5 bits per channel comfortably covers the new `MAX_LIGHT_LEVEL = 9`;
-still 2 bytes total, matching `Tile`'s own "hard-capped struct, cheap at
-world scale" precedent.
+few bits. 4 bits per channel is unchanged from the original design (0-15
+range, and the new `MAX_LIGHT_LEVEL = 9` still fits) - three of them just no
+longer fit in one byte, so the backing type widens from `uint8_t` to
+`uint16_t` and the grid doubles from 500 KB to 1 MB, still tiny next to
+`World`'s own tile storage at the same dimensions.
 
 `recomputeAll` gains a third BFS pass (torch seeded from `MachineType::Torch`
 machines, lava from `isLava` tiles - previously merged into one `blockSeeds`
