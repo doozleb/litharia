@@ -22,6 +22,23 @@ TEST_CASE("isWater/isLava/isFluid correctly classify every fluid level, and noth
     CHECK_FALSE(isLava(BlockType::Water8));
 }
 
+TEST_CASE("isOre is true for exactly CopperOre, IronOre, and Coal")
+{
+    CHECK(isOre(BlockType::CopperOre));
+    CHECK(isOre(BlockType::IronOre));
+    CHECK(isOre(BlockType::Coal));
+
+    CHECK_FALSE(isOre(BlockType::Air));
+    CHECK_FALSE(isOre(BlockType::Grass));
+    CHECK_FALSE(isOre(BlockType::Dirt));
+    CHECK_FALSE(isOre(BlockType::Stone));
+    CHECK_FALSE(isOre(BlockType::OakLog));
+    CHECK_FALSE(isOre(BlockType::OakLeaves));
+    CHECK_FALSE(isOre(BlockType::Obsidian));
+    CHECK_FALSE(isOre(BlockType::Water8));
+    CHECK_FALSE(isOre(BlockType::Lava8));
+}
+
 TEST_CASE("fluidLevel round-trips with waterAtLevel/lavaAtLevel, and is 0 for non-fluid blocks")
 {
     for (int level = 1; level <= 8; ++level)

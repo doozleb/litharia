@@ -132,6 +132,13 @@ inline bool isLava(BlockType type)
     return type >= BlockType::Lava1 && type <= BlockType::Lava8;
 }
 
+// True for CopperOre, IronOre, and Coal - the game's three mineable ore
+// blocks, as opposed to plain Stone/Dirt.
+inline bool isOre(BlockType type)
+{
+    return type == BlockType::CopperOre || type == BlockType::IronOre || type == BlockType::Coal;
+}
+
 inline bool isFluid(BlockType type)
 {
     return isWater(type) || isLava(type);

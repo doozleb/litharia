@@ -13,11 +13,6 @@
 namespace
 {
 
-bool isOre(BlockType type)
-{
-    return type == BlockType::CopperOre || type == BlockType::IronOre || type == BlockType::Coal;
-}
-
 bool sameWorld(const World& a, const World& b)
 {
     for (int y = 0; y < WORLD_HEIGHT; ++y)
