@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <tuple>
 #include <unordered_map>
 
 #include "../Core/Constants.h"
@@ -44,6 +45,39 @@ void appendQuad(sf::VertexArray& vertices, float left, float top, float right, f
     vertices.append({{left, top}, color});
     vertices.append({{right, bottom}, color});
     vertices.append({{left, bottom}, color});
+}
+
+// How far real light (sky, Torch, or Lava alike) can be glimpsed through
+// solid rock: a solid tile borrows the best `channelValue - distance`
+// candidate from every tile within this many orthogonal steps, not just its
+// 4 immediate neighbours - a direct generalization of "borrow one step
+// dimmer than the brightest neighbour" out to a wider radius, so a wall a
+// couple of tiles from a lit cavity glows faintly instead of reading fully
+// dark. Distance 1 alone reproduces today's 4-neighbour behaviour exactly.
+constexpr int WALL_PENETRATION_DEPTH = 3;
+
+// Every (dx, dy, distance) offset within Manhattan distance 1..WALL_PENETRATION_DEPTH
+// of a tile - a 24-cell diamond (4 tiles at distance 1, 8 at distance 2, 12
+// at distance 3). Built once (see the function-local static in draw()); no
+// isSolid check on the offset tile itself is needed here - Lighting's BFS
+// never assigns a solid tile its own light, so an offset that happens to
+// land on solid ground already reads 0 from every channel accessor and can
+// never win over an actually-lit open tile.
+std::vector<std::tuple<int, int, int>> wallPenetrationOffsets()
+{
+    std::vector<std::tuple<int, int, int>> offsets;
+
+    for (int dx = -WALL_PENETRATION_DEPTH; dx <= WALL_PENETRATION_DEPTH; ++dx)
+    {
+        for (int dy = -WALL_PENETRATION_DEPTH; dy <= WALL_PENETRATION_DEPTH; ++dy)
+        {
+            const int distance = std::abs(dx) + std::abs(dy);
+            if (distance >= 1 && distance <= WALL_PENETRATION_DEPTH)
+                offsets.push_back({dx, dy, distance});
+        }
+    }
+
+    return offsets;
 }
 
 } // namespace
@@ -91,18 +125,18 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
 
             if (world.isSolid(x, y))
             {
-                // A solid tile borrows one step dimmer than its brightest
-                // open neighbour, per channel - Lighting's BFS never
-                // assigns a solid tile its own light, so a neighbour that's
-                // itself solid always reads 0 here already, no separate
-                // isSolid check needed on the neighbours themselves.
+                // A solid tile borrows the best (channelValue - distance)
+                // candidate from anywhere within WALL_PENETRATION_DEPTH
+                // orthogonal steps, per channel - see wallPenetrationOffsets
+                // for why no separate isSolid check is needed on the
+                // candidate tiles themselves.
                 //
                 // Torch is the one channel with a "held" equivalent: the
                 // player's held Torch (heldMap) lights open tiles the same
                 // way a placed Torch would, but never touches the stored
-                // grid, so a neighbour lookup that only reads
-                // lighting.torchLight would miss it - fold heldMap into the
-                // neighbour lookup too, same as the tile-itself case below.
+                // grid, so a lookup that only reads lighting.torchLight
+                // would miss it - fold heldMap into the lookup too, same as
+                // the tile-itself case below.
                 const auto torchAt = [&lighting, &heldMap](int nx, int ny) {
                     int level = lighting.torchLight(nx, ny);
                     const auto it = heldMap.find(tileKey(nx, ny));
@@ -111,16 +145,31 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
                     return level;
                 };
 
-                const int skyN = std::max({lighting.skyLight(x - 1, y), lighting.skyLight(x + 1, y),
-                                            lighting.skyLight(x, y - 1), lighting.skyLight(x, y + 1)});
-                const int torchN = std::max({torchAt(x - 1, y), torchAt(x + 1, y),
-                                              torchAt(x, y - 1), torchAt(x, y + 1)});
-                const int lavaN = std::max({lighting.lavaLight(x - 1, y), lighting.lavaLight(x + 1, y),
-                                             lighting.lavaLight(x, y - 1), lighting.lavaLight(x, y + 1)});
+                static const std::vector<std::tuple<int, int, int>> penetrationOffsets =
+                    wallPenetrationOffsets();
 
-                skyRaw = std::max(0, skyN - 1);
-                torchRaw = std::max(0, torchN - 1);
-                lavaRaw = std::max(0, lavaN - 1);
+                int skyBest = 0;
+                int torchBest = 0;
+                int lavaBest = 0;
+
+                for (const auto& [dx, dy, distance] : penetrationOffsets)
+                {
+                    const int nx = x + dx;
+                    const int ny = y + dy;
+
+                    skyBest = std::max(skyBest, lighting.skyLight(nx, ny) - distance);
+                    torchBest = std::max(torchBest, torchAt(nx, ny) - distance);
+                    lavaBest = std::max(lavaBest, lighting.lavaLight(nx, ny) - distance);
+                }
+
+                // skyBest/torchBest/lavaBest start at 0 and are only ever
+                // raised by std::max, so they can never go negative - no
+                // separate clamp needed here (unlike the old single-neighbour
+                // version, which subtracted 1 *after* taking the max and so
+                // needed an explicit std::max(0, ...) guard).
+                skyRaw = skyBest;
+                torchRaw = torchBest;
+                lavaRaw = lavaBest;
             }
             else
             {
