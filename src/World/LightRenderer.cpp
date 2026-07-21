@@ -14,7 +14,7 @@ namespace
 
 constexpr sf::Color NIGHT_TINT(20, 25, 45);
 constexpr sf::Color DAY_TINT(225, 235, 250);
-constexpr sf::Color TORCH_TINT(255, 200, 110);
+constexpr sf::Color TORCH_TINT(255, 228, 183);
 constexpr sf::Color LAVA_TINT(255, 90, 40);
 constexpr sf::Color OUTLINE_TINT(90, 90, 100);
 
