@@ -1128,7 +1128,26 @@ void Game::render()
     if (held.type == ItemType::Torch)
         heldLight = lighting.heldTorchLight(world, playerTile);
 
-    const std::vector<std::pair<sf::Vector2i, int>> ambientOutline = lighting.ambientOutline(world, playerTile);
+    // Equipping a Torch widens ambient vision to cover the whole screen -
+    // still gated by the same "only through open tiles you've actually dug
+    // into" connectivity rule ambientOutline already enforces, just sized to
+    // the camera's current view instead of the default 20-tile bubble. This
+    // is a Manhattan-distance step cutoff (half-width-in-tiles plus
+    // half-height-in-tiles, not the shorter Euclidean diagonal - the
+    // diagonal would undercover the screen's corners), so it stays cheap and
+    // correct at any window size or zoom: a huge open cavern is still never
+    // explored past what's actually on screen.
+    int ambientRadius = Lighting::AMBIENT_OUTLINE_RADIUS;
+    if (held.type == ItemType::Torch)
+    {
+        const sf::Vector2f viewSize = camera.view().getSize();
+        const int halfWidthTiles = static_cast<int>(std::ceil((viewSize.x * 0.5f) / TILE_SIZE));
+        const int halfHeightTiles = static_cast<int>(std::ceil((viewSize.y * 0.5f) / TILE_SIZE));
+        ambientRadius = halfWidthTiles + halfHeightTiles + 2;
+    }
+
+    const std::vector<std::pair<sf::Vector2i, int>> ambientOutline =
+        lighting.ambientOutline(world, playerTile, ambientRadius);
 
     lightRenderer.draw(window, camera.view(), world, lighting, dayNightClock.daylightFactor(), heldLight,
                         ambientOutline);

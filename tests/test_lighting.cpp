@@ -391,3 +391,51 @@ TEST_CASE("ambientOutline never writes to the stored grid")
     CHECK(lighting.lavaLight(10, 10) == 0);
     CHECK(lighting.skyLight(10, 10) == 0);
 }
+
+TEST_CASE("ambientOutline accepts a custom radius that reaches further than the default")
+{
+    World world;
+    fillSolid(world);
+    for (int x = 10; x <= 10 + Lighting::AMBIENT_OUTLINE_RADIUS + 10; ++x)
+        world.set(x, 10, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    const auto result = lighting.ambientOutline(world, {10, 10}, Lighting::AMBIENT_OUTLINE_RADIUS + 10);
+
+    auto levelAt = [&](int x, int y) -> int
+    {
+        for (const auto& [tile, level] : result)
+            if (tile.x == x && tile.y == y)
+                return level;
+        return 0;
+    };
+
+    CHECK(levelAt(10 + Lighting::AMBIENT_OUTLINE_RADIUS + 9, 10) == Lighting::AMBIENT_OUTLINE_LEVEL);
+}
+
+TEST_CASE("ambientOutline still defaults to AMBIENT_OUTLINE_RADIUS when no radius argument is given")
+{
+    World world;
+    fillSolid(world);
+    for (int x = 10; x <= 10 + Lighting::AMBIENT_OUTLINE_RADIUS + 5; ++x)
+        world.set(x, 10, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    const auto result = lighting.ambientOutline(world, {10, 10}); // no third argument
+
+    auto levelAt = [&](int x, int y) -> int
+    {
+        for (const auto& [tile, level] : result)
+            if (tile.x == x && tile.y == y)
+                return level;
+        return 0;
+    };
+
+    CHECK(levelAt(10 + Lighting::AMBIENT_OUTLINE_RADIUS + 5, 10) == 0); // still capped at the default
+}

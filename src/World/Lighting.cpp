@@ -130,8 +130,8 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::heldTorchLight(const World& 
     return floodFill(world, {LightSeed{source.x, source.y, MAX_LIGHT_LEVEL}});
 }
 
-std::vector<std::pair<sf::Vector2i, int>> Lighting::ambientOutline(const World& world,
-                                                                    sf::Vector2i playerTile) const
+std::vector<std::pair<sf::Vector2i, int>> Lighting::ambientOutline(const World& world, sf::Vector2i playerTile,
+                                                                    int radius) const
 {
     // A reachability BFS through open tiles only, bounded by step count
     // rather than a decaying value (every reached tile gets the same flat
@@ -154,7 +154,7 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::ambientOutline(const World& 
         const sf::Vector2i tile = queue[head];
         const int steps = stepOf[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x];
 
-        if (steps >= AMBIENT_OUTLINE_RADIUS)
+        if (steps >= radius)
             continue;
 
         const sf::Vector2i neighbors[4] = {

@@ -94,15 +94,18 @@ public:
     // recompute) - the "you can make out shapes and ore nearby even with no
     // light" mechanic that replaces solid ground's old always-fully-visible
     // behavior. A bounded BFS from `playerTile`, traveling only through open
-    // tiles up to AMBIENT_OUTLINE_RADIUS steps (so a sealed pocket with no
-    // path back to the player gets nothing, exactly like real light) -
-    // every open tile reached this way, and every solid tile bordering one,
-    // is included in the result at AMBIENT_OUTLINE_LEVEL (AMBIENT_OUTLINE_ORE_LEVEL
-    // if the solid tile is ore). Unlike real light, this value does not
-    // decay with distance inside the radius - it's a flat floor, not a
-    // gradient.
-    std::vector<std::pair<sf::Vector2i, int>> ambientOutline(const World& world,
-                                                              sf::Vector2i playerTile) const;
+    // tiles up to `radius` steps (so a sealed pocket with no path back to
+    // the player gets nothing, exactly like real light) - every open tile
+    // reached this way, and every solid tile bordering one, is included in
+    // the result at AMBIENT_OUTLINE_LEVEL (AMBIENT_OUTLINE_ORE_LEVEL if the
+    // solid tile is ore). Unlike real light, this value does not decay with
+    // distance inside the radius - it's a flat floor, not a gradient.
+    // `radius` defaults to AMBIENT_OUTLINE_RADIUS (the normal "eyes adjusted
+    // to the dark" case); callers pass a larger value to widen the covered
+    // area - Game::render does this when a Torch is equipped, sizing it to
+    // the camera's current view instead of the fixed default.
+    std::vector<std::pair<sf::Vector2i, int>> ambientOutline(const World& world, sf::Vector2i playerTile,
+                                                              int radius = AMBIENT_OUTLINE_RADIUS) const;
 
 private:
     struct LightSeed
