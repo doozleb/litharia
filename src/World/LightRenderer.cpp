@@ -84,7 +84,7 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
 
             const float skyEffective = lighting.skyLight(x, y) * daylightFactor;
 
-            int blockEffective = lighting.blockLight(x, y);
+            int blockEffective = lighting.torchLight(x, y) + lighting.lavaLight(x, y);
             const auto it = heldMap.find(tileKey(x, y));
             if (it != heldMap.end())
                 blockEffective = std::max(blockEffective, it->second);

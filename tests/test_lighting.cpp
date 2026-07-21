@@ -16,7 +16,12 @@ void fillSolid(World& world)
 
 } // namespace
 
-TEST_CASE("a lone Lava tile lights itself and decays by 1 per orthogonal step")
+TEST_CASE("MAX_LIGHT_LEVEL is 9")
+{
+    CHECK(Lighting::MAX_LIGHT_LEVEL == 9);
+}
+
+TEST_CASE("a lone Lava tile lights itself on the lava channel only, decaying by 1 per step")
 {
     World world;
     fillSolid(world);
@@ -28,12 +33,14 @@ TEST_CASE("a lone Lava tile lights itself and decays by 1 per orthogonal step")
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.blockLight(10, 10) == Lighting::MAX_LIGHT_LEVEL);
-    CHECK(lighting.blockLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
-    CHECK(lighting.blockLight(11, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.lavaLight(10, 10) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.lavaLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.lavaLight(11, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+
+    CHECK(lighting.torchLight(10, 10) == 0);
 }
 
-TEST_CASE("block light is blocked entirely by a solid tile")
+TEST_CASE("lava light is blocked entirely by a solid tile")
 {
     World world;
     fillSolid(world);
@@ -44,10 +51,10 @@ TEST_CASE("block light is blocked entirely by a solid tile")
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.blockLight(11, 10) == 0);
+    CHECK(lighting.lavaLight(11, 10) == 0);
 }
 
-TEST_CASE("a placed Torch is a max-level block light source")
+TEST_CASE("a placed Torch lights the torch channel only, decaying by 1 per step")
 {
     World world;
     fillSolid(world);
@@ -60,8 +67,45 @@ TEST_CASE("a placed Torch is a max-level block light source")
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.blockLight(10, 10) == Lighting::MAX_LIGHT_LEVEL);
-    CHECK(lighting.blockLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.torchLight(10, 10) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.torchLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+
+    CHECK(lighting.lavaLight(10, 10) == 0);
+}
+
+TEST_CASE("torch light is blocked entirely by a solid tile")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+    // (11, 10) stays Stone: solid, unreachable.
+
+    Machines machines;
+    machines.place(MachineType::Torch, 10, 10, Direction::Right);
+
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    CHECK(lighting.torchLight(11, 10) == 0);
+}
+
+TEST_CASE("a tile lit by both a Torch and Lava reads a nonzero level on each independent channel")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+    world.set(9, 10, BlockType::Air);
+    world.set(11, 10, BlockType::Air);
+    world.set(11, 11, BlockType::Lava8);
+
+    Machines machines;
+    machines.place(MachineType::Torch, 9, 10, Direction::Right);
+
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    CHECK(lighting.torchLight(10, 10) > 0);
+    CHECK(lighting.lavaLight(10, 10) > 0);
 }
 
 TEST_CASE("an open vertical shaft stays sky-lit at the max level at every depth")
@@ -145,15 +189,17 @@ TEST_CASE("a column blocked from the surface gets no direct sky seed of its own"
     CHECK(lighting.skyLight(10, 10) == 0); // isolated pocket: no seed, no path
 }
 
-TEST_CASE("blockLight and skyLight are 0 out of bounds")
+TEST_CASE("torchLight, lavaLight, and skyLight are 0 out of bounds")
 {
     World world;
     Machines machines;
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.blockLight(-1, 0) == 0);
-    CHECK(lighting.blockLight(WORLD_WIDTH, 0) == 0);
+    CHECK(lighting.torchLight(-1, 0) == 0);
+    CHECK(lighting.torchLight(WORLD_WIDTH, 0) == 0);
+    CHECK(lighting.lavaLight(-1, 0) == 0);
+    CHECK(lighting.lavaLight(WORLD_WIDTH, 0) == 0);
     CHECK(lighting.skyLight(0, -1) == 0);
     CHECK(lighting.skyLight(0, WORLD_HEIGHT) == 0);
 }
@@ -220,6 +266,6 @@ TEST_CASE("heldTorchLight never writes to the stored grid")
 
     // No Torch or Lava anywhere in this world, so the stored grid must still
     // read 0 - heldTorchLight is a pure query, not a mutation.
-    CHECK(lighting.blockLight(10, 10) == 0);
-    CHECK(lighting.blockLight(9, 10) == 0);
+    CHECK(lighting.torchLight(10, 10) == 0);
+    CHECK(lighting.torchLight(9, 10) == 0);
 }

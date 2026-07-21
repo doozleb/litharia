@@ -10,7 +10,7 @@
 #include "World.h"
 
 Lighting::Lighting()
-    : levels(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, LightLevel{0, 0})
+    : levels(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, LightLevel{0, 0, 0})
 {
 }
 
@@ -68,29 +68,36 @@ void Lighting::recomputeAll(const World& world, const Machines& machines)
         }
     }
 
-    std::vector<LightSeed> blockSeeds;
+    std::vector<LightSeed> torchSeeds;
+
+    for (const Machine& m : machines.all())
+        if (m.type == MachineType::Torch)
+            torchSeeds.push_back({m.x, m.y, MAX_LIGHT_LEVEL});
+
+    std::vector<LightSeed> lavaSeeds;
 
     for (int y = 0; y < WORLD_HEIGHT; ++y)
         for (int x = 0; x < WORLD_WIDTH; ++x)
             if (isLava(world.get(x, y)))
-                blockSeeds.push_back({x, y, MAX_LIGHT_LEVEL});
-
-    for (const Machine& m : machines.all())
-        if (m.type == MachineType::Torch)
-            blockSeeds.push_back({m.x, m.y, MAX_LIGHT_LEVEL});
+                lavaSeeds.push_back({x, y, MAX_LIGHT_LEVEL});
 
     const auto skyResult = floodFill(world, skySeeds);
-    const auto blockResult = floodFill(world, blockSeeds);
+    const auto torchResult = floodFill(world, torchSeeds);
+    const auto lavaResult = floodFill(world, lavaSeeds);
 
-    std::fill(levels.begin(), levels.end(), LightLevel{0, 0});
+    std::fill(levels.begin(), levels.end(), LightLevel{0, 0, 0});
 
     for (const auto& [tile, level] : skyResult)
         levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].sky =
-            static_cast<std::uint8_t>(level);
+            static_cast<std::uint16_t>(level);
 
-    for (const auto& [tile, level] : blockResult)
-        levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].block =
-            static_cast<std::uint8_t>(level);
+    for (const auto& [tile, level] : torchResult)
+        levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].torch =
+            static_cast<std::uint16_t>(level);
+
+    for (const auto& [tile, level] : lavaResult)
+        levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].lava =
+            static_cast<std::uint16_t>(level);
 }
 
 int Lighting::skyLight(int x, int y) const
@@ -101,12 +108,20 @@ int Lighting::skyLight(int x, int y) const
     return levels[static_cast<std::size_t>(y) * WORLD_WIDTH + x].sky;
 }
 
-int Lighting::blockLight(int x, int y) const
+int Lighting::torchLight(int x, int y) const
 {
     if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT)
         return 0;
 
-    return levels[static_cast<std::size_t>(y) * WORLD_WIDTH + x].block;
+    return levels[static_cast<std::size_t>(y) * WORLD_WIDTH + x].torch;
+}
+
+int Lighting::lavaLight(int x, int y) const
+{
+    if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT)
+        return 0;
+
+    return levels[static_cast<std::size_t>(y) * WORLD_WIDTH + x].lava;
 }
 
 std::vector<std::pair<sf::Vector2i, int>> Lighting::heldTorchLight(const World& world,
