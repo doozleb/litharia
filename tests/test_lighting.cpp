@@ -21,6 +21,11 @@ TEST_CASE("MAX_LIGHT_LEVEL is 9")
     CHECK(Lighting::MAX_LIGHT_LEVEL == 9);
 }
 
+TEST_CASE("TORCH_LIGHT_LEVEL is 15")
+{
+    CHECK(Lighting::TORCH_LIGHT_LEVEL == 15);
+}
+
 TEST_CASE("a lone Lava tile lights itself on the lava channel only, decaying by 1 per step")
 {
     World world;
@@ -67,10 +72,26 @@ TEST_CASE("a placed Torch lights the torch channel only, decaying by 1 per step"
     Lighting lighting;
     lighting.recomputeAll(world, machines);
 
-    CHECK(lighting.torchLight(10, 10) == Lighting::MAX_LIGHT_LEVEL);
-    CHECK(lighting.torchLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.torchLight(10, 10) == Lighting::TORCH_LIGHT_LEVEL);
+    CHECK(lighting.torchLight(9, 10) == Lighting::TORCH_LIGHT_LEVEL - 1);
 
     CHECK(lighting.lavaLight(10, 10) == 0);
+}
+
+TEST_CASE("a placed Torch reads brighter than MAX_LIGHT_LEVEL, unlike Lava or sky")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+
+    Machines machines;
+    machines.place(MachineType::Torch, 10, 10, Direction::Right);
+
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    CHECK(lighting.torchLight(10, 10) > Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.torchLight(10, 10) == Lighting::TORCH_LIGHT_LEVEL);
 }
 
 TEST_CASE("torch light is blocked entirely by a solid tile")
@@ -204,7 +225,7 @@ TEST_CASE("torchLight, lavaLight, and skyLight are 0 out of bounds")
     CHECK(lighting.skyLight(0, WORLD_HEIGHT) == 0);
 }
 
-TEST_CASE("heldTorchLight lights its source at the max level and decays by 1 per step")
+TEST_CASE("heldTorchLight lights its source at TORCH_LIGHT_LEVEL and decays by 1 per step")
 {
     World world;
     fillSolid(world);
@@ -226,9 +247,9 @@ TEST_CASE("heldTorchLight lights its source at the max level and decays by 1 per
         return 0;
     };
 
-    CHECK(levelAt(10, 10) == Lighting::MAX_LIGHT_LEVEL);
-    CHECK(levelAt(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
-    CHECK(levelAt(8, 10) == Lighting::MAX_LIGHT_LEVEL - 2);
+    CHECK(levelAt(10, 10) == Lighting::TORCH_LIGHT_LEVEL);
+    CHECK(levelAt(9, 10) == Lighting::TORCH_LIGHT_LEVEL - 1);
+    CHECK(levelAt(8, 10) == Lighting::TORCH_LIGHT_LEVEL - 2);
 }
 
 TEST_CASE("heldTorchLight is blocked by solid tiles, same as a placed Torch")

@@ -72,7 +72,7 @@ void Lighting::recomputeAll(const World& world, const Machines& machines)
 
     for (const Machine& m : machines.all())
         if (m.type == MachineType::Torch)
-            torchSeeds.push_back({m.x, m.y, MAX_LIGHT_LEVEL});
+            torchSeeds.push_back({m.x, m.y, TORCH_LIGHT_LEVEL});
 
     std::vector<LightSeed> lavaSeeds;
 
@@ -127,7 +127,7 @@ int Lighting::lavaLight(int x, int y) const
 std::vector<std::pair<sf::Vector2i, int>> Lighting::heldTorchLight(const World& world,
                                                                     sf::Vector2i source) const
 {
-    return floodFill(world, {LightSeed{source.x, source.y, MAX_LIGHT_LEVEL}});
+    return floodFill(world, {LightSeed{source.x, source.y, TORCH_LIGHT_LEVEL}});
 }
 
 std::vector<std::pair<sf::Vector2i, int>> Lighting::ambientOutline(const World& world, sf::Vector2i playerTile,

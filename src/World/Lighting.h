@@ -15,15 +15,17 @@ class Machines;
 struct LightLevel
 {
     std::uint16_t sky : 4;   // 0-MAX_LIGHT_LEVEL, this tile's sunlight exposure
-    std::uint16_t torch : 4; // 0-MAX_LIGHT_LEVEL, this tile's Torch exposure
+    std::uint16_t torch : 4; // 0-TORCH_LIGHT_LEVEL, this tile's Torch exposure
     std::uint16_t lava : 4;  // 0-MAX_LIGHT_LEVEL, this tile's Lava exposure
 };
 static_assert(sizeof(LightLevel) == 2, "Two bytes per tile: a 1000x500 world stays 1 MB.");
 
 // Computes and stores per-tile lighting: how exposed to the sky a tile is
 // (skyLight), how close it is to a placed Torch (torchLight), and how close
-// it is to a Lava tile (lavaLight) - each 0-MAX_LIGHT_LEVEL, decaying by 1
-// per orthogonal step, blocked entirely by solid tiles. Torch and Lava are
+// it is to a Lava tile (lavaLight) - sky and lava are 0-MAX_LIGHT_LEVEL,
+// torch is 0-TORCH_LIGHT_LEVEL (deliberately brighter and farther-reaching
+// than the other two sources) - each decaying by 1 per orthogonal step,
+// blocked entirely by solid tiles. Torch and Lava are
 // separate channels (not merged into one "block light") purely so
 // LightRenderer can tint them differently - a lava pool and a lit Torch
 // should not look identical. A separate grid from World/Tile - light values
@@ -48,6 +50,19 @@ public:
     // last one that still reads as lit at all - one dimmer at each step in
     // between.
     static constexpr int MAX_LIGHT_LEVEL = 9;
+
+    // A Torch's own seed level - deliberately higher than MAX_LIGHT_LEVEL,
+    // using headroom the 4-bit `torch` field already has (up to 15), so a
+    // Torch is both brighter and farther-reaching than sky or Lava at the
+    // same distance: brightness is still normalized against MAX_LIGHT_LEVEL
+    // at render time, so a Torch stays fully bright out to
+    // (TORCH_LIGHT_LEVEL - MAX_LIGHT_LEVEL) tiles farther than a source
+    // seeded at MAX_LIGHT_LEVEL would, and doesn't decay to 0 until this
+    // many steps out instead of MAX_LIGHT_LEVEL. Used for both a placed
+    // Torch (recomputeAll) and the player's held Torch (heldTorchLight) -
+    // the two are deliberately kept identical, per heldTorchLight's own
+    // comment below.
+    static constexpr int TORCH_LIGHT_LEVEL = 15;
 
     // How far the player's own "eyes adjusting to the dark" ambient
     // visibility reaches - much further than MAX_LIGHT_LEVEL, since it's not
@@ -75,14 +90,14 @@ public:
     void recomputeAll(const World& world, const Machines& machines);
 
     int skyLight(int x, int y) const;   // 0-MAX_LIGHT_LEVEL; 0 out of bounds
-    int torchLight(int x, int y) const; // 0-MAX_LIGHT_LEVEL; 0 out of bounds
+    int torchLight(int x, int y) const; // 0-TORCH_LIGHT_LEVEL; 0 out of bounds
     int lavaLight(int x, int y) const;  // 0-MAX_LIGHT_LEVEL; 0 out of bounds
 
-    // A single-source flood fill from `source` at MAX_LIGHT_LEVEL - the same
-    // brightness and decay/occlusion rule as a placed Torch's own
+    // A single-source flood fill from `source` at TORCH_LIGHT_LEVEL - the
+    // same brightness and decay/occlusion rule as a placed Torch's own
     // torchLight, but computed fresh every call rather than stored in
     // `levels`. Used for the player's held Torch, which moves with them
-    // every frame: naturally bounded to within MAX_LIGHT_LEVEL steps of
+    // every frame: naturally bounded to within TORCH_LIGHT_LEVEL steps of
     // `source` (the seed starts there and floodFill's decay reaches 0 by
     // then), so this stays cheap enough to call once a frame without forcing
     // a full recompute.
