@@ -1120,17 +1120,18 @@ void Game::render()
 
     drawDamagePopups();
 
+    const sf::Vector2i playerTile{static_cast<int>(std::floor(player.center().x / TILE_SIZE)),
+                                   static_cast<int>(std::floor(player.center().y / TILE_SIZE))};
+
     std::vector<std::pair<sf::Vector2i, int>> heldLight;
     const ItemStack& held = player.inventory().slot(player.selectedSlot());
     if (held.type == ItemType::Torch)
-    {
-        const sf::Vector2i playerTile{
-            static_cast<int>(std::floor(player.center().x / TILE_SIZE)),
-            static_cast<int>(std::floor(player.center().y / TILE_SIZE))};
         heldLight = lighting.heldTorchLight(world, playerTile);
-    }
 
-    lightRenderer.draw(window, camera.view(), world, lighting, dayNightClock.daylightFactor(), heldLight);
+    const std::vector<std::pair<sf::Vector2i, int>> ambientOutline = lighting.ambientOutline(world, playerTile);
+
+    lightRenderer.draw(window, camera.view(), world, lighting, dayNightClock.daylightFactor(), heldLight,
+                        ambientOutline);
 
     hud.draw(window, player.inventory(), player.selectedSlot());
     hud.drawHealth(window, player.health(), Player::MAX_HEALTH);

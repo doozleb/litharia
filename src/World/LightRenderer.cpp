@@ -13,7 +13,9 @@ namespace
 
 constexpr sf::Color NIGHT_TINT(20, 25, 45);
 constexpr sf::Color DAY_TINT(225, 235, 250);
-constexpr sf::Color BLOCK_TINT(255, 180, 90);
+constexpr sf::Color TORCH_TINT(255, 200, 110);
+constexpr sf::Color LAVA_TINT(255, 90, 40);
+constexpr sf::Color OUTLINE_TINT(90, 90, 100);
 
 sf::Color lerp(sf::Color a, sf::Color b, float t)
 {
@@ -48,7 +50,8 @@ void appendQuad(sf::VertexArray& vertices, float left, float top, float right, f
 
 void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const World& world,
                           const Lighting& lighting, float daylightFactor,
-                          const std::vector<std::pair<sf::Vector2i, int>>& heldTorchLight) const
+                          const std::vector<std::pair<sf::Vector2i, int>>& heldTorchLight,
+                          const std::vector<std::pair<sf::Vector2i, int>>& ambientOutline) const
 {
     const sf::Vector2f center = view.getCenter();
     const sf::Vector2f size = view.getSize();
@@ -67,6 +70,13 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
     for (const auto& [tile, level] : heldTorchLight)
         heldMap[tileKey(tile.x, tile.y)] = level;
 
+    std::unordered_map<std::int64_t, int> outlineMap;
+    for (const auto& [tile, level] : ambientOutline)
+    {
+        int& slot = outlineMap[tileKey(tile.x, tile.y)];
+        slot = std::max(slot, level);
+    }
+
     const sf::Color skyTint = lerp(NIGHT_TINT, DAY_TINT, daylightFactor);
 
     sf::VertexArray vertices(sf::PrimitiveType::Triangles);
@@ -75,26 +85,75 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
     {
         for (int x = firstX; x <= lastX; ++x)
         {
-            // Unexcavated ground is terrain, not a "space" - it renders at
-            // its normal color regardless of light, exactly as it did before
-            // this feature existed. Only actual open air (caves, dug
-            // tunnels, the sky) is ever darkened.
+            int skyRaw;
+            int torchRaw;
+            int lavaRaw;
+
             if (world.isSolid(x, y))
-                continue;
+            {
+                // A solid tile borrows one step dimmer than its brightest
+                // open neighbour, per channel - Lighting's BFS never
+                // assigns a solid tile its own light, so a neighbour that's
+                // itself solid always reads 0 here already, no separate
+                // isSolid check needed on the neighbours themselves.
+                const int skyN = std::max({lighting.skyLight(x - 1, y), lighting.skyLight(x + 1, y),
+                                            lighting.skyLight(x, y - 1), lighting.skyLight(x, y + 1)});
+                const int torchN = std::max({lighting.torchLight(x - 1, y), lighting.torchLight(x + 1, y),
+                                              lighting.torchLight(x, y - 1), lighting.torchLight(x, y + 1)});
+                const int lavaN = std::max({lighting.lavaLight(x - 1, y), lighting.lavaLight(x + 1, y),
+                                             lighting.lavaLight(x, y - 1), lighting.lavaLight(x, y + 1)});
 
-            const float skyEffective = lighting.skyLight(x, y) * daylightFactor;
+                skyRaw = std::max(0, skyN - 1);
+                torchRaw = std::max(0, torchN - 1);
+                lavaRaw = std::max(0, lavaN - 1);
+            }
+            else
+            {
+                skyRaw = lighting.skyLight(x, y);
+                torchRaw = lighting.torchLight(x, y);
+                lavaRaw = lighting.lavaLight(x, y);
+            }
 
-            int blockEffective = lighting.torchLight(x, y) + lighting.lavaLight(x, y);
-            const auto it = heldMap.find(tileKey(x, y));
-            if (it != heldMap.end())
-                blockEffective = std::max(blockEffective, it->second);
+            const auto heldIt = heldMap.find(tileKey(x, y));
+            if (heldIt != heldMap.end())
+                torchRaw = std::max(torchRaw, heldIt->second);
 
-            const float brightness = std::clamp(
-                std::max(skyEffective, static_cast<float>(blockEffective)) / Lighting::MAX_LIGHT_LEVEL,
-                0.0f, 1.0f);
+            const float skyEffective = static_cast<float>(skyRaw) * daylightFactor;
+            const float torchEffective = static_cast<float>(torchRaw);
+            const float lavaEffective = static_cast<float>(lavaRaw);
 
-            const sf::Color tint = blockEffective > skyEffective ? BLOCK_TINT : skyTint;
-            const sf::Color overlay = lerp(sf::Color::Black, tint, brightness);
+            const float total = skyEffective + torchEffective + lavaEffective;
+
+            sf::Color overlay;
+
+            if (total > 0.0f)
+            {
+                const float brightness = std::clamp(
+                    std::max({skyEffective, torchEffective, lavaEffective}) / Lighting::MAX_LIGHT_LEVEL,
+                    0.0f, 1.0f);
+
+                const sf::Color blended(
+                    static_cast<std::uint8_t>(
+                        (skyTint.r * skyEffective + TORCH_TINT.r * torchEffective + LAVA_TINT.r * lavaEffective) /
+                        total),
+                    static_cast<std::uint8_t>(
+                        (skyTint.g * skyEffective + TORCH_TINT.g * torchEffective + LAVA_TINT.g * lavaEffective) /
+                        total),
+                    static_cast<std::uint8_t>(
+                        (skyTint.b * skyEffective + TORCH_TINT.b * torchEffective + LAVA_TINT.b * lavaEffective) /
+                        total));
+
+                overlay = lerp(sf::Color::Black, blended, brightness);
+            }
+            else
+            {
+                const auto outlineIt = outlineMap.find(tileKey(x, y));
+                const int outlineLevel = outlineIt != outlineMap.end() ? outlineIt->second : 0;
+                const float brightness =
+                    std::clamp(static_cast<float>(outlineLevel) / Lighting::MAX_LIGHT_LEVEL, 0.0f, 1.0f);
+
+                overlay = lerp(sf::Color::Black, OUTLINE_TINT, brightness);
+            }
 
             const float left = static_cast<float>(x * TILE_SIZE);
             const float top = static_cast<float>(y * TILE_SIZE);
