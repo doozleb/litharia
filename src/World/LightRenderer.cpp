@@ -60,10 +60,12 @@ constexpr int WALL_PENETRATION_DEPTH = 3;
 // steeper than the general "-1 per step" light-decay rate used everywhere
 // else in this system, so the fade across those 3 tiles actually reads as a
 // fade instead of three near-identical shades: distance 1 stays reasonably
-// bright, distance 2 reads as "just dark," distance 3 as "very dark" (only
-// a source at or near Lighting::MAX_LIGHT_LEVEL has any brightness budget
-// left by then). Indexed by distance - 1, since wallPenetrationOffsets only
-// ever produces distances 1..WALL_PENETRATION_DEPTH.
+// bright, distance 2 reads as "just dark," distance 3 as "very dark" for a
+// source at or near Lighting::MAX_LIGHT_LEVEL - a Torch, seeded well above
+// that (Lighting::TORCH_LIGHT_LEVEL), still has real brightness budget left
+// at distance 3 and glows more than "very dark" there. Indexed by
+// distance - 1, since wallPenetrationOffsets only ever produces distances
+// 1..WALL_PENETRATION_DEPTH.
 constexpr int WALL_PENETRATION_PENALTY[WALL_PENETRATION_DEPTH] = {2, 5, 8};
 
 // Every (dx, dy, distance) offset within Manhattan distance 1..WALL_PENETRATION_DEPTH
