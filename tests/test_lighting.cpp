@@ -604,3 +604,46 @@ TEST_CASE("floodFill blocks a diagonal step around a solid corner, even though t
 
     CHECK(lighting.torchLight(11, 11) == 0);
 }
+
+TEST_CASE("every lava tile lights itself at MAX_LIGHT_LEVEL, including an interior tile no longer seeded directly")
+{
+    World world;
+    for (int x = 10; x <= 12; ++x)
+        for (int y = 10; y <= 12; ++y)
+            world.set(x, y, BlockType::Lava8);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    // Every tile in the 3x3 block, including the single interior tile
+    // (11, 11) - the only one whose 4 orthogonal neighbours are all lava -
+    // reads exactly MAX_LIGHT_LEVEL at its own position.
+    for (int x = 10; x <= 12; ++x)
+        for (int y = 10; y <= 12; ++y)
+            CHECK(lighting.lavaLight(x, y) == Lighting::MAX_LIGHT_LEVEL);
+
+    // Immediately outside the block, light still decays normally from
+    // whichever boundary tile is nearest.
+    CHECK(lighting.lavaLight(9, 11) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.lavaLight(13, 11) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.lavaLight(11, 9) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.lavaLight(11, 13) == Lighting::MAX_LIGHT_LEVEL - 1);
+}
+
+TEST_CASE("a single-tile-thick lava wall has no interior tiles and lights exactly as before")
+{
+    World world;
+    for (int x = 8; x <= 12; ++x)
+        world.set(x, 10, BlockType::Lava8);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    for (int x = 8; x <= 12; ++x)
+        CHECK(lighting.lavaLight(x, 10) == Lighting::MAX_LIGHT_LEVEL);
+
+    CHECK(lighting.lavaLight(7, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.lavaLight(13, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+}

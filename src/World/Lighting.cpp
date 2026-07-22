@@ -147,9 +147,32 @@ void Lighting::recomputeAll(const World& world, const Machines& machines)
     std::vector<LightSeed> lavaSeeds;
 
     for (int y = 0; y < WORLD_HEIGHT; ++y)
+    {
         for (int x = 0; x < WORLD_WIDTH; ++x)
-            if (isLava(world.get(x, y)))
-                lavaSeeds.push_back({x, y, MAX_LIGHT_LEVEL});
+        {
+            if (!isLava(world.get(x, y)))
+                continue;
+
+            // An interior lava tile - every orthogonal neighbour also lava -
+            // is a redundant flood-fill seed: it can never light anything
+            // outside the lava body that a strictly closer boundary tile of
+            // the same body doesn't already light at least as well, since
+            // lava is non-solid and never blocks the flood fill from passing
+            // through it. Skipping these seeds is what keeps recomputeAll's
+            // lava-channel cost proportional to a body's boundary instead of
+            // its fill - see docs/superpowers/specs/
+            // 2026-07-22-lighting-lava-seed-design.md. The lava tiles
+            // themselves still always read MAX_LIGHT_LEVEL regardless - see
+            // the force-set pass below, not this seed list.
+            const bool interior = isLava(world.get(x - 1, y)) && isLava(world.get(x + 1, y)) &&
+                                   isLava(world.get(x, y - 1)) && isLava(world.get(x, y + 1));
+
+            if (interior)
+                continue;
+
+            lavaSeeds.push_back({x, y, MAX_LIGHT_LEVEL});
+        }
+    }
 
     const auto skyResult = floodFill(world, skySeeds);
     const auto torchResult = floodFill(world, torchSeeds);
@@ -168,6 +191,19 @@ void Lighting::recomputeAll(const World& world, const Machines& machines)
     for (const auto& [tile, level] : lavaResult)
         levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].lava =
             static_cast<std::uint16_t>(level);
+
+    // Every lava tile is always fully lit at its own position, independent
+    // of how far it sits from a boundary seed - see docs/superpowers/specs/
+    // 2026-07-22-lighting-lava-seed-design.md for why this can't be left to
+    // the (boundary-only) flood fill above: a deep interior tile could
+    // otherwise read dimmer than MAX_LIGHT_LEVEL. Cheap by construction - no
+    // BFS, no sqrt, just a linear scan - so this costs a small, fixed amount
+    // regardless of how the lava is shaped.
+    for (int y = 0; y < WORLD_HEIGHT; ++y)
+        for (int x = 0; x < WORLD_WIDTH; ++x)
+            if (isLava(world.get(x, y)))
+                levels[static_cast<std::size_t>(y) * WORLD_WIDTH + x].lava =
+                    static_cast<std::uint16_t>(MAX_LIGHT_LEVEL);
 }
 
 int Lighting::skyLight(int x, int y) const
