@@ -89,6 +89,12 @@ public:
     // block is mined or placed, or a Torch is placed or removed.
     void recomputeAll(const World& world, const Machines& machines);
 
+    // Recomputes only the lava channel, leaving sky and torch untouched -
+    // for the lava-triggered call site (Game::fixedUpdate), which never
+    // needs to touch sky or torch since only lava moved on that path. See
+    // docs/superpowers/specs/2026-07-22-lighting-lava-only-recompute-design.md.
+    void recomputeLava(const World& world);
+
     int skyLight(int x, int y) const;   // 0-MAX_LIGHT_LEVEL; 0 out of bounds
     int torchLight(int x, int y) const; // 0-TORCH_LIGHT_LEVEL; 0 out of bounds
     int lavaLight(int x, int y) const;  // 0-MAX_LIGHT_LEVEL; 0 out of bounds
@@ -177,6 +183,13 @@ private:
     // floodStamp's own comment for why.
     std::vector<std::pair<sf::Vector2i, int>> floodFill(const World& world,
                                                           const std::vector<LightSeed>& seeds) const;
+
+    // Shared by recomputeAll (as its own lava step) and recomputeLava (as
+    // its only step): rebuilds the lava channel from scratch (interior-skip
+    // seeding, floodFill, force-set pass), touching only levels[...].lava.
+    // See docs/superpowers/specs/
+    // 2026-07-22-lighting-lava-only-recompute-design.md.
+    void recomputeLavaChannel(const World& world);
 
     std::vector<LightLevel> levels; // WORLD_WIDTH * WORLD_HEIGHT
 

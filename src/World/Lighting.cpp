@@ -118,27 +118,8 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::floodFill(const World& world
     return result;
 }
 
-void Lighting::recomputeAll(const World& world, const Machines& machines)
+void Lighting::recomputeLavaChannel(const World& world)
 {
-    std::vector<LightSeed> skySeeds;
-
-    for (int x = 0; x < WORLD_WIDTH; ++x)
-    {
-        for (int y = 0; y < WORLD_HEIGHT; ++y)
-        {
-            if (world.isSolid(x, y))
-                break;
-
-            skySeeds.push_back({x, y, MAX_LIGHT_LEVEL});
-        }
-    }
-
-    std::vector<LightSeed> torchSeeds;
-
-    for (const Machine& m : machines.all())
-        if (m.type == MachineType::Torch)
-            torchSeeds.push_back({m.x, m.y, TORCH_LIGHT_LEVEL});
-
     std::vector<LightSeed> lavaSeeds;
 
     for (int y = 0; y < WORLD_HEIGHT; ++y)
@@ -169,19 +150,17 @@ void Lighting::recomputeAll(const World& world, const Machines& machines)
         }
     }
 
-    const auto skyResult = floodFill(world, skySeeds);
-    const auto torchResult = floodFill(world, torchSeeds);
     const auto lavaResult = floodFill(world, lavaSeeds);
 
-    std::fill(levels.begin(), levels.end(), LightLevel{0, 0, 0});
-
-    for (const auto& [tile, level] : skyResult)
-        levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].sky =
-            static_cast<std::uint16_t>(level);
-
-    for (const auto& [tile, level] : torchResult)
-        levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].torch =
-            static_cast<std::uint16_t>(level);
+    // Reset only the lava channel - sky/torch are left exactly as the
+    // caller already had them, unlike recomputeAll's full-struct
+    // std::fill. When called from recomputeAll (below), this means the
+    // lava field gets zeroed twice in a row (once by recomputeAll's own
+    // std::fill, once here) - a harmless, negligible redundancy confined
+    // to the already-existing full-recompute path; recomputeLava's fast
+    // path only ever does this single lava-only zero.
+    for (LightLevel& level : levels)
+        level.lava = 0;
 
     for (const auto& [tile, level] : lavaResult)
         levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].lava =
@@ -199,6 +178,48 @@ void Lighting::recomputeAll(const World& world, const Machines& machines)
             if (isLava(world.get(x, y)))
                 levels[static_cast<std::size_t>(y) * WORLD_WIDTH + x].lava =
                     static_cast<std::uint16_t>(MAX_LIGHT_LEVEL);
+}
+
+void Lighting::recomputeAll(const World& world, const Machines& machines)
+{
+    std::vector<LightSeed> skySeeds;
+
+    for (int x = 0; x < WORLD_WIDTH; ++x)
+    {
+        for (int y = 0; y < WORLD_HEIGHT; ++y)
+        {
+            if (world.isSolid(x, y))
+                break;
+
+            skySeeds.push_back({x, y, MAX_LIGHT_LEVEL});
+        }
+    }
+
+    std::vector<LightSeed> torchSeeds;
+
+    for (const Machine& m : machines.all())
+        if (m.type == MachineType::Torch)
+            torchSeeds.push_back({m.x, m.y, TORCH_LIGHT_LEVEL});
+
+    const auto skyResult = floodFill(world, skySeeds);
+    const auto torchResult = floodFill(world, torchSeeds);
+
+    std::fill(levels.begin(), levels.end(), LightLevel{0, 0, 0});
+
+    for (const auto& [tile, level] : skyResult)
+        levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].sky =
+            static_cast<std::uint16_t>(level);
+
+    for (const auto& [tile, level] : torchResult)
+        levels[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x].torch =
+            static_cast<std::uint16_t>(level);
+
+    recomputeLavaChannel(world);
+}
+
+void Lighting::recomputeLava(const World& world)
+{
+    recomputeLavaChannel(world);
 }
 
 int Lighting::skyLight(int x, int y) const

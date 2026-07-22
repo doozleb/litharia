@@ -713,3 +713,94 @@ TEST_CASE("floodFill's shared multi-source search picks each tile's true nearest
     // double-count or otherwise misbehave when two seeds tie.
     CHECK(lighting.lavaLight(15, 10) == Lighting::MAX_LIGHT_LEVEL - 5);
 }
+
+TEST_CASE("recomputeLava updates the lava channel and leaves sky/torch alone")
+{
+    World world;
+    fillSolid(world);
+    for (int y = 0; y <= 20; ++y)
+        world.set(10, y, BlockType::Air); // open shaft: sky light
+    world.set(30, 30, BlockType::Air);
+    world.set(29, 30, BlockType::Air); // torch will sit at (30,30)
+    world.set(41, 40, BlockType::Air); // where the lava will move to
+    world.set(40, 40, BlockType::Lava8); // initial lava position
+
+    Machines machines;
+    machines.place(MachineType::Torch, 30, 30, Direction::Right);
+
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    // Establish the baseline every channel reads after the full recompute,
+    // before recomputeLava ever runs.
+    CHECK(lighting.skyLight(10, 20) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.torchLight(30, 30) == Lighting::TORCH_LIGHT_LEVEL);
+    CHECK(lighting.torchLight(29, 30) == Lighting::TORCH_LIGHT_LEVEL - 1);
+    CHECK(lighting.lavaLight(40, 40) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.lavaLight(41, 40) == Lighting::MAX_LIGHT_LEVEL - 1);
+
+    // Move the lava: (40, 40) cools to solid Stone, a new Lava8 tile
+    // appears at the already-open (41, 40).
+    world.set(40, 40, BlockType::Stone);
+    world.set(41, 40, BlockType::Lava8);
+
+    lighting.recomputeLava(world);
+
+    // Lava channel reflects the new position - (40, 40) is now solid, so
+    // it reads 0 (a solid tile is never in floodFill's result, same as any
+    // other wall).
+    CHECK(lighting.lavaLight(41, 40) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.lavaLight(40, 40) == 0);
+
+    // ...but sky and torch are exactly as recomputeAll left them - the
+    // direct regression test that recomputeLava never touches those
+    // channels.
+    CHECK(lighting.skyLight(10, 20) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.torchLight(30, 30) == Lighting::TORCH_LIGHT_LEVEL);
+    CHECK(lighting.torchLight(29, 30) == Lighting::TORCH_LIGHT_LEVEL - 1);
+}
+
+TEST_CASE("recomputeLava works correctly even when called before any recomputeAll")
+{
+    World world;
+    fillSolid(world);
+    world.set(9, 10, BlockType::Air);
+    world.set(11, 10, BlockType::Air);
+    world.set(10, 10, BlockType::Lava8);
+
+    Lighting lighting;
+    lighting.recomputeLava(world);
+
+    CHECK(lighting.lavaLight(10, 10) == Lighting::MAX_LIGHT_LEVEL);
+    CHECK(lighting.lavaLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+    CHECK(lighting.lavaLight(11, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+
+    // Sky/torch were never computed at all - they read their
+    // zero-initialized default.
+    CHECK(lighting.skyLight(10, 10) == 0);
+    CHECK(lighting.torchLight(10, 10) == 0);
+}
+
+TEST_CASE("recomputeLava and recomputeAll agree on the lava channel for the same world state")
+{
+    World world;
+    fillSolid(world);
+    world.set(9, 10, BlockType::Air);
+    world.set(11, 10, BlockType::Air);
+    world.set(10, 10, BlockType::Lava8);
+
+    Machines machines;
+    Lighting lighting;
+
+    lighting.recomputeAll(world, machines);
+    CHECK(lighting.lavaLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+
+    lighting.recomputeLava(world);
+    CHECK(lighting.lavaLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+
+    // A second full recompute on the same (unchanged) world must still
+    // agree - the direct regression test that the factored-out helper
+    // produces the exact same result whichever entry point calls it.
+    lighting.recomputeAll(world, machines);
+    CHECK(lighting.lavaLight(9, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
+}

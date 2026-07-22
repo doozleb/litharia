@@ -1036,7 +1036,7 @@ void Game::fixedUpdate(float dt)
     // the world's many generated lava pools are still settling).
     if (lavaLightingChanged && lavaLightingCooldown <= 0.0f)
     {
-        lighting.recomputeAll(world, machines);
+        lighting.recomputeLava(world);
         lavaLightingCooldown = LAVA_LIGHTING_COOLDOWN_SECONDS;
     }
 
