@@ -608,9 +608,14 @@ TEST_CASE("floodFill blocks a diagonal step around a solid corner, even though t
 TEST_CASE("every lava tile lights itself at MAX_LIGHT_LEVEL, including an interior tile no longer seeded directly")
 {
     World world;
+    fillSolid(world);
     for (int x = 10; x <= 12; ++x)
         for (int y = 10; y <= 12; ++y)
             world.set(x, y, BlockType::Lava8);
+    world.set(9, 11, BlockType::Air);
+    world.set(13, 11, BlockType::Air);
+    world.set(11, 9, BlockType::Air);
+    world.set(11, 13, BlockType::Air);
 
     Machines machines;
     Lighting lighting;
@@ -634,8 +639,11 @@ TEST_CASE("every lava tile lights itself at MAX_LIGHT_LEVEL, including an interi
 TEST_CASE("a single-tile-thick lava wall has no interior tiles and lights exactly as before")
 {
     World world;
+    fillSolid(world);
     for (int x = 8; x <= 12; ++x)
         world.set(x, 10, BlockType::Lava8);
+    world.set(7, 10, BlockType::Air);
+    world.set(13, 10, BlockType::Air);
 
     Machines machines;
     Lighting lighting;
