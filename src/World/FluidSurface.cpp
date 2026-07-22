@@ -13,12 +13,12 @@ constexpr int MAX_RUN_SCAN = 128;
 
 } // namespace
 
-float fluidSurfaceHeight(const World& world, int x, int y)
+FluidSurfaceRun fluidSurfaceRunAt(const World& world, int x, int y)
 {
     const BlockType here = world.get(x, y);
 
     if (!isFluid(here))
-        return 0.0f;
+        return {x, x, 0.0f};
 
     const bool water = isWater(here);
 
@@ -36,7 +36,7 @@ float fluidSurfaceHeight(const World& world, int x, int y)
     };
 
     if (!isRunMember(x))
-        return fluidLevel(here) / 8.0f;
+        return {x, x, fluidLevel(here) / 8.0f};
 
     int xL = x;
     int xR = x;
@@ -54,12 +54,17 @@ float fluidSurfaceHeight(const World& world, int x, int y)
     }
 
     if (scanned >= MAX_RUN_SCAN)
-        return fluidLevel(here) / 8.0f;
+        return {x, x, fluidLevel(here) / 8.0f};
 
     int total = 0;
     for (int cx = xL; cx <= xR; ++cx)
         total += fluidLevel(world.get(cx, y));
 
     const int n = xR - xL + 1;
-    return (static_cast<float>(total) / n) / 8.0f;
+    return {xL, xR, (static_cast<float>(total) / n) / 8.0f};
+}
+
+float fluidSurfaceHeight(const World& world, int x, int y)
+{
+    return fluidSurfaceRunAt(world, x, y).height;
 }

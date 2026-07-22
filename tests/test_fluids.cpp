@@ -798,3 +798,70 @@ TEST_CASE("fluidSurfaceHeight returns 0 for a non-fluid tile")
     CHECK(fluidSurfaceHeight(world, 8, 10) == doctest::Approx(0.0f));
     CHECK(fluidSurfaceHeight(world, 5, 5) == doctest::Approx(0.0f)); // air
 }
+
+TEST_CASE("fluidSurfaceRunAt reports the run's exact bounds, not just its height")
+{
+    World world;
+    for (int x = 8; x <= 10; ++x)
+        world.set(x, 11, BlockType::Stone);
+
+    // Same 3-tile run as the "one flat height" fluidSurfaceHeight test.
+    world.set(8, 10, BlockType::Water5);
+    world.set(9, 10, BlockType::Water4);
+    world.set(10, 10, BlockType::Water5);
+
+    const FluidSurfaceRun run = fluidSurfaceRunAt(world, 9, 10);
+
+    CHECK(run.left == 8);
+    CHECK(run.right == 10);
+    CHECK(run.height == doctest::Approx((14.0f / 3.0f) / 8.0f));
+
+    // Querying from either end of the same run reports identical bounds.
+    const FluidSurfaceRun runFromLeftEnd = fluidSurfaceRunAt(world, 8, 10);
+    CHECK(runFromLeftEnd.left == 8);
+    CHECK(runFromLeftEnd.right == 10);
+}
+
+TEST_CASE("fluidSurfaceRunAt reports a zero-width run for a submerged tile")
+{
+    World world;
+    world.set(8, 11, BlockType::Stone);
+    // A two-tall column: surface Water4 on top of a full Water8 (submerged).
+    world.set(8, 9, BlockType::Water4);
+    world.set(8, 10, BlockType::Water8);
+
+    const FluidSurfaceRun submerged = fluidSurfaceRunAt(world, 8, 10);
+    CHECK(submerged.left == 8);
+    CHECK(submerged.right == 8);
+    CHECK(submerged.height == doctest::Approx(1.0f));
+}
+
+TEST_CASE("fluidSurfaceRunAt reports a zero-width run for a non-fluid tile")
+{
+    World world;
+    world.set(8, 10, BlockType::Stone);
+
+    const FluidSurfaceRun run = fluidSurfaceRunAt(world, 8, 10);
+    CHECK(run.left == 8);
+    CHECK(run.right == 8);
+    CHECK(run.height == doctest::Approx(0.0f));
+}
+
+TEST_CASE("fluidSurfaceRunAt stops a run at a solid gap and at a different fluid, same as fluidSurfaceHeight")
+{
+    World world;
+    world.set(8, 10, BlockType::Water8);
+    world.set(9, 10, BlockType::Stone);  // gap breaks the run
+    world.set(10, 10, BlockType::Water2);
+    world.set(11, 10, BlockType::Lava8); // different fluid breaks the run
+
+    const FluidSurfaceRun runAt8 = fluidSurfaceRunAt(world, 8, 10);
+    CHECK(runAt8.left == 8);
+    CHECK(runAt8.right == 8);
+    CHECK(runAt8.height == doctest::Approx(1.0f));
+
+    const FluidSurfaceRun runAt10 = fluidSurfaceRunAt(world, 10, 10);
+    CHECK(runAt10.left == 10);
+    CHECK(runAt10.right == 10);
+    CHECK(runAt10.height == doctest::Approx(2.0f / 8.0f));
+}
