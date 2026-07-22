@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstdint>
 #include <tuple>
-#include <unordered_map>
 
 #include "../Core/Constants.h"
 #include "World.h"
@@ -25,11 +24,6 @@ sf::Color lerp(sf::Color a, sf::Color b, float t)
         static_cast<std::uint8_t>(a.r + (b.r - a.r) * t),
         static_cast<std::uint8_t>(a.g + (b.g - a.g) * t),
         static_cast<std::uint8_t>(a.b + (b.b - a.b) * t));
-}
-
-std::int64_t tileKey(int x, int y)
-{
-    return (static_cast<std::int64_t>(x) << 32) ^ static_cast<std::uint32_t>(y);
 }
 
 // Two triangles per tile: SFML 3 has no quad primitive. Matches Chunks.cpp's
@@ -112,16 +106,16 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
     const int lastX = std::min(WORLD_WIDTH - 1, static_cast<int>(std::floor(viewRight / TILE_SIZE)) + 1);
     const int lastY = std::min(WORLD_HEIGHT - 1, static_cast<int>(std::floor(viewBottom / TILE_SIZE)) + 1);
 
-    std::unordered_map<std::int64_t, int> heldMap;
+    // Replaces what used to be two std::unordered_maps rebuilt from scratch
+    // every call - see SparseTileGrid's own comment for the generation-
+    // stamp mechanism this relies on.
+    heldGrid.clear();
     for (const auto& [tile, level] : heldTorchLight)
-        heldMap[tileKey(tile.x, tile.y)] = level;
+        heldGrid.set(tile.x, tile.y, level);
 
-    std::unordered_map<std::int64_t, int> outlineMap;
+    outlineGrid.clear();
     for (const auto& [tile, level] : ambientOutline)
-    {
-        int& slot = outlineMap[tileKey(tile.x, tile.y)];
-        slot = std::max(slot, level);
-    }
+        outlineGrid.merge(tile.x, tile.y, level);
 
     const sf::Color skyTint = lerp(NIGHT_TINT, DAY_TINT, daylightFactor);
 
@@ -144,17 +138,13 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
                 // candidate tiles themselves.
                 //
                 // Torch is the one channel with a "held" equivalent: the
-                // player's held Torch (heldMap) lights open tiles the same
+                // player's held Torch (heldGrid) lights open tiles the same
                 // way a placed Torch would, but never touches the stored
                 // grid, so a lookup that only reads lighting.torchLight
-                // would miss it - fold heldMap into the lookup too, same as
+                // would miss it - fold heldGrid into the lookup too, same as
                 // the tile-itself case below.
-                const auto torchAt = [&lighting, &heldMap](int nx, int ny) {
-                    int level = lighting.torchLight(nx, ny);
-                    const auto it = heldMap.find(tileKey(nx, ny));
-                    if (it != heldMap.end())
-                        level = std::max(level, it->second);
-                    return level;
+                const auto torchAt = [&lighting, this](int nx, int ny) {
+                    return std::max(lighting.torchLight(nx, ny), heldGrid.at(nx, ny));
                 };
 
                 static const std::vector<std::tuple<int, int, int>> penetrationOffsets =
@@ -191,9 +181,7 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
                 lavaRaw = lighting.lavaLight(x, y);
             }
 
-            const auto heldIt = heldMap.find(tileKey(x, y));
-            if (heldIt != heldMap.end())
-                torchRaw = std::max(torchRaw, heldIt->second);
+            torchRaw = std::max(torchRaw, heldGrid.at(x, y));
 
             const float skyEffective = static_cast<float>(skyRaw) * daylightFactor;
             const float torchEffective = static_cast<float>(torchRaw);
@@ -224,8 +212,7 @@ void LightRenderer::draw(sf::RenderTarget& target, const sf::View& view, const W
             }
             else
             {
-                const auto outlineIt = outlineMap.find(tileKey(x, y));
-                const int outlineLevel = outlineIt != outlineMap.end() ? outlineIt->second : 0;
+                const int outlineLevel = outlineGrid.at(x, y);
                 const float brightness =
                     std::clamp(static_cast<float>(outlineLevel) / Lighting::MAX_LIGHT_LEVEL, 0.0f, 1.0f);
 

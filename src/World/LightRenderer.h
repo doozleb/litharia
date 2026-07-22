@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Lighting.h"
+#include "SparseTileGrid.h"
 
 class World;
 
@@ -48,4 +49,14 @@ public:
     void draw(sf::RenderTarget& target, const sf::View& view, const World& world, const Lighting& lighting,
               float daylightFactor, const std::vector<std::pair<sf::Vector2i, int>>& heldTorchLight,
               const std::vector<std::pair<sf::Vector2i, int>>& ambientOutline) const;
+
+private:
+    // Per-frame lookup grids for heldTorchLight/ambientOutline, replacing
+    // what used to be two std::unordered_maps rebuilt from scratch every
+    // call (see SparseTileGrid's own comment for the generation-stamp
+    // mechanism). mutable: draw() stays const - these are implementation-
+    // detail caches, not part of LightRenderer's observable state, same
+    // convention Lighting uses for its own scratch buffers.
+    mutable SparseTileGrid heldGrid;
+    mutable SparseTileGrid outlineGrid;
 };
