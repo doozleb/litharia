@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix the confirmed root cause of the game appearing to hang on launch — `Lighting::recomputeAll` costing ~6.6 seconds per call because it seeds its lava flood fill from every individual lava tile instead of once per body's boundary.
+**Goal:** Reduce the cost of one confirmed contributor to the game appearing to hang on launch — `Lighting::recomputeAll` costing ~6.6 seconds per call because it seeds its lava flood fill from every individual lava tile instead of once per body's boundary. (Post-implementation update: Task 2's empirical measurement found this cuts the per-call cost by ~36% but does not resolve the hang — see Task 2's report and the ledger. A larger follow-up, the deferred shared multi-source `floodFill` rewrite, is still needed.)
 
 **Architecture:** `recomputeAll`'s lava-seed loop skips tiles whose 4 orthogonal neighbours are all also lava (provably redundant for lighting anything outside the lava body). A second, cheap linear pass afterward force-sets every actual lava tile's own brightness to `MAX_LIGHT_LEVEL` directly, so skipping seeds can never make a lava tile read dimmer than it does today. `floodFill` itself is untouched.
 

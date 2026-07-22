@@ -10,11 +10,14 @@ via direct measurement, then found the real one: `Lighting::recomputeAll`
 live (7 calls, 46.5 total seconds, over a 60-second window on a freshly
 generated world). `Game::Game()`'s constructor calls it once, unconditionally,
 *before the window shows a single frame* (`src/Game/Game.cpp:106`) — so this
-alone accounts for the reported "not loading," independent of anything that
-happens afterward. Every subsequent lava-triggered recompute
-(`Game.cpp:1037-1041`, rate-limited to at most once per 0.5s but each
-individual call still fully blocking the main thread for ~6.6s) repeats the
-cost.
+alone accounts for several seconds of the reported "not loading" on every
+launch, before anything else runs. The full "minutes" of unresponsiveness
+comes from the aggregate of repeated calls, not that one startup call alone:
+every subsequent lava-triggered recompute (`Game.cpp:1037-1041`, rate-limited
+to at most once per 0.5s but each individual call still fully blocking the
+main thread for ~6.6s) repeats the cost, and while lava is actively settling
+after world generation this can fire many times in a row (this session's
+Task 2 measurement found 7-12 such calls in a single 60-second window).
 
 ### Why this got this expensive: what circular-light-shape actually changed
 
