@@ -31,6 +31,7 @@ add_library(Litharia_core STATIC
     src/World/FluidSim.cpp
     src/World/FluidSurface.cpp
     src/World/Lighting.cpp
+    src/World/SparseTileGrid.cpp
     src/World/DayNightClock.cpp
 
     src/Physics/Physics.cpp
@@ -108,6 +109,7 @@ add_executable(Litharia_tests
     tests/test_hud_layout.cpp
     tests/test_day_night_clock.cpp
     tests/test_lighting.cpp
+    tests/test_sparse_tile_grid.cpp
 )
 
 target_include_directories(Litharia_tests PRIVATE libs/doctest)
