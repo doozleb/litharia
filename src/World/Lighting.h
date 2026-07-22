@@ -135,12 +135,37 @@ private:
     // already have, stopping at level 0 or a solid tile (World::isSolid).
     // Since decay is always exactly 1 per step, a tile is only ever improved
     // once, so the BFS visit order alone is already the full sparse result -
-    // no second full-grid scan needed to extract it. Static (no `this`) so it
-    // can serve the world-wide recompute, a single moving source
-    // (Lighting::heldTorchLight), and the ambient-outline reachability query
-    // alike.
-    static std::vector<std::pair<sf::Vector2i, int>> floodFill(const World& world,
-                                                                const std::vector<LightSeed>& seeds);
+    // no second full-grid scan needed to extract it. Serves the world-wide
+    // recompute, a single moving source (Lighting::heldTorchLight), and (via
+    // its own separate BFS, not this one) the ambient-outline reachability
+    // query alike.
+    //
+    // Uses floodStamp/floodBest/floodGeneration (below) as scratch rather
+    // than allocating a fresh full-world "visited" buffer per call: a cell
+    // counts as touched this call only when floodStamp[i] == floodGeneration,
+    // so resetting between calls is an O(1) counter bump instead of an
+    // O(world size) fill - see recomputeAll and heldTorchLight's own
+    // comments for why this runs often enough (every frame, for
+    // heldTorchLight) that the old per-call allocation mattered.
+    std::vector<std::pair<sf::Vector2i, int>> floodFill(const World& world,
+                                                          const std::vector<LightSeed>& seeds) const;
 
     std::vector<LightLevel> levels; // WORLD_WIDTH * WORLD_HEIGHT
+
+    // Persistent scratch for floodFill, sized once at construction rather
+    // than reallocated per call. floodBest[i] is only meaningful when
+    // floodStamp[i] == floodGeneration; any other stamp value means tile i
+    // hasn't been touched during the current call, equivalent to the old
+    // per-call buffer's -1 sentinel.
+    mutable std::vector<std::uint32_t> floodStamp; // WORLD_WIDTH * WORLD_HEIGHT
+    mutable std::vector<std::int8_t> floodBest;     // WORLD_WIDTH * WORLD_HEIGHT
+    mutable std::uint32_t floodGeneration = 0;
+
+    // Persistent scratch for ambientOutline's own BFS - added in a later
+    // step of this same change, same generation-stamp trick, kept separate
+    // from floodFill's scratch above since the two searches store different
+    // payloads (best light level vs. BFS step count).
+    mutable std::vector<std::uint32_t> outlineStamp; // WORLD_WIDTH * WORLD_HEIGHT
+    mutable std::vector<std::int16_t> outlineStep;   // WORLD_WIDTH * WORLD_HEIGHT
+    mutable std::uint32_t outlineGeneration = 0;
 };

@@ -11,13 +11,25 @@
 
 Lighting::Lighting()
     : levels(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, LightLevel{0, 0, 0})
+    , floodStamp(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, 0)
+    , floodBest(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, 0)
+    , outlineStamp(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, 0)
+    , outlineStep(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, 0)
 {
 }
 
 std::vector<std::pair<sf::Vector2i, int>> Lighting::floodFill(const World& world,
-                                                                const std::vector<LightSeed>& seeds)
+                                                                const std::vector<LightSeed>& seeds) const
 {
-    std::vector<std::int8_t> best(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, -1);
+    // See floodStamp/floodBest's declaration in Lighting.h for why this is
+    // a counter bump instead of a std::fill over the whole grid.
+    ++floodGeneration;
+    if (floodGeneration == 0)
+    {
+        std::fill(floodStamp.begin(), floodStamp.end(), 0);
+        floodGeneration = 1;
+    }
+
     std::vector<LightSeed> queue;
 
     auto tryVisit = [&](int x, int y, int level)
@@ -26,10 +38,12 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::floodFill(const World& world
             return;
 
         const std::size_t i = static_cast<std::size_t>(y) * WORLD_WIDTH + x;
-        if (level <= best[i])
+        const int currentBest = (floodStamp[i] == floodGeneration) ? floodBest[i] : -1;
+        if (level <= currentBest)
             return;
 
-        best[i] = static_cast<std::int8_t>(level);
+        floodStamp[i] = floodGeneration;
+        floodBest[i] = static_cast<std::int8_t>(level);
         queue.push_back({x, y, level});
     };
 

@@ -460,3 +460,73 @@ TEST_CASE("ambientOutline still defaults to AMBIENT_OUTLINE_RADIUS when no radiu
 
     CHECK(levelAt(10 + Lighting::AMBIENT_OUTLINE_RADIUS + 5, 10) == 0); // still capped at the default
 }
+
+TEST_CASE("floodFill's persistent scratch does not leak stale state between successive recomputeAll calls")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+    world.set(9, 10, BlockType::Air);
+    world.set(11, 10, BlockType::Air);
+
+    Machines machines;
+    machines.place(MachineType::Torch, 10, 10, Direction::Right);
+
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    CHECK(lighting.torchLight(10, 10) == Lighting::TORCH_LIGHT_LEVEL);
+    CHECK(lighting.torchLight(9, 10) == Lighting::TORCH_LIGHT_LEVEL - 1);
+
+    // A second call on the same Lighting instance (reusing its persistent
+    // scratch buffers), with the Torch moved to an entirely different,
+    // previously-untouched part of the grid.
+    world.set(10, 10, BlockType::Stone);
+    world.set(9, 10, BlockType::Stone);
+    world.set(11, 10, BlockType::Stone);
+    world.set(30, 30, BlockType::Air);
+    world.set(29, 30, BlockType::Air);
+
+    Machines machines2;
+    machines2.place(MachineType::Torch, 30, 30, Direction::Right);
+
+    lighting.recomputeAll(world, machines2);
+
+    CHECK(lighting.torchLight(30, 30) == Lighting::TORCH_LIGHT_LEVEL);
+    CHECK(lighting.torchLight(29, 30) == Lighting::TORCH_LIGHT_LEVEL - 1);
+    // The old Torch's tile is Stone now and was never a light source this
+    // call - if stale scratch state from the first call leaked through,
+    // this is the value most likely to read wrong.
+    CHECK(lighting.torchLight(10, 10) == 0);
+}
+
+TEST_CASE("heldTorchLight's persistent scratch does not leak between successive calls at different sources")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air);
+    world.set(9, 10, BlockType::Air);
+    world.set(30, 30, BlockType::Air);
+    world.set(29, 30, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    lighting.heldTorchLight(world, {10, 10});
+    const auto second = lighting.heldTorchLight(world, {30, 30});
+
+    auto levelAt = [&](int x, int y) -> int
+    {
+        for (const auto& [tile, level] : second)
+            if (tile.x == x && tile.y == y)
+                return level;
+        return 0;
+    };
+
+    CHECK(levelAt(30, 30) == Lighting::TORCH_LIGHT_LEVEL);
+    CHECK(levelAt(29, 30) == Lighting::TORCH_LIGHT_LEVEL - 1);
+    // The second call's result must not still contain the first call's
+    // source tile.
+    CHECK(levelAt(10, 10) == 0);
+}
