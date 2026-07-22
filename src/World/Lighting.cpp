@@ -1,6 +1,7 @@
 #include "Lighting.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "../Blocks/Blocks.h"
 #include "../Core/Constants.h"
@@ -30,9 +31,12 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::floodFill(const World& world
         floodGeneration = 1;
     }
 
-    std::vector<LightSeed> queue;
+    std::vector<std::pair<sf::Vector2i, int>> result;
 
-    auto tryVisit = [&](int x, int y, int level)
+    // Merges one candidate (x, y, level) into this call's generation-stamped
+    // best-so-far, across every seed processed below - unchanged from
+    // floodFill's pre-circular-shape merge rule.
+    auto tryImprove = [&](int x, int y, int level)
     {
         if (level <= 0 || !world.inBounds(x, y) || world.isSolid(x, y))
             return;
@@ -44,25 +48,77 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::floodFill(const World& world
 
         floodStamp[i] = floodGeneration;
         floodBest[i] = static_cast<std::int8_t>(level);
-        queue.push_back({x, y, level});
+        result.push_back({{x, y}, level});
     };
 
+    static constexpr int NEIGHBOR_OFFSETS[8][2] = {
+        {-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
+
     for (const LightSeed& seed : seeds)
-        tryVisit(seed.x, seed.y, seed.level);
-
-    for (std::size_t head = 0; head < queue.size(); ++head)
     {
-        const LightSeed e = queue[head];
-        tryVisit(e.x - 1, e.y, e.level - 1);
-        tryVisit(e.x + 1, e.y, e.level - 1);
-        tryVisit(e.x, e.y - 1, e.level - 1);
-        tryVisit(e.x, e.y + 1, e.level - 1);
-    }
+        if (seed.level <= 0 || !world.inBounds(seed.x, seed.y) || world.isSolid(seed.x, seed.y))
+            continue;
 
-    std::vector<std::pair<sf::Vector2i, int>> result;
-    result.reserve(queue.size());
-    for (const LightSeed& e : queue)
-        result.push_back({{e.x, e.y}, e.level});
+        // A local, per-seed reachability search bounded to this seed's own
+        // radius disk - sized to the seed, never to the world, so this
+        // stays cheap even called every frame (heldTorchLight).
+        const int radius = seed.level;
+        const int side = 2 * radius + 1;
+        std::vector<std::uint8_t> reached(static_cast<std::size_t>(side) * side, 0);
+        std::vector<sf::Vector2i> localQueue{{0, 0}}; // coords relative to the seed
+        reached[static_cast<std::size_t>(radius) * side + radius] = 1;
+
+        for (std::size_t head = 0; head < localQueue.size(); ++head)
+        {
+            const sf::Vector2i local = localQueue[head];
+            const int cx = seed.x + local.x;
+            const int cy = seed.y + local.y;
+
+            for (const auto& offset : NEIGHBOR_OFFSETS)
+            {
+                const int dx = offset[0];
+                const int dy = offset[1];
+                const int nlx = local.x + dx;
+                const int nly = local.y + dy;
+
+                if (nlx < -radius || nlx > radius || nly < -radius || nly > radius)
+                    continue;
+                if (nlx * nlx + nly * nly > radius * radius)
+                    continue;
+
+                const int nx = cx + dx;
+                const int ny = cy + dy;
+                if (!world.inBounds(nx, ny) || world.isSolid(nx, ny))
+                    continue;
+
+                if (dx != 0 && dy != 0)
+                {
+                    // Corner-cutting guard: a diagonal step is only taken
+                    // if both flanking orthogonal tiles are open too.
+                    if (!world.inBounds(cx + dx, cy) || world.isSolid(cx + dx, cy))
+                        continue;
+                    if (!world.inBounds(cx, cy + dy) || world.isSolid(cx, cy + dy))
+                        continue;
+                }
+
+                const std::size_t li = static_cast<std::size_t>(nly + radius) * side +
+                                        static_cast<std::size_t>(nlx + radius);
+                if (reached[li])
+                    continue;
+
+                reached[li] = 1;
+                localQueue.push_back({nlx, nly});
+            }
+        }
+
+        for (const sf::Vector2i& local : localQueue)
+        {
+            const double distance =
+                std::sqrt(static_cast<double>(local.x) * local.x + static_cast<double>(local.y) * local.y);
+            const int level = static_cast<int>(std::floor(static_cast<double>(seed.level) - distance));
+            tryImprove(seed.x + local.x, seed.y + local.y, level);
+        }
+    }
 
     return result;
 }

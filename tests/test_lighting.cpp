@@ -561,3 +561,46 @@ TEST_CASE("ambientOutline's persistent scratch does not leak between successive 
     CHECK(levelAt(15, 10) == 0);
     CHECK(levelAt(10, 10) == 0);
 }
+
+TEST_CASE("floodFill produces circular, not diamond, light: diagonal distance uses true Euclidean falloff")
+{
+    World world;
+    fillSolid(world);
+    for (int x = 45; x <= 55; ++x)
+        for (int y = 45; y <= 55; ++y)
+            world.set(x, y, BlockType::Air);
+
+    Machines machines;
+    machines.place(MachineType::Torch, 50, 50, Direction::Right);
+
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    // Straight line (dx=3, dy=0) still decays by exactly 1 per step, same
+    // as the old diamond shape - this is the "shapes agree" case.
+    CHECK(lighting.torchLight(53, 50) == Lighting::TORCH_LIGHT_LEVEL - 3);
+
+    // Diagonal (dx=3, dy=3): true Euclidean distance is sqrt(18) ~= 4.24,
+    // not the Manhattan distance of 6 the old diamond shape used -
+    // floor(15 - 4.2426...) = 10, not 15 - 6 = 9.
+    CHECK(lighting.torchLight(53, 53) == 10);
+}
+
+TEST_CASE("floodFill blocks a diagonal step around a solid corner, even though the target tile itself is open")
+{
+    World world;
+    fillSolid(world);
+    world.set(10, 10, BlockType::Air); // the Torch's own tile
+    world.set(11, 11, BlockType::Air); // diagonally adjacent, but...
+    // (11, 10) and (10, 11) - the two tiles flanking that diagonal step -
+    // stay Stone, so there is no straight-or-right-angle path from
+    // (10, 10) to (11, 11) at all, direct diagonal or otherwise.
+
+    Machines machines;
+    machines.place(MachineType::Torch, 10, 10, Direction::Right);
+
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    CHECK(lighting.torchLight(11, 11) == 0);
+}
