@@ -116,7 +116,7 @@ The other two call sites are untouched, and deliberately so:
   not on a fixed ~0.5s cadence), so there's no performance case for
   narrowing it in this cycle.
 
-### Why this doesn't change any observable behavior for the paths it touches
+### Why this doesn't change `recomputeAll`'s behavior, and the one known limitation where it changes `recomputeLava`'s
 
 `recomputeLavaChannel`'s body is `recomputeAll`'s existing lava logic,
 moved, not rewritten — same interior-skip condition, same `floodFill` call,
@@ -124,10 +124,27 @@ same force-set pass, same conservative "zero then reflood" pattern (just
 scoped to one channel's field instead of the whole `LightLevel` struct).
 `recomputeAll` calling through this helper produces byte-for-byte identical
 output to today, for all three channels, on every call site that still uses
-it. `recomputeLava`'s only behavioral difference from `recomputeAll` is
-that it doesn't touch `.sky`/`.torch` at all — which is exactly correct for
-its one call site, since nothing upstream of that call ever changes sky or
-torch state.
+it.
+
+`recomputeLava`'s only behavioral difference from `recomputeAll` is that it
+doesn't touch `.sky`/`.torch` at all — correct for the vast majority of what
+triggers its one call site (lava *movement*: falling, spreading, leveling,
+none of which change any tile's solidity), but **not entirely correct**:
+`lavaLightingChanged` (`Game.cpp:1022-1030`) also fires when a fluid change
+produces **Obsidian** (lava reacting with water), and Obsidian is solid
+(`Blocks.cpp`) where the lava/water it replaced was not. A newly-solid
+Obsidian tile can occlude a sky or torch light path that used to run through
+that spot - `recomputeLava` won't refresh sky/torch to reflect that new
+occlusion, leaving them transiently **over-bright** (showing the more-open
+pre-Obsidian light) until the next full `recomputeAll` - which happens on
+the very next block or Torch edit (`Game.cpp:1002`, the `lightingDirty`
+path), a common, frequent event in normal play. This is a purely cosmetic,
+self-healing staleness window, not a crash or a reintroduction of the
+performance problem this cycle fixes - accepted as a reasonable tradeoff
+for this cycle rather than adding solidity-change tracking to correctly
+distinguish "lava moved" from "lava became Obsidian" on this path, which
+would need its own design pass if the staleness window ever proves
+noticeable in practice.
 
 ## Rejected alternative: a dirty-flag parameter on recomputeAll
 
@@ -142,6 +159,15 @@ public method.
 
 ## Out of scope
 
+- **Distinguishing "lava moved" from "lava became Obsidian" on the
+  lava-triggered path**, so that only genuine occlusion changes fall back
+  to a full `recomputeAll` - see the known limitation in Design above. A
+  future cycle if the transient over-bright staleness this causes ever
+  proves noticeable in practice; not pursued now since it's cosmetic,
+  self-healing on the next block edit, and adding it now would mean
+  tracking solidity-change state through `FluidSim`'s `changedTiles` batch,
+  a real (if small) increase in scope and risk for a low-observed-impact
+  edge case.
 - The block/Torch-edit path (`Game.cpp:1002`) keeps calling full
   `recomputeAll` — see Design above for why.
 - `floodFill` itself, the interior-lava-seed skip, and the force-set pass's

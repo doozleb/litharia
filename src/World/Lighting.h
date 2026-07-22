@@ -90,9 +90,15 @@ public:
     void recomputeAll(const World& world, const Machines& machines);
 
     // Recomputes only the lava channel, leaving sky and torch untouched -
-    // for the lava-triggered call site (Game::fixedUpdate), which never
-    // needs to touch sky or torch since only lava moved on that path. See
-    // docs/superpowers/specs/2026-07-22-lighting-lava-only-recompute-design.md.
+    // for the lava-triggered call site (Game::fixedUpdate), which almost
+    // always only needs lava (falling/spreading/leveling never changes a
+    // tile's solidity). Known accepted limitation: that call site also
+    // fires when lava reacts with water into solid Obsidian, which *can*
+    // newly occlude a sky/torch path - this method won't refresh sky/torch
+    // for that case, leaving them transiently over-bright until the next
+    // recomputeAll (any block/Torch edit). Cosmetic and self-healing, not
+    // pursued further here - see docs/superpowers/specs/
+    // 2026-07-22-lighting-lava-only-recompute-design.md.
     void recomputeLava(const World& world);
 
     int skyLight(int x, int y) const;   // 0-MAX_LIGHT_LEVEL; 0 out of bounds
