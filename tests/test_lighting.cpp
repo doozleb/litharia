@@ -582,7 +582,14 @@ TEST_CASE("floodFill produces circular, not diamond, light: diagonal distance us
 
     // Diagonal (dx=3, dy=3): true Euclidean distance is sqrt(18) ~= 4.24,
     // not the Manhattan distance of 6 the old diamond shape used -
-    // floor(15 - 4.2426...) = 10, not 15 - 6 = 9.
+    // floor(15 - 4.2426...) = 10, not 15 - 6 = 9. Since floodFill's shared
+    // Dijkstra search (docs/superpowers/specs/
+    // 2026-07-22-floodfill-shared-search-design.md) computes graph (octile)
+    // distance rather than true Euclidean distance, this value is
+    // unaffected only because a pure diagonal offset is one of the 8
+    // principal directions where octile distance exactly coincides with
+    // Euclidean (3 diagonal steps of sqrt(2) each = 3*sqrt(2) = sqrt(18));
+    // an off-axis offset (see the "off-axis tile" test below) does differ.
     CHECK(lighting.torchLight(53, 53) == 10);
 }
 

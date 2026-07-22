@@ -229,10 +229,15 @@ spec's shape-change decision), not just silently edit the number.
 **New coverage to add**:
 
 - **An off-axis offset's new expected value**: pick a clean, easy-to-verify
-  case (e.g. `dx=3, dy=1`) in fully open space and assert the *exact* new
-  octile-distance-based level, with a comment showing the arithmetic
-  (`sqrt(2) + 2 ≈ 3.414`, `floor(15 - 3.414) = 11`) — the direct regression
-  test for "the new shape is what we intend, not an accident."
+  case in fully open space where the old (straight-line) and new (octile)
+  floored levels actually differ — not every off-axis offset does; e.g.
+  `dx=3, dy=1` gives `floor(15 - sqrt(10)) = 11` under the old metric and
+  `floor(15 - 3.414) = 11` under the new one, the same floored value, so it
+  wouldn't distinguish the two. `dx=4, dy=3` (a 3-4-5 right triangle) does:
+  old `floor(15 - 5) = 10`, new `floor(15 - (4 + 3*(sqrt(2)-1))) =
+  floor(15 - 5.2426...) = 9` — a genuine red/green case, and what the
+  implementation actually used. The direct regression test for "the new
+  shape is what we intend, not an accident."
 - **Multi-source deduplication correctness**: two seeds close enough that
   their reachable areas overlap (e.g. two lava tiles or two torches a few
   tiles apart) — assert the overlapping region reads the *higher* of the two
