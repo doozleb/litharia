@@ -39,20 +39,46 @@ passing straight through them.
 
 ## Design
 
-### The mechanism: skip seeds that are provably redundant
+### The mechanism: skip seeds that are redundant for the world outside the lava, force-set the lava itself
 
-An **interior** lava tile — one whose 4 orthogonal neighbours (`world.get`,
-which returns `BlockType::Air` and therefore reads as non-lava at any
-out-of-bounds neighbour, so a world-edge lava tile is correctly never
-classified interior) are *all* also lava — can never light anything outside
-its lava body that a strictly closer **boundary** tile of the same body
-(one actually touching rock, air, or a different fluid) doesn't already
-light at least as well: since lava doesn't block the flood fill, any tile
-reachable from the interior tile's position is reachable via an equal-or-shorter
-path from *some* boundary tile of the same contiguous body, and every tile
-still inside the lava body already reads `MAX_LIGHT_LEVEL` regardless of
-which specific seed reaches it. So `recomputeAll`'s lava-seed loop
-(`Lighting.cpp:147-152`) becomes:
+A lava tile's brightness is not special-cased anywhere today - like any
+other tile, it's purely a function of distance to the nearest flood-fill
+seed. Every lava tile currently seeds itself at distance 0, so every lava
+tile trivially reads exactly `MAX_LIGHT_LEVEL`, regardless of how deep
+inside a body it sits. Naively pruning interior tiles from the seed list
+breaks this: a deep interior tile of a large-enough pool would fall back to
+`floor(MAX_LIGHT_LEVEL - distanceToNearestRemainingSeed)`, which can be
+meaningfully dimmer than `MAX_LIGHT_LEVEL` - a real, visible "darker centre"
+regression for any pool big enough for that distance to matter, not a
+negligible edge case. The fix has two parts, addressing the two different
+things `recomputeAll`'s lava channel needs to get right:
+
+1. **Radiating *into* the surrounding non-lava world** - this is what the
+   expensive per-seed local-BFS-plus-`sqrt` search is for, and it's where
+   the real cost (and the real savings) live. An **interior** lava tile -
+   one whose 4 orthogonal neighbours (`world.get`, which returns
+   `BlockType::Air` and therefore reads as non-lava at any out-of-bounds
+   neighbour, so a world-edge lava tile is correctly never classified
+   interior) are *all* also lava - can never light any *non-lava* tile
+   better than a strictly closer **boundary** tile of the same body (one
+   actually touching rock, air, or a different fluid) already does: since
+   lava doesn't block the flood fill, any external tile reachable from the
+   interior tile's position is reachable via an equal-or-shorter path from
+   *some* boundary tile of the same contiguous body. So only boundary tiles
+   need to seed the expensive search.
+2. **The lava tiles' own brightness** - handled separately, cheaply, and
+   unconditionally: after the flood fill runs (from boundary seeds only), a
+   second pass directly force-sets every actual lava tile's own `lava`
+   channel to `MAX_LIGHT_LEVEL`, with no BFS and no `sqrt` - just an
+   `isLava` check and an array write, a single `O(WORLD_WIDTH × WORLD_HEIGHT)`
+   linear scan (~500,000 simple comparisons) that costs a small, fixed,
+   negligible amount regardless of how the lava is shaped. This exactly
+   reproduces today's guarantee that a lava tile always reads
+   `MAX_LIGHT_LEVEL` at its own position, decoupled from how far it sits
+   from a boundary.
+
+So `recomputeAll`'s lava handling (`Lighting.cpp:147-152` for seeding,
+`Lighting.cpp:168-170` for writing the result into `levels`) becomes:
 
 ```cpp
 std::vector<LightSeed> lavaSeeds;
@@ -83,10 +109,30 @@ for (int y = 0; y < WORLD_HEIGHT; ++y)
 }
 ```
 
-Nothing else in `recomputeAll` or `floodFill` changes. Sky seeding
-(`Lighting.cpp:130-139`) is untouched — it already seeds only the single
-topmost open tile of each column (`break` at the first solid tile), so it
-was never doing per-tile redundant work. Torch seeding
+And after the flood-fill result is written into `levels` (`Lighting.cpp:168-170`,
+`for (const auto& [tile, level] : lavaResult) levels[...].lava = level;`),
+a second pass force-sets every actual lava tile's own brightness, overriding
+whatever the boundary-seeded flood fill computed for that position:
+
+```cpp
+// Every lava tile is always fully lit at its own position, independent of
+// how far it sits from a boundary seed - see this file's own Design
+// comment (docs/superpowers/specs/2026-07-22-lighting-lava-seed-design.md)
+// for why this can't be left to the (boundary-only) flood fill above: a
+// deep interior tile could otherwise read dimmer than MAX_LIGHT_LEVEL.
+// Cheap by construction - no BFS, no sqrt, just a linear scan - so this
+// costs a small, fixed amount regardless of how the lava is shaped.
+for (int y = 0; y < WORLD_HEIGHT; ++y)
+    for (int x = 0; x < WORLD_WIDTH; ++x)
+        if (isLava(world.get(x, y)))
+            levels[static_cast<std::size_t>(y) * WORLD_WIDTH + x].lava =
+                static_cast<std::uint16_t>(MAX_LIGHT_LEVEL);
+```
+
+`floodFill` itself is untouched - both changes are local to `recomputeAll`.
+Sky seeding (`Lighting.cpp:130-139`) is untouched — it already seeds only
+the single topmost open tile of each column (`break` at the first solid
+tile), so it was never doing per-tile redundant work. Torch seeding
 (`Lighting.cpp:141-145`) is untouched — torches are individually placed, not
 naturally generated in large filled bodies, so this redundancy doesn't arise
 there in practice.
@@ -112,8 +158,12 @@ test exercises or could reasonably distinguish from noise.
 
 This reduces `recomputeAll`'s lava-channel seed count roughly in proportion
 to how "filled" the world's lava bodies are (a shallow 1-2-tile-deep pool
-has few or no interior tiles and gets little benefit; a deep, wide, mostly-
-solid lava lake could see its seed count fall by many times). It does
+has few or no interior tiles and gets little benefit; a larger, mostly-solid
+underground lava pool could see its seed count fall by many times - note
+generated surface lakes are always water, per `growLakeBasin`
+(`TerrainGenerator.cpp:328-356`) hardcoding `BlockType::Water8`; lava only
+ever appears in the smaller underground pools seeded by `POOL_MIN_RADIUS`/
+`POOL_MAX_RADIUS` (2.5-4.5), `TerrainGenerator.cpp:98-99`). It does
 **not** change the per-seed cost (still a local BFS plus a `sqrt` pass per
 remaining boundary seed) or restructure `floodFill` into a single shared
 multi-source search, which is what would be needed to eliminate the
@@ -188,19 +238,21 @@ untouched.
 
 New coverage to add:
 
-- **A fully-interior lava tile contributes no seed of its own, but the body
-  still lights correctly**: build a solid block of Lava8 several tiles
-  thick (e.g. 3x3 or larger, so it has genuine interior tiles), surrounded
-  by open air, and confirm the resulting light field around the block's
-  *edges* is identical to what it would be if every tile seeded
-  independently (i.e., still reads `MAX_LIGHT_LEVEL` immediately outside the
-  block, decaying by 1 per step outward) - the direct regression test that
-  skipping interior seeds doesn't change the observable light field.
+- **Every lava tile, including interior ones no longer seeded directly,
+  still reads exactly `MAX_LIGHT_LEVEL` at its own position**: build a 3x3
+  block of Lava8 in open space (exactly one interior tile - its centre, the
+  only tile whose 4 orthogonal neighbours are all lava) and confirm every
+  one of the 9 tiles, interior included, reads `lavaLight == MAX_LIGHT_LEVEL`
+  - the direct regression test for the force-set pass. Also confirm a tile
+  immediately outside the block still reads `MAX_LIGHT_LEVEL - 1`, decaying
+  normally from the nearest boundary tile - confirming the boundary-only
+  seed list still correctly lights the surrounding world.
 - **A single-tile-thick lava wall has no interior tiles and is unaffected**:
-  a 1-tile-thick horizontal or vertical line of lava (every tile is a
-  boundary tile, touching air on at least one side) should light identically
-  before and after this change - confirms the interior check doesn't
-  over-trigger on non-solid-blob shapes.
+  a 1-tile-thick horizontal line of Lava8 (every tile is a boundary tile,
+  touching air above and below) should light identically before and after
+  this change - every tile reads `MAX_LIGHT_LEVEL`, and the world just
+  outside the line decays by 1 per step - confirming the interior check
+  doesn't over-trigger on non-solid-blob shapes.
 
 Verification (mandatory, not optional, given this fix's entire purpose is a
 measured wall-clock improvement - same standard the design conversation
