@@ -153,20 +153,30 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::ambientOutline(const World& 
     // are walls" shape as floodFill, but floodFill's early-exit is keyed on
     // a *level* reaching 0, which doesn't fit "same value everywhere, cut
     // off by distance" - so this is its own small BFS instead of a floodFill
-    // call.
+    // call. Uses outlineStamp/outlineStep (Lighting.h) as scratch, same
+    // generation-stamp trick as floodFill's floodStamp/floodBest - see that
+    // declaration's comment for why.
     if (!world.inBounds(playerTile.x, playerTile.y) || world.isSolid(playerTile.x, playerTile.y))
         return {};
 
-    std::vector<std::int8_t> visited(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, 0);
-    std::vector<int> stepOf(static_cast<std::size_t>(WORLD_WIDTH) * WORLD_HEIGHT, 0);
+    ++outlineGeneration;
+    if (outlineGeneration == 0)
+    {
+        std::fill(outlineStamp.begin(), outlineStamp.end(), 0);
+        outlineGeneration = 1;
+    }
+
     std::vector<sf::Vector2i> queue{playerTile};
 
-    visited[static_cast<std::size_t>(playerTile.y) * WORLD_WIDTH + playerTile.x] = 1;
+    const std::size_t playerIndex = static_cast<std::size_t>(playerTile.y) * WORLD_WIDTH + playerTile.x;
+    outlineStamp[playerIndex] = outlineGeneration;
+    outlineStep[playerIndex] = 0;
 
     for (std::size_t head = 0; head < queue.size(); ++head)
     {
         const sf::Vector2i tile = queue[head];
-        const int steps = stepOf[static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x];
+        const std::size_t tileIndex = static_cast<std::size_t>(tile.y) * WORLD_WIDTH + tile.x;
+        const int steps = outlineStep[tileIndex];
 
         if (steps >= radius)
             continue;
@@ -180,11 +190,11 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::ambientOutline(const World& 
                 continue;
 
             const std::size_t i = static_cast<std::size_t>(n.y) * WORLD_WIDTH + n.x;
-            if (visited[i])
+            if (outlineStamp[i] == outlineGeneration)
                 continue;
 
-            visited[i] = 1;
-            stepOf[i] = steps + 1;
+            outlineStamp[i] = outlineGeneration;
+            outlineStep[i] = static_cast<std::int16_t>(steps + 1);
             queue.push_back(n);
         }
     }

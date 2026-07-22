@@ -530,3 +530,34 @@ TEST_CASE("heldTorchLight's persistent scratch does not leak between successive 
     // source tile.
     CHECK(levelAt(10, 10) == 0);
 }
+
+TEST_CASE("ambientOutline's persistent scratch does not leak between successive calls at different player positions")
+{
+    World world;
+    fillSolid(world);
+    for (int x = 10; x <= 15; ++x)
+        world.set(x, 10, BlockType::Air);
+    for (int x = 30; x <= 35; ++x)
+        world.set(x, 30, BlockType::Air);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    lighting.ambientOutline(world, {10, 10});
+    const auto second = lighting.ambientOutline(world, {30, 30});
+
+    auto levelAt = [&](int x, int y) -> int
+    {
+        for (const auto& [tile, level] : second)
+            if (tile.x == x && tile.y == y)
+                return level;
+        return 0;
+    };
+
+    CHECK(levelAt(35, 30) == Lighting::AMBIENT_OUTLINE_LEVEL);
+    // The two corridors aren't connected, so nothing from the first query's
+    // region should appear in the second call's result.
+    CHECK(levelAt(15, 10) == 0);
+    CHECK(levelAt(10, 10) == 0);
+}
