@@ -130,23 +130,51 @@ private:
         int level;
     };
 
-    // Multi-source BFS: every seed starts queued at its own level; each step,
-    // the 4 orthogonal neighbours get level-1 wherever that beats what they
-    // already have, stopping at level 0 or a solid tile (World::isSolid).
-    // Since decay is always exactly 1 per step, a tile is only ever improved
-    // once, so the BFS visit order alone is already the full sparse result -
-    // no second full-grid scan needed to extract it. Serves the world-wide
-    // recompute, a single moving source (Lighting::heldTorchLight), and (via
-    // its own separate BFS, not this one) the ambient-outline reachability
-    // query alike.
+    // One candidate in floodFill's shared frontier: the accumulated
+    // distance to reach (x, y) via the path that produced this entry, not
+    // necessarily its final (true minimum) distance - standard
+    // lazy-deletion Dijkstra, where a tile can appear more than once and
+    // only its first (smallest-distance) pop is authoritative.
+    struct FloodEntry
+    {
+        float distance;
+        int x;
+        int y;
+    };
+
+    // Min-heap by distance: smallest distance pops first.
+    struct FloodEntryGreater
+    {
+        bool operator()(const FloodEntry& a, const FloodEntry& b) const
+        {
+            return a.distance > b.distance;
+        }
+    };
+
+    // A single shared multi-source Dijkstra across every seed in `seeds`:
+    // every seed starts queued at distance 0, and each step relaxes the 4
+    // orthogonal (weight 1) and 4 diagonal (weight sqrt(2), corner-cutting
+    // guarded - see the .cpp) neighbours of whichever tile the frontier's
+    // smallest-distance entry names, stopping once a tile's resulting level
+    // (seedLevel - distance, floored) would be 0. Since Dijkstra finalizes
+    // each tile exactly once, at its true minimum distance, the first time
+    // it's popped, a tile is only ever improved once - the popped visit
+    // order is already the full sparse result, same invariant the old
+    // per-seed version relied on. Serves the world-wide recompute and a
+    // single moving source (Lighting::heldTorchLight) alike - see
+    // docs/superpowers/specs/2026-07-22-floodfill-shared-search-design.md
+    // for the full design and its one deliberate behavior change: falloff
+    // is exactly circular only along the 8 principal directions, very
+    // slightly octagon-ish between them - a standard property of
+    // 8-connected weighted-grid distance, present even with no obstacles
+    // at all.
     //
-    // Uses floodStamp/floodBest/floodGeneration (below) as scratch rather
-    // than allocating a fresh full-world "visited" buffer per call: a cell
-    // counts as touched this call only when floodStamp[i] == floodGeneration,
-    // so resetting between calls is an O(1) counter bump instead of an
-    // O(world size) fill - see recomputeAll and heldTorchLight's own
-    // comments for why this runs often enough (every frame, for
-    // heldTorchLight) that the old per-call allocation mattered.
+    // Precondition (unenforced, true of every current caller): every seed
+    // in one call shares the same seed.level.
+    //
+    // Uses floodStamp/floodBest/floodGeneration and floodHeap (below) as
+    // scratch rather than allocating fresh buffers per call - see
+    // floodStamp's own comment for why.
     std::vector<std::pair<sf::Vector2i, int>> floodFill(const World& world,
                                                           const std::vector<LightSeed>& seeds) const;
 
@@ -160,6 +188,12 @@ private:
     mutable std::vector<std::uint32_t> floodStamp; // WORLD_WIDTH * WORLD_HEIGHT
     mutable std::vector<std::int8_t> floodBest;     // WORLD_WIDTH * WORLD_HEIGHT
     mutable std::uint32_t floodGeneration = 0;
+
+    // Persistent scratch for floodFill's shared frontier - a binary heap
+    // (std::push_heap/pop_heap, ordered by FloodEntryGreater) over this
+    // vector, reused across calls via clear() so its allocated capacity
+    // survives between calls instead of being discarded and regrown.
+    mutable std::vector<FloodEntry> floodHeap;
 
     // Persistent scratch for ambientOutline's own BFS - added in a later
     // step of this same change, same generation-stamp trick, kept separate

@@ -32,91 +32,86 @@ std::vector<std::pair<sf::Vector2i, int>> Lighting::floodFill(const World& world
     }
 
     std::vector<std::pair<sf::Vector2i, int>> result;
-
-    // Merges one candidate (x, y, level) into this call's generation-stamped
-    // best-so-far, across every seed processed below - unchanged from
-    // floodFill's pre-circular-shape merge rule.
-    auto tryImprove = [&](int x, int y, int level)
-    {
-        if (level <= 0 || !world.inBounds(x, y) || world.isSolid(x, y))
-            return;
-
-        const std::size_t i = static_cast<std::size_t>(y) * WORLD_WIDTH + x;
-        const int currentBest = (floodStamp[i] == floodGeneration) ? floodBest[i] : -1;
-        if (level <= currentBest)
-            return;
-
-        floodStamp[i] = floodGeneration;
-        floodBest[i] = static_cast<std::int8_t>(level);
-        result.push_back({{x, y}, level});
-    };
+    floodHeap.clear();
 
     static constexpr int NEIGHBOR_OFFSETS[8][2] = {
         {-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
+    const float diagonalWeight = std::sqrt(2.0f);
+
+    // A single shared multi-source Dijkstra across every seed, instead of
+    // an independent local search per seed - see docs/superpowers/specs/
+    // 2026-07-22-floodfill-shared-search-design.md. Precondition (see
+    // Lighting.h's comment on this method): every seed shares the same
+    // seed.level.
+    int seedLevel = 0;
 
     for (const LightSeed& seed : seeds)
     {
         if (seed.level <= 0 || !world.inBounds(seed.x, seed.y) || world.isSolid(seed.x, seed.y))
             continue;
 
-        // A local, per-seed reachability search bounded to this seed's own
-        // radius disk - sized to the seed, never to the world, so this
-        // stays cheap even called every frame (heldTorchLight).
-        const int radius = seed.level;
-        const int side = 2 * radius + 1;
-        std::vector<std::uint8_t> reached(static_cast<std::size_t>(side) * side, 0);
-        std::vector<sf::Vector2i> localQueue{{0, 0}}; // coords relative to the seed
-        reached[static_cast<std::size_t>(radius) * side + radius] = 1;
+        seedLevel = seed.level;
+        floodHeap.push_back({0.0f, seed.x, seed.y});
+        std::push_heap(floodHeap.begin(), floodHeap.end(), FloodEntryGreater{});
+    }
 
-        for (std::size_t head = 0; head < localQueue.size(); ++head)
+    while (!floodHeap.empty())
+    {
+        std::pop_heap(floodHeap.begin(), floodHeap.end(), FloodEntryGreater{});
+        const FloodEntry entry = floodHeap.back();
+        floodHeap.pop_back();
+
+        const std::size_t i = static_cast<std::size_t>(entry.y) * WORLD_WIDTH + entry.x;
+
+        // Already finalized via an earlier (necessarily smaller-or-equal
+        // distance) pop this call - a tile can be pushed more than once as
+        // different paths reach it, but only its first pop is authoritative
+        // (standard lazy-deletion Dijkstra).
+        if (floodStamp[i] == floodGeneration)
+            continue;
+
+        const int level = static_cast<int>(std::floor(static_cast<double>(seedLevel) - entry.distance));
+        if (level <= 0)
+            continue;
+
+        floodStamp[i] = floodGeneration;
+        floodBest[i] = static_cast<std::int8_t>(level);
+        result.push_back({{entry.x, entry.y}, level});
+
+        for (const auto& offset : NEIGHBOR_OFFSETS)
         {
-            const sf::Vector2i local = localQueue[head];
-            const int cx = seed.x + local.x;
-            const int cy = seed.y + local.y;
+            const int dx = offset[0];
+            const int dy = offset[1];
+            const int nx = entry.x + dx;
+            const int ny = entry.y + dy;
 
-            for (const auto& offset : NEIGHBOR_OFFSETS)
+            if (!world.inBounds(nx, ny) || world.isSolid(nx, ny))
+                continue;
+
+            const std::size_t ni = static_cast<std::size_t>(ny) * WORLD_WIDTH + nx;
+            if (floodStamp[ni] == floodGeneration)
+                continue;
+
+            if (dx != 0 && dy != 0)
             {
-                const int dx = offset[0];
-                const int dy = offset[1];
-                const int nlx = local.x + dx;
-                const int nly = local.y + dy;
-
-                if (nlx < -radius || nlx > radius || nly < -radius || nly > radius)
+                // Corner-cutting guard: a diagonal step is only taken if
+                // both flanking orthogonal tiles are open too - unchanged
+                // from the per-seed search this replaces.
+                if (!world.inBounds(entry.x + dx, entry.y) || world.isSolid(entry.x + dx, entry.y))
                     continue;
-                if (nlx * nlx + nly * nly > radius * radius)
+                if (!world.inBounds(entry.x, entry.y + dy) || world.isSolid(entry.x, entry.y + dy))
                     continue;
-
-                const int nx = cx + dx;
-                const int ny = cy + dy;
-                if (!world.inBounds(nx, ny) || world.isSolid(nx, ny))
-                    continue;
-
-                if (dx != 0 && dy != 0)
-                {
-                    // Corner-cutting guard: a diagonal step is only taken
-                    // if both flanking orthogonal tiles are open too.
-                    if (!world.inBounds(cx + dx, cy) || world.isSolid(cx + dx, cy))
-                        continue;
-                    if (!world.inBounds(cx, cy + dy) || world.isSolid(cx, cy + dy))
-                        continue;
-                }
-
-                const std::size_t li = static_cast<std::size_t>(nly + radius) * side +
-                                        static_cast<std::size_t>(nlx + radius);
-                if (reached[li])
-                    continue;
-
-                reached[li] = 1;
-                localQueue.push_back({nlx, nly});
             }
-        }
 
-        for (const sf::Vector2i& local : localQueue)
-        {
-            const double distance =
-                std::sqrt(static_cast<double>(local.x) * local.x + static_cast<double>(local.y) * local.y);
-            const int level = static_cast<int>(std::floor(static_cast<double>(seed.level) - distance));
-            tryImprove(seed.x + local.x, seed.y + local.y, level);
+            const float edgeWeight = (dx != 0 && dy != 0) ? diagonalWeight : 1.0f;
+            const float newDistance = entry.distance + edgeWeight;
+
+            // No point pushing a candidate that would decay to 0 or below.
+            if (static_cast<int>(std::floor(static_cast<double>(seedLevel) - newDistance)) <= 0)
+                continue;
+
+            floodHeap.push_back({newDistance, nx, ny});
+            std::push_heap(floodHeap.begin(), floodHeap.end(), FloodEntryGreater{});
         }
     }
 

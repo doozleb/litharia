@@ -655,3 +655,54 @@ TEST_CASE("a single-tile-thick lava wall has no interior tiles and lights exactl
     CHECK(lighting.lavaLight(7, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
     CHECK(lighting.lavaLight(13, 10) == Lighting::MAX_LIGHT_LEVEL - 1);
 }
+
+TEST_CASE("floodFill's shared search gives an off-axis tile a slightly larger (octile) distance than straight-line")
+{
+    World world;
+    fillSolid(world);
+    for (int x = 45; x <= 55; ++x)
+        for (int y = 45; y <= 55; ++y)
+            world.set(x, y, BlockType::Air);
+
+    Machines machines;
+    machines.place(MachineType::Torch, 50, 50, Direction::Right);
+
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    // Offset (dx=4, dy=3) is neither axis-aligned nor pure-diagonal. The
+    // true straight-line distance is exactly 5 (a 3-4-5 right triangle),
+    // which the old per-seed algorithm used directly: floor(15 - 5) = 10.
+    // The shared search's graph (octile) distance - one diagonal step per
+    // unit of the smaller axis, then straight steps for the remainder -
+    // is max(4,3) + min(4,3) * (sqrt(2) - 1) = 4 + 3 * 0.41421356... ~=
+    // 5.2426, giving floor(15 - 5.2426...) = 9: a full integer dimmer, not
+    // just a rounding nuance. This is the one deliberate behavior change
+    // this cycle makes - see docs/superpowers/specs/
+    // 2026-07-22-floodfill-shared-search-design.md.
+    CHECK(lighting.torchLight(54, 53) == 9);
+}
+
+TEST_CASE("floodFill's shared multi-source search picks each tile's true nearest seed, not just whichever was pushed first")
+{
+    World world;
+    fillSolid(world);
+    for (int x = 10; x <= 20; ++x)
+        world.set(x, 10, BlockType::Air);
+    world.set(10, 10, BlockType::Lava8);
+    world.set(20, 10, BlockType::Lava8);
+
+    Machines machines;
+    Lighting lighting;
+    lighting.recomputeAll(world, machines);
+
+    // (13, 10) is 3 steps from the left source, 7 from the right - the
+    // shared search must resolve to the closer (higher-level) one.
+    CHECK(lighting.lavaLight(13, 10) == Lighting::MAX_LIGHT_LEVEL - 3);
+    // (17, 10) is the mirror image: 3 from the right source, 7 from the left.
+    CHECK(lighting.lavaLight(17, 10) == Lighting::MAX_LIGHT_LEVEL - 3);
+    // (15, 10), the midpoint, is equidistant (5 from each) - both sources
+    // agree on the same value, directly checking the merge doesn't
+    // double-count or otherwise misbehave when two seeds tie.
+    CHECK(lighting.lavaLight(15, 10) == Lighting::MAX_LIGHT_LEVEL - 5);
+}
