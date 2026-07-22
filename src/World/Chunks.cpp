@@ -81,6 +81,14 @@ void ChunkRenderer::rebuild(Chunk& chunk, int chunkX, int chunkY) const
 
     for (int y = startY; y < endY; ++y)
     {
+        // One cached fluid surface run per row, reused across every tile
+        // that falls within it - see FluidSurfaceRun's own comment for why:
+        // fluidSurfaceRunAt's scan is only paid once per run instead of
+        // once per member tile. right < left means "nothing cached yet",
+        // which is guaranteed to miss on the first candidate tile of the
+        // row (x >= startX >= 0 > -1 == cachedRun.right).
+        FluidSurfaceRun cachedRun{0, -1, 0.0f};
+
         for (int x = startX; x < endX; ++x)
         {
             const BlockType type = world.get(x, y);
@@ -108,7 +116,14 @@ void ChunkRenderer::rebuild(Chunk& chunk, int chunkX, int chunkY) const
             // full, so only the very top of a pool shows a partial surface.
             if (isFluid(type) && !isFluid(world.get(x, y - 1)))
             {
-                const float fillHeight = TILE_SIZE * fluidSurfaceHeight(world, x, y);
+                // A run is a maximal contiguous stretch, and this loop visits
+                // x in strictly increasing order, so a miss here can only
+                // mean "new run" (or a lone/capped tile) - never a stale
+                // partial overlap with the previous cached run.
+                if (x < cachedRun.left || x > cachedRun.right)
+                    cachedRun = fluidSurfaceRunAt(world, x, y);
+
+                const float fillHeight = TILE_SIZE * cachedRun.height;
                 fluidTop = bottom - fillHeight;
             }
 
