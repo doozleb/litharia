@@ -67,7 +67,9 @@ TEST_CASE("enemyInfo reports the documented stats for each type, Sunroamer weake
     const EnemyInfo& day = enemyInfo(EnemyType::Sunroamer);
     CHECK(day.maxHealth == 20);
     CHECK(day.moveSpeed == doctest::Approx(140.0f));
+    CHECK(day.jumpSpeed == doctest::Approx(420.0f));
     CHECK(day.contactDamage == 4);
+    CHECK(day.contactInterval == doctest::Approx(0.6f));
 
     CHECK(day.maxHealth < night.maxHealth);
     CHECK(day.moveSpeed < night.moveSpeed);

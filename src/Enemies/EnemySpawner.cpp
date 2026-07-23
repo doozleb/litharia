@@ -48,18 +48,27 @@ std::optional<EnemySpawn> attemptSpawn(const World& world,
         return std::nullopt;
 
     const bool underground = foundY > generator.surfaceHeight(x);
-    const sf::Vector2f position{static_cast<float>(x) * TILE_SIZE, static_cast<float>(foundY) * TILE_SIZE};
+
+    // Seat the enemy's bottom edge on top of the floor tile (foundY + 1)
+    // rather than using foundY's own top - an Enemy's AABB extends `height`
+    // px downward from `position`, so anchoring at foundY's top would leave
+    // it embedded in the solid tile below by (height - TILE_SIZE) px.
+    const auto seatedPosition = [x, foundY](EnemyType type) {
+        const float height = enemyInfo(type).height;
+        return sf::Vector2f{static_cast<float>(x) * TILE_SIZE,
+                             static_cast<float>(foundY + 1) * TILE_SIZE - height};
+    };
 
     if (underground)
-        return EnemySpawn{EnemyType::Nightstalker, position};
+        return EnemySpawn{EnemyType::Nightstalker, seatedPosition(EnemyType::Nightstalker)};
 
     if (daylightFactor < NIGHT_THRESHOLD)
-        return EnemySpawn{EnemyType::Nightstalker, position};
+        return EnemySpawn{EnemyType::Nightstalker, seatedPosition(EnemyType::Nightstalker)};
 
     // Daytime, above ground: Sunroamer, and only rarely.
     const float roll = noise::hashFloat(x, foundY, salt);
     if (roll < SUNROAMER_SPAWN_CHANCE)
-        return EnemySpawn{EnemyType::Sunroamer, position};
+        return EnemySpawn{EnemyType::Sunroamer, seatedPosition(EnemyType::Sunroamer)};
 
     return std::nullopt;
 }

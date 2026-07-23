@@ -45,6 +45,11 @@ private:
     void updateEnemies(float dt);
     void despawnEnemies();
 
+    // The camera's current visible rectangle in world pixels, computed once
+    // from the live camera - spawnEnemiesIfNeeded and despawnEnemies both
+    // need this and previously computed it independently.
+    ViewBounds currentViewBounds() const;
+
     void render();
     void drawMiningHighlight();
 

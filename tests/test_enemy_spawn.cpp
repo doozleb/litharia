@@ -146,6 +146,27 @@ TEST_CASE("attemptSpawn never spawns at or above MAX_ENEMIES")
     CHECK_FALSE(attemptSpawn(world, generator, view, 0.0f, MAX_ENEMIES + 5, 7u).has_value());
 }
 
+TEST_CASE("a spawned enemy's bottom edge is seated on top of the floor tile, not embedded in it")
+{
+    World world;
+    TerrainGenerator generator(2026u);
+    generator.generateBase(world);
+
+    const ViewBounds view = viewCenteredOn(DEEP_Y);
+    carveFootholdOnBothEdges(world, view, DEEP_Y);
+
+    // DEEP_Y is always underground (see its comment above), so this always
+    // spawns a Nightstalker at foundY == DEEP_Y - the exact tile the
+    // foothold was carved at.
+    const auto result = attemptSpawn(world, generator, view, 0.0f, 0, 1u);
+    REQUIRE(result.has_value());
+
+    const float height = enemyInfo(result->type).height;
+    const float expectedFloorTopY = static_cast<float>(DEEP_Y + 1) * TILE_SIZE;
+
+    CHECK(result->position.y + height == doctest::Approx(expectedFloorTopY));
+}
+
 TEST_CASE("attemptSpawn is a pure function: identical inputs always give the identical result")
 {
     World world;

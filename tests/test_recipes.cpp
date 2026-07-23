@@ -508,6 +508,51 @@ TEST_CASE("the Wood Sword recipe costs 2 sticks and 1 oak log - no starting free
     CHECK(it->seconds == doctest::Approx(1.5f));
 }
 
+TEST_CASE("the Stone Sword recipe costs 2 sticks and 2 sharp rocks")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::StoneSword; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Stick);
+    CHECK(it->ingredients[0].count == 2);
+    CHECK(it->ingredients[1].item == ItemType::SharpRock);
+    CHECK(it->ingredients[1].count == 2);
+    CHECK(it->seconds == doctest::Approx(2.0f));
+}
+
+TEST_CASE("the Copper Sword recipe costs 2 sticks and 3 copper plates")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::CopperSword; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Stick);
+    CHECK(it->ingredients[0].count == 2);
+    CHECK(it->ingredients[1].item == ItemType::CopperPlate);
+    CHECK(it->ingredients[1].count == 3);
+    CHECK(it->seconds == doctest::Approx(2.0f));
+}
+
+TEST_CASE("the Iron Sword recipe costs 2 sticks and 3 iron plates")
+{
+    const std::span<const CraftRecipe> all = allCraftRecipes();
+    const auto it = std::find_if(all.begin(), all.end(),
+        [](const CraftRecipe& r) { return r.output == ItemType::IronSword; });
+
+    REQUIRE(it != all.end());
+    CHECK(it->requiresCraftingTable);
+    CHECK(it->ingredients[0].item == ItemType::Stick);
+    CHECK(it->ingredients[0].count == 2);
+    CHECK(it->ingredients[1].item == ItemType::IronPlate);
+    CHECK(it->ingredients[1].count == 3);
+    CHECK(it->seconds == doctest::Approx(2.0f));
+}
+
 TEST_CASE("the Obsidian Sword recipe costs 2 sticks and 2 obsidian")
 {
     const std::span<const CraftRecipe> all = allCraftRecipes();

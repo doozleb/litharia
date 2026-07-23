@@ -44,6 +44,11 @@ constexpr float DAMAGE_POPUP_LIFETIME = 1.0f;
 // run on every tick lava moves, which is most ticks while a pool settles.
 constexpr float LAVA_LIGHTING_COOLDOWN_SECONDS = 0.5f;
 
+// The sword's reach, in tiles - shared by resolveMeleeHit's actual hitbox
+// check and render's drawn blade length, so the visible sword can never
+// drift out of sync with what it actually hits.
+constexpr float SWORD_REACH_TILES = 2.5f;
+
 sf::Color toColor(BlockColor c)
 {
     return sf::Color(c.r, c.g, c.b);
@@ -174,7 +179,6 @@ void Game::spawnDrop(const ActionResult& result)
 
 void Game::resolveMeleeHit(const ActionResult& result)
 {
-    constexpr float SWORD_REACH_TILES = 2.5f;
     const float reachPx = SWORD_REACH_TILES * TILE_SIZE;
 
     for (Enemy& enemy : enemies)
@@ -249,6 +253,17 @@ void Game::updateDrops(float dt)
     std::erase_if(drops, [](const ItemEntity& drop) { return drop.stack().empty(); });
 }
 
+ViewBounds Game::currentViewBounds() const
+{
+    const sf::Vector2f viewSize = camera.view().getSize();
+    const sf::Vector2f viewCenter = camera.center();
+
+    return ViewBounds{viewCenter.x - viewSize.x * 0.5f,
+                       viewCenter.y - viewSize.y * 0.5f,
+                       viewCenter.x + viewSize.x * 0.5f,
+                       viewCenter.y + viewSize.y * 0.5f};
+}
+
 void Game::spawnEnemiesIfNeeded(float dt)
 {
     enemySpawnTimer += dt;
@@ -258,12 +273,7 @@ void Game::spawnEnemiesIfNeeded(float dt)
     enemySpawnTimer = 0.0f;
     ++enemySpawnCounter;
 
-    const sf::Vector2f viewSize = camera.view().getSize();
-    const sf::Vector2f viewCenter = camera.center();
-    const ViewBounds view{viewCenter.x - viewSize.x * 0.5f,
-                           viewCenter.y - viewSize.y * 0.5f,
-                           viewCenter.x + viewSize.x * 0.5f,
-                           viewCenter.y + viewSize.y * 0.5f};
+    const ViewBounds view = currentViewBounds();
 
     const auto spawn = attemptSpawn(world, generator, view, dayNightClock.daylightFactor(),
                                      static_cast<int>(enemies.size()),
@@ -275,6 +285,13 @@ void Game::spawnEnemiesIfNeeded(float dt)
 
 void Game::updateEnemies(float dt)
 {
+    // Dead enemies just vanish - no drops yet, see the design doc's Scope
+    // section. Erased before the loop below (not after) so an enemy killed
+    // by resolveMeleeHit earlier this same tick is already gone and cannot
+    // still act - one more frame of AI movement plus a contact-damage tick
+    // it has no business getting.
+    std::erase_if(enemies, [](const Enemy& e) { return e.isDead(); });
+
     for (Enemy& enemy : enemies)
     {
         enemy.update(world, player.center(), dt);
@@ -289,9 +306,6 @@ void Game::updateEnemies(float dt)
         }
     }
 
-    // Dead enemies just vanish - no drops yet, see the design doc's Scope section.
-    std::erase_if(enemies, [](const Enemy& e) { return e.isDead(); });
-
     despawnEnemies();
 }
 
@@ -301,8 +315,8 @@ void Game::despawnEnemies()
     if (!isDay)
         return;
 
-    const sf::FloatRect viewRect(camera.center() - camera.view().getSize() * 0.5f,
-                                  camera.view().getSize());
+    const ViewBounds b = currentViewBounds();
+    const sf::FloatRect viewRect({b.left, b.top}, {b.right - b.left, b.bottom - b.top});
 
     std::erase_if(enemies, [&](const Enemy& e) {
         // Cave Nightstalkers are never "above ground", so this never
@@ -1240,7 +1254,7 @@ void Game::render()
     // midpoint - see the enemies-and-melee-combat design.
     if (player.isSwinging())
     {
-        constexpr float BLADE_LENGTH = 2.5f * TILE_SIZE;
+        const float BLADE_LENGTH = SWORD_REACH_TILES * TILE_SIZE;
         constexpr float BLADE_THICKNESS = 4.0f;
 
         const float armDeg = -80.0f + player.swingProgress() * 160.0f;
