@@ -104,6 +104,12 @@ public:
     // Restores full health at `topLeft`, velocity cleared. Called by Game on death.
     void respawn(sf::Vector2f topLeft);
 
+    // Damage from a source Player doesn't compute itself - currently only
+    // enemy contact damage, resolved in Game since Player doesn't know
+    // about the enemy list. Routes through the same clamped applyDamage
+    // fall/lava damage already uses.
+    void takeDamage(int amount);
+
     // True while a block is actively being broken.
     bool isMining() const { return mining; }
     sf::Vector2i miningTarget() const { return target; }

@@ -437,6 +437,11 @@ void Player::swing(const PlayerInput& input, float dt, ActionResult& result)
     }
 }
 
+void Player::takeDamage(int amount)
+{
+    applyDamage(amount);
+}
+
 void Player::applyDamage(int amount)
 {
     const int actual = std::clamp(amount, 0, hp);

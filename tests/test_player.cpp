@@ -813,3 +813,20 @@ TEST_CASE("switching to a sword and back resets stale mining progress")
 
     CHECK(player.miningProgress() < 0.05f);
 }
+
+TEST_CASE("takeDamage reduces health and clamps at 0, same as fall/lava damage")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+    REQUIRE(player.health() == Player::MAX_HEALTH);
+
+    player.takeDamage(8);
+    CHECK(player.health() == Player::MAX_HEALTH - 8);
+    CHECK_FALSE(player.isDead());
+
+    player.takeDamage(1000);
+    CHECK(player.health() == 0);
+    CHECK(player.isDead());
+}
