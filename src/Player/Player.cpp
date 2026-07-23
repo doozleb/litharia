@@ -395,10 +395,17 @@ void Player::swing(const PlayerInput& input, float dt, ActionResult& result)
     // rather than the transition tick being a free no-op tick.
     if (swingPhase == SwingPhase::Idle)
     {
-        if (!input.mine)
+        const ItemInfo& heldInfo = itemInfo(bag.slot(selected).type);
+
+        // A delay that just naturally elapsed can land on a tick where a
+        // non-sword item is held (e.g. the player switched to a mining tool
+        // mid-delay and never switched back). Only a sword can start a new
+        // swing here - anything else must fall through untouched so
+        // update()'s own dispatch routes the very next tick to mine()
+        // instead of this starting a phantom swing with a borrowed duration.
+        if (!input.mine || !heldInfo.isSword)
             return;
 
-        const ItemInfo& heldInfo = itemInfo(bag.slot(selected).type);
         swingDamage = heldInfo.meleeDamage;
         swingDuration = swordSwingSeconds(heldInfo.tier);
         swingTimer = 0.0f;

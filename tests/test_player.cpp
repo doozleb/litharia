@@ -687,6 +687,69 @@ TEST_CASE("switching away from a sword mid-delay does not let a new swing start 
     CHECK(sawNewSwing);
 }
 
+TEST_CASE("a delay that naturally elapses while a non-sword is held resumes mining, not a phantom swing")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(11, 29, BlockType::Stone); // a block in reach to mine
+
+    Player player = standing(world, 10.0f, 30.0f);
+    player.inventory().exchange(2, {ItemType::ObsidianSword, 1}); // shortest swing, easiest to isolate the delay
+    player.setSelectedSlot(2);
+
+    PlayerInput input;
+    input.mine = true;
+    input.cursor = {11.5f * TILE_SIZE, 29.5f * TILE_SIZE};
+
+    const float duration = SWORD_SWING_SECONDS[static_cast<std::size_t>(ToolTier::Obsidian)];
+    const int swingTicks = static_cast<int>(std::lround(duration / STEP));
+
+    for (int i = 0; i < swingTicks; ++i)
+        player.update(input, world, STEP);
+
+    REQUIRE_FALSE(player.isSwinging()); // now in the trailing Delay phase
+
+    // Switch to a non-sword item (the starting Wood Pickaxe, slot 0) right
+    // away and never switch back, still holding mine with the cursor already
+    // on a minable block - the delay must keep ticking in the background
+    // (per the prior fix) and elapse while the pickaxe is held.
+    player.setSelectedSlot(0);
+
+    const int totalDelayTicks = static_cast<int>(std::lround(SWORD_SWING_DELAY / STEP));
+
+    // A couple of ticks of slack short of the boundary, staying clear of any
+    // float-drift ambiguity there: the delay has not yet elapsed, so nothing
+    // should be swinging (impossible anyway with a pickaxe held) or mining
+    // (the state machine hasn't reached Idle yet to fall through to mine()).
+    const int safelyBeforeReadyTicks = totalDelayTicks - 2;
+    REQUIRE(safelyBeforeReadyTicks > 0);
+
+    for (int i = 0; i < safelyBeforeReadyTicks; ++i)
+    {
+        player.update(input, world, STEP);
+        CHECK_FALSE(player.isSwinging());
+    }
+
+    CHECK(player.miningProgress() == 0.0f);
+
+    // Finish out the rest of the real elapsed delay with a few ticks of
+    // slack past the boundary (rather than probing the exact crossing tick),
+    // then keep ticking a bit further so mining has a chance to actually
+    // accumulate progress. Without the fix, the delay elapsing while the
+    // pickaxe is held starts a phantom swing (isSwinging() would flip true)
+    // instead of falling through to mine() the very next tick.
+    bool sawPhantomSwing = false;
+    for (int i = 0; i < 10; ++i)
+    {
+        player.update(input, world, STEP);
+        if (player.isSwinging())
+            sawPhantomSwing = true;
+    }
+
+    CHECK_FALSE(sawPhantomSwing);
+    CHECK(player.miningProgress() > 0.0f);
+}
+
 TEST_CASE("releasing mine mid-swing does not cancel the swing or shorten its delay")
 {
     World world;
