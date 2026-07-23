@@ -4,6 +4,7 @@
 
 #include "Blocks/Blocks.h"
 #include "Core/Constants.h"
+#include "Core/Direction.h"
 #include "Player/Player.h"
 #include "World/World.h"
 
@@ -517,4 +518,27 @@ TEST_CASE("stepping out of lava resets the damage timer (no carryover)")
     for (int i = 0; i < 24; ++i)
         player.update({}, world, STEP);
     CHECK(player.health() == Player::MAX_HEALTH);
+}
+
+TEST_CASE("the player faces the last direction they moved, held until they move the other way")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+    CHECK(player.facing() == Direction::Right); // default facing
+
+    PlayerInput left;
+    left.left = true;
+    player.update(left, world, STEP);
+    CHECK(player.facing() == Direction::Left);
+
+    // Releasing input holds the last facing direction rather than resetting.
+    player.update({}, world, STEP);
+    CHECK(player.facing() == Direction::Left);
+
+    PlayerInput right;
+    right.right = true;
+    player.update(right, world, STEP);
+    CHECK(player.facing() == Direction::Right);
 }

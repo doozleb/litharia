@@ -193,6 +193,9 @@ ActionResult Player::update(const PlayerInput& input, World& world, float dt,
 
 void Player::move(const PlayerInput& input, const World& world, float dt)
 {
+    if (input.left != input.right)
+        facingDir = input.right ? Direction::Right : Direction::Left;
+
     const float steer = (input.right ? 1.0f : 0.0f) - (input.left ? 1.0f : 0.0f);
 
     if (steer != 0.0f)

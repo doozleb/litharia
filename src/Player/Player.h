@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "../Blocks/Blocks.h"
+#include "../Core/Direction.h"
 #include "../Items/Inventory.h"
 #include "../Physics/Physics.h"
 
@@ -87,6 +88,10 @@ public:
 
     bool isGrounded() const { return grounded; }
 
+    // Left/Right only, updated whenever horizontal input is nonzero and
+    // held otherwise. Used for the sword swing's hit-side and render angle.
+    Direction facing() const { return facingDir; }
+
     int health() const { return hp; }
     bool isDead() const { return hp <= 0; }
 
@@ -124,6 +129,7 @@ private:
     sf::Vector2f speed{0.0f, 0.0f};
 
     bool grounded = false;
+    Direction facingDir = Direction::Right;
     int hp = MAX_HEALTH;
     float lavaTimer = 0.0f;
 
