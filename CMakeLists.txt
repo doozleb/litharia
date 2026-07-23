@@ -37,6 +37,8 @@ add_library(Litharia_core STATIC
     src/Physics/Physics.cpp
     src/Player/Player.cpp
 
+    src/Enemies/Enemy.cpp
+
     src/Items/Items.cpp
     src/Items/ItemEntity.cpp
     src/Items/Inventory.cpp
@@ -93,6 +95,7 @@ add_executable(Litharia_tests
     tests/test_fluids.cpp
     tests/test_physics.cpp
     tests/test_player.cpp
+    tests/test_enemies.cpp
     tests/test_spawn.cpp
     tests/test_mining.cpp
     tests/test_inventory.cpp
