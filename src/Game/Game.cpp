@@ -228,6 +228,80 @@ void Game::updateDrops(float dt)
     std::erase_if(drops, [](const ItemEntity& drop) { return drop.stack().empty(); });
 }
 
+void Game::spawnEnemiesIfNeeded(float dt)
+{
+    enemySpawnTimer += dt;
+    if (enemySpawnTimer < SPAWN_ATTEMPT_INTERVAL)
+        return;
+
+    enemySpawnTimer = 0.0f;
+    ++enemySpawnCounter;
+
+    const sf::Vector2f viewSize = camera.view().getSize();
+    const sf::Vector2f viewCenter = camera.center();
+    const ViewBounds view{viewCenter.x - viewSize.x * 0.5f,
+                           viewCenter.y - viewSize.y * 0.5f,
+                           viewCenter.x + viewSize.x * 0.5f,
+                           viewCenter.y + viewSize.y * 0.5f};
+
+    const auto spawn = attemptSpawn(world, generator, view, dayNightClock.daylightFactor(),
+                                     static_cast<int>(enemies.size()),
+                                     static_cast<std::uint32_t>(enemySpawnCounter));
+
+    if (spawn.has_value())
+        enemies.emplace_back(spawn->type, spawn->position);
+}
+
+void Game::updateEnemies(float dt)
+{
+    for (Enemy& enemy : enemies)
+    {
+        enemy.update(world, player.center(), dt);
+
+        const bool touching = physics::overlaps(enemy.box(), player.box());
+        const int contactDamage = enemy.tickContactDamage(touching, dt);
+
+        if (contactDamage > 0)
+        {
+            player.takeDamage(contactDamage);
+            spawnDamagePopup(contactDamage);
+        }
+    }
+
+    // Dead enemies just vanish - no drops yet, see the design doc's Scope section.
+    std::erase_if(enemies, [](const Enemy& e) { return e.isDead(); });
+
+    despawnEnemies();
+}
+
+void Game::despawnEnemies()
+{
+    const bool isDay = dayNightClock.daylightFactor() >= NIGHT_THRESHOLD;
+    if (!isDay)
+        return;
+
+    const sf::FloatRect viewRect(camera.center() - camera.view().getSize() * 0.5f,
+                                  camera.view().getSize());
+
+    std::erase_if(enemies, [&](const Enemy& e) {
+        // Cave Nightstalkers are never "above ground", so this never
+        // touches them regardless of the surface daylight clock. Sunroamers
+        // never despawn from time-of-day at all - see the design doc.
+        if (e.type() != EnemyType::Nightstalker)
+            return false;
+
+        const int tileX = static_cast<int>(e.center().x / TILE_SIZE);
+        const bool aboveGround = e.position().y <= generator.surfaceHeight(tileX) * TILE_SIZE;
+        if (!aboveGround)
+            return false;
+
+        const sf::FloatRect enemyRect(e.position(), e.box().size);
+        const bool onScreen = viewRect.findIntersection(enemyRect).has_value();
+
+        return !onScreen;
+    });
+}
+
 void Game::spawnDamagePopup(int amount)
 {
     std::optional<sf::Text> text = hud.makeDamagePopupText(amount);
@@ -1002,6 +1076,8 @@ void Game::fixedUpdate(float dt)
         lighting.recomputeAll(world, machines);
 
     updateDrops(dt);
+    spawnEnemiesIfNeeded(dt);
+    updateEnemies(dt);
     updateDamagePopups(dt);
     respawnSharpRocksIfNeeded(dt);
     tickMachines(dt);

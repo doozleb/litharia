@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "../Camera/Camera.h"
+#include "../Enemies/Enemy.h"
+#include "../Enemies/EnemySpawner.h"
 #include "../Hud/Hud.h"
 #include "../Items/Inventory.h"
 #include "../Items/ItemEntity.h"
@@ -38,6 +40,10 @@ private:
     void fixedUpdate(float dt);
 
     void updateDrops(float dt);
+
+    void spawnEnemiesIfNeeded(float dt);
+    void updateEnemies(float dt);
+    void despawnEnemies();
 
     void render();
     void drawMiningHighlight();
@@ -102,6 +108,9 @@ private:
     Hud hud;
 
     std::vector<ItemEntity> drops;
+    std::vector<Enemy> enemies;
+    int enemySpawnCounter = 0;
+    float enemySpawnTimer = 0.0f;
     std::vector<DamagePopup> damagePopups;
 
     float sharpRockRespawnTimer = 0.0f;
