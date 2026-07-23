@@ -5,6 +5,7 @@
 #include "Blocks/Blocks.h"
 #include "Core/Constants.h"
 #include "Core/Direction.h"
+#include "Items/Items.h"
 #include "Player/Player.h"
 #include "World/World.h"
 
@@ -541,4 +542,142 @@ TEST_CASE("the player faces the last direction they moved, held until they move 
     right.right = true;
     player.update(right, world, STEP);
     CHECK(player.facing() == Direction::Right);
+}
+
+TEST_CASE("holding mine with a sword selected starts a swing, and meleeHit fires exactly once, at the midpoint")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+    player.inventory().exchange(2, {ItemType::WoodSword, 1});
+    player.setSelectedSlot(2);
+
+    PlayerInput swing;
+    swing.mine = true;
+
+    const float duration = SWORD_SWING_SECONDS[static_cast<std::size_t>(ToolTier::Wood)];
+    const int totalTicks = static_cast<int>(std::lround(duration / STEP));
+
+    // +1: the tick that starts the swing spends its own dt on it (see
+    // Player::swing), the same way mine() spends dt on the tick it starts
+    // targeting a new tile - it is not a free transition tick. That makes a
+    // swing's own accumulated timer reach `duration` by summing STEP
+    // `totalTicks` times, but repeated float addition of 1/60 drifts a few
+    // ULPs below the mathematically exact total for Wood's 0.8s (and
+    // Stone's 0.75s) specifically, so completion lands one tick later than
+    // the nominal totalTicks. The "releasing mid-swing" test right below
+    // already budgets for this same extra tick.
+    int hitTicks = 0;
+    int reportedDamage = 0;
+    for (int i = 0; i < totalTicks + 1; ++i)
+    {
+        const ActionResult result = player.update(swing, world, STEP);
+        if (result.meleeHit)
+        {
+            ++hitTicks;
+            reportedDamage = result.meleeDamage;
+        }
+    }
+
+    CHECK(hitTicks == 1);
+    CHECK(reportedDamage == itemInfo(ItemType::WoodSword).meleeDamage);
+    CHECK_FALSE(player.isSwinging()); // finished by the end of its own duration
+}
+
+TEST_CASE("a fixed 0.5s delay follows every swing before a new one can start")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+    player.inventory().exchange(2, {ItemType::ObsidianSword, 1}); // shortest swing, easiest to isolate the delay
+    player.setSelectedSlot(2);
+
+    PlayerInput swing;
+    swing.mine = true;
+
+    const float duration = SWORD_SWING_SECONDS[static_cast<std::size_t>(ToolTier::Obsidian)];
+    const int swingTicks = static_cast<int>(std::lround(duration / STEP));
+
+    for (int i = 0; i < swingTicks; ++i)
+        player.update(swing, world, STEP);
+
+    REQUIRE_FALSE(player.isSwinging());
+
+    // Still inside the 0.5s delay: holding mine must not start a new swing.
+    const int delayTicksBeforeReady = static_cast<int>(std::lround(SWORD_SWING_DELAY / STEP)) - 1;
+    for (int i = 0; i < delayTicksBeforeReady; ++i)
+    {
+        player.update(swing, world, STEP);
+        CHECK_FALSE(player.isSwinging());
+    }
+
+    // One more tick crosses the delay: a new swing starts.
+    player.update(swing, world, STEP);
+    CHECK(player.isSwinging());
+}
+
+TEST_CASE("releasing mine mid-swing does not cancel the swing or shorten its delay")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+    player.inventory().exchange(2, {ItemType::WoodSword, 1});
+    player.setSelectedSlot(2);
+
+    PlayerInput swing;
+    swing.mine = true;
+    player.update(swing, world, STEP); // start the swing
+
+    REQUIRE(player.isSwinging());
+
+    const float duration = SWORD_SWING_SECONDS[static_cast<std::size_t>(ToolTier::Wood)];
+    const int remainingTicks = static_cast<int>(std::lround(duration / STEP)) - 1;
+
+    // Release immediately: the swing already in progress must run to completion
+    // even with no input held.
+    for (int i = 0; i < remainingTicks; ++i)
+    {
+        player.update({}, world, STEP);
+        CHECK(player.isSwinging());
+    }
+
+    player.update({}, world, STEP);
+    CHECK_FALSE(player.isSwinging());
+}
+
+TEST_CASE("switching to a sword and back resets stale mining progress")
+{
+    World world;
+    buildFloor(world, 30);
+    world.set(11, 29, BlockType::Stone); // a block in reach to mine
+
+    Player player = standing(world, 10.0f, 30.0f);
+
+    PlayerInput mineInput;
+    mineInput.mine = true;
+    mineInput.cursor = {11.5f * TILE_SIZE, 29.5f * TILE_SIZE};
+
+    // Partial progress with the starting Wood Pickaxe (slot 0). Stone
+    // hardness (0.90s) / Wood's 0.6x multiplier = 1.5s to break, so 5 ticks
+    // is partial progress nowhere near breaking it.
+    player.setSelectedSlot(0);
+    for (int i = 0; i < 5; ++i)
+        player.update(mineInput, world, STEP);
+
+    REQUIRE(player.miningProgress() > 0.0f);
+
+    // Switch to a sword (one tick) and back to the pickaxe (one tick): if
+    // progress had carried over, one fresh tick's worth (1/60/1.5 =~ 0.011)
+    // would instead read as 6 ticks' worth (6/60/1.5 =~ 0.067).
+    player.inventory().exchange(2, {ItemType::WoodSword, 1});
+    player.setSelectedSlot(2);
+    player.update(mineInput, world, STEP);
+
+    player.setSelectedSlot(0);
+    player.update(mineInput, world, STEP);
+
+    CHECK(player.miningProgress() < 0.05f);
 }

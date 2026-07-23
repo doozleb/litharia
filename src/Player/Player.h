@@ -58,6 +58,12 @@ struct ActionResult
     // what the player had left. 0 most ticks. Game reads this to spawn a
     // floating damage popup.
     int damageTaken = 0;
+
+    // True only on the single tick a sword swing's hit-resolution point is
+    // crossed (the swing's midpoint - see Player::swing). meleeDamage is
+    // only meaningful that same tick.
+    bool meleeHit = false;
+    int meleeDamage = 0;
 };
 
 class Player
@@ -105,6 +111,12 @@ public:
     // 0 to 1, how far through breaking the target block we are.
     float miningProgress() const;
 
+    // True while a sword swing is in progress (not during its post-swing delay).
+    bool isSwinging() const { return swingPhase == SwingPhase::Swinging; }
+
+    // 0 to 1 through the current swing; 0 when not swinging.
+    float swingProgress() const;
+
     // True if that tile is close enough to mine or place in.
     bool inReach(int tileX, int tileY) const;
 
@@ -148,6 +160,20 @@ private:
     sf::Vector2i target{0, 0};
     float progress = 0.0f;
     float targetHardness = 0.0f;
+
+    // A sword swing: Idle (nothing happening) -> Swinging (progress runs
+    // 0..swingDuration) -> Delay (a fixed SWORD_SWING_DELAY) -> back to
+    // Idle. Driven by the same "mine" input bool that drives mining -
+    // whichever one applies depends on whether the held item isSword.
+    enum class SwingPhase { Idle, Swinging, Delay };
+
+    void swing(const PlayerInput& input, float dt, ActionResult& result);
+
+    SwingPhase swingPhase = SwingPhase::Idle;
+    float swingTimer = 0.0f;
+    float swingDuration = 0.0f;
+    int swingDamage = 0;
+    bool swingHitDelivered = false;
 
     Inventory bag;
     int selected = 0;

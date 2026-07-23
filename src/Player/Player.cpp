@@ -183,7 +183,26 @@ ActionResult Player::update(const PlayerInput& input, World& world, float dt,
     move(input, world, dt);
     applyLavaDamage(world, dt);
 
-    mine(input, world, result, dt);
+    const ItemInfo& heldInfo = itemInfo(bag.slot(selected).type);
+
+    if (heldInfo.isSword)
+    {
+        // A sword can't mine - reset any mining state left over from a
+        // previously held tool, so switching back to it later doesn't
+        // resume stale progress on whatever tile the cursor happens to be on.
+        mining = false;
+        progress = 0.0f;
+
+        swing(input, dt, result);
+    }
+    else
+    {
+        swingPhase = SwingPhase::Idle;
+        swingTimer = 0.0f;
+
+        mine(input, world, result, dt);
+    }
+
     place(input, world, machines, result);
 
     result.damageTaken = damageTakenThisTick;
@@ -334,6 +353,77 @@ void Player::mine(const PlayerInput& input, World& world, ActionResult& result, 
     progress = 0.0f;
 
     result.broke = true;
+}
+
+float Player::swingProgress() const
+{
+    if (swingPhase != SwingPhase::Swinging || swingDuration <= 0.0f)
+        return 0.0f;
+
+    return std::clamp(swingTimer / swingDuration, 0.0f, 1.0f);
+}
+
+void Player::swing(const PlayerInput& input, float dt, ActionResult& result)
+{
+    // A delay that finishes this tick falls straight through into the Idle
+    // check below (and, from there, possibly straight into starting a new
+    // swing) rather than returning: the tick that crosses the delay is also
+    // the tick a held "mine" input can react to, not a free no-op tick spent
+    // only on the transition.
+    if (swingPhase == SwingPhase::Delay)
+    {
+        swingTimer += dt;
+
+        if (swingTimer >= SWORD_SWING_DELAY)
+        {
+            swingPhase = SwingPhase::Idle;
+            swingTimer = 0.0f;
+        }
+        else
+        {
+            return;
+        }
+    }
+
+    // Starting a swing falls straight through into the Swinging case below
+    // rather than returning: like mine()'s equivalent "targeting a new tile"
+    // reset, the tick that starts the action also spends its own dt on it,
+    // rather than the transition tick being a free no-op tick.
+    if (swingPhase == SwingPhase::Idle)
+    {
+        if (!input.mine)
+            return;
+
+        const ItemInfo& heldInfo = itemInfo(bag.slot(selected).type);
+        swingDamage = heldInfo.meleeDamage;
+        swingDuration = swordSwingSeconds(heldInfo.tier);
+        swingTimer = 0.0f;
+        swingHitDelivered = false;
+        swingPhase = SwingPhase::Swinging;
+    }
+
+    if (swingPhase == SwingPhase::Swinging)
+    {
+        const float before = swingTimer;
+        swingTimer += dt;
+
+        // One hit per swing, delivered exactly at the midpoint (the
+        // blade's full-extension point in its 10deg-to-10deg arc) -
+        // never re-triggering across multiple ticks.
+        const float midpoint = swingDuration * 0.5f;
+        if (!swingHitDelivered && before < midpoint && swingTimer >= midpoint)
+        {
+            result.meleeHit = true;
+            result.meleeDamage = swingDamage;
+            swingHitDelivered = true;
+        }
+
+        if (swingTimer >= swingDuration)
+        {
+            swingPhase = SwingPhase::Delay;
+            swingTimer = 0.0f;
+        }
+    }
 }
 
 void Player::applyDamage(int amount)
