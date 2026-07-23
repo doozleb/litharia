@@ -618,6 +618,75 @@ TEST_CASE("a fixed 0.5s delay follows every swing before a new one can start")
     CHECK(player.isSwinging());
 }
 
+TEST_CASE("switching away from a sword mid-delay does not let a new swing start early or skip the remaining delay")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+    player.inventory().exchange(2, {ItemType::ObsidianSword, 1}); // shortest swing, easiest to isolate the delay
+    player.setSelectedSlot(2);
+
+    PlayerInput swing;
+    swing.mine = true;
+
+    const float duration = SWORD_SWING_SECONDS[static_cast<std::size_t>(ToolTier::Obsidian)];
+    const int swingTicks = static_cast<int>(std::lround(duration / STEP));
+
+    for (int i = 0; i < swingTicks; ++i)
+        player.update(swing, world, STEP);
+
+    REQUIRE_FALSE(player.isSwinging()); // now in the trailing Delay phase
+
+    // Switch to a non-sword item (the starting Wood Pickaxe, slot 0) for a
+    // few ticks, still holding mine the whole time - this is the exploit
+    // scenario: the delay must keep ticking in the background even though a
+    // sword is no longer held, rather than resetting.
+    player.setSelectedSlot(0);
+
+    const int switchAwayTicks = 3;
+    for (int i = 0; i < switchAwayTicks; ++i)
+        player.update(swing, world, STEP);
+
+    // Switch back to the sword, still holding mine. Only a few ticks of the
+    // 0.5s delay have elapsed (all of it spent while the pickaxe was held),
+    // so a new swing must not have started early.
+    player.setSelectedSlot(2);
+    player.update(swing, world, STEP);
+    CHECK_FALSE(player.isSwinging());
+
+    // The delay ticked down by switchAwayTicks + 1 ticks so far (the
+    // switch-away ticks plus the one update just above), all counted
+    // regardless of what was held. Burn through the rest of it - well short
+    // of the boundary, to stay clear of any float-drift ambiguity there -
+    // and confirm it is still not swinging: the delay survived the switch
+    // rather than being shortened or reset.
+    const int elapsedDelayTicks = switchAwayTicks + 1;
+    const int totalDelayTicks = static_cast<int>(std::lround(SWORD_SWING_DELAY / STEP));
+    const int safelyBeforeReadyTicks = totalDelayTicks - elapsedDelayTicks - 2;
+    REQUIRE(safelyBeforeReadyTicks > 0);
+
+    for (int i = 0; i < safelyBeforeReadyTicks; ++i)
+    {
+        player.update(swing, world, STEP);
+        CHECK_FALSE(player.isSwinging());
+    }
+
+    // Finish out the rest of the real elapsed delay (a couple of ticks of
+    // slack past the boundary, rather than probing the exact crossing tick):
+    // a new swing must eventually be allowed to start once the state machine
+    // naturally reaches Idle with a sword held and mine held.
+    bool sawNewSwing = false;
+    for (int i = 0; i < 4; ++i)
+    {
+        player.update(swing, world, STEP);
+        if (player.isSwinging())
+            sawNewSwing = true;
+    }
+
+    CHECK(sawNewSwing);
+}
+
 TEST_CASE("releasing mine mid-swing does not cancel the swing or shorten its delay")
 {
     World world;

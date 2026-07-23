@@ -185,7 +185,14 @@ ActionResult Player::update(const PlayerInput& input, World& world, float dt,
 
     const ItemInfo& heldInfo = itemInfo(bag.slot(selected).type);
 
-    if (heldInfo.isSword)
+    if (swingPhase != SwingPhase::Idle)
+    {
+        // A swing (or its trailing delay) already in progress always runs
+        // to completion in real time, regardless of what's currently held -
+        // switching away and back must not skip or shorten it.
+        swing(input, dt, result);
+    }
+    else if (heldInfo.isSword)
     {
         // A sword can't mine - reset any mining state left over from a
         // previously held tool, so switching back to it later doesn't
@@ -197,9 +204,6 @@ ActionResult Player::update(const PlayerInput& input, World& world, float dt,
     }
     else
     {
-        swingPhase = SwingPhase::Idle;
-        swingTimer = 0.0f;
-
         mine(input, world, result, dt);
     }
 
