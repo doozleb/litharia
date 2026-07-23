@@ -172,6 +172,27 @@ void Game::spawnDrop(const ActionResult& result)
     }
 }
 
+void Game::resolveMeleeHit(const ActionResult& result)
+{
+    constexpr float SWORD_REACH_TILES = 2.5f;
+    const float reachPx = SWORD_REACH_TILES * TILE_SIZE;
+
+    for (Enemy& enemy : enemies)
+    {
+        const sf::Vector2f offset = enemy.center() - player.center();
+
+        const bool onFacingSide =
+            player.facing() == Direction::Right ? offset.x >= 0.0f : offset.x <= 0.0f;
+        if (!onFacingSide)
+            continue;
+
+        if (offset.x * offset.x + offset.y * offset.y > reachPx * reachPx)
+            continue;
+
+        enemy.applyDamage(result.meleeDamage);
+    }
+}
+
 void Game::spawnSharpRocks()
 {
     for (const auto& [x, y] : generator.scatterSharpRocks(world))
@@ -1039,6 +1060,9 @@ void Game::fixedUpdate(float dt)
     if (result.damageTaken > 0)
         spawnDamagePopup(result.damageTaken);
 
+    if (result.meleeHit)
+        resolveMeleeHit(result);
+
     if (player.isDead())
     {
         player.respawn(findSpawn());
@@ -1185,6 +1209,22 @@ void Game::render()
         window.draw(item);
     }
 
+    // Enemies.
+    for (const Enemy& enemy : enemies)
+    {
+        const EnemyInfo& info = enemyInfo(enemy.type());
+
+        sf::RectangleShape enemyShape({info.width, info.height});
+        enemyShape.setPosition(enemy.position());
+        enemyShape.setFillColor(enemy.type() == EnemyType::Nightstalker
+                                     ? sf::Color(45, 35, 60)
+                                     : sf::Color(225, 200, 120));
+        enemyShape.setOutlineThickness(-2.0f);
+        enemyShape.setOutlineColor(sf::Color(20, 15, 25));
+
+        window.draw(enemyShape);
+    }
+
     // The player, until there is a sprite for one.
     sf::RectangleShape body({Player::WIDTH, Player::HEIGHT});
     body.setPosition(player.position());
@@ -1193,6 +1233,27 @@ void Game::render()
     body.setOutlineColor(sf::Color(40, 20, 20));
 
     window.draw(body);
+
+    // The sword's swing arc, drawn only while actively swinging: sweeps
+    // 10deg off vertical (top) to 10deg off vertical (bottom), passing
+    // through horizontal (full extension, facing direction) at the
+    // midpoint - see the enemies-and-melee-combat design.
+    if (player.isSwinging())
+    {
+        constexpr float BLADE_LENGTH = 2.5f * TILE_SIZE;
+        constexpr float BLADE_THICKNESS = 4.0f;
+
+        const float armDeg = -80.0f + player.swingProgress() * 160.0f;
+        const float renderDeg = player.facing() == Direction::Right ? armDeg : 180.0f - armDeg;
+
+        sf::RectangleShape blade({BLADE_LENGTH, BLADE_THICKNESS});
+        blade.setOrigin({0.0f, BLADE_THICKNESS * 0.5f});
+        blade.setPosition(player.center());
+        blade.setRotation(sf::degrees(renderDeg));
+        blade.setFillColor(sf::Color(200, 200, 210));
+
+        window.draw(blade);
+    }
 
     drawDamagePopups();
 

@@ -55,6 +55,10 @@ private:
 
     // A mined block becomes a stack on the ground.
     void spawnDrop(const ActionResult& result);
+
+    // A sword's hit-frame reported through ActionResult::meleeHit damages
+    // whatever enemies are in reach, on the side the player is facing.
+    void resolveMeleeHit(const ActionResult& result);
     void spawnSharpRocks();
     void respawnSharpRocksIfNeeded(float dt);
 
