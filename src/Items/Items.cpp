@@ -48,6 +48,11 @@ constexpr std::array<ItemInfo, static_cast<std::size_t>(ItemType::Count)> regist
     {"Furnace",          10,  BlockType::Air,       ToolType::None,    {110, 110, 115}},
     {"Item Acceptor",    10,  BlockType::Air,       ToolType::None,    { 80, 140, 190}},
     {"Torch",            50,  BlockType::Air,       ToolType::None,    {230, 170,  60}},
+    {"Wood Sword",        1,  BlockType::Air,       ToolType::None,    {200, 170, 120}, ToolTier::Wood,     true,  8},
+    {"Stone Sword",       1,  BlockType::Air,       ToolType::None,    {150, 150, 155}, ToolTier::Stone,    true, 13},
+    {"Copper Sword",      1,  BlockType::Air,       ToolType::None,    {205, 130,  75}, ToolTier::Copper,   true, 18},
+    {"Iron Sword",        1,  BlockType::Air,       ToolType::None,    {190, 195, 205}, ToolTier::Iron,     true, 23},
+    {"Obsidian Sword",    1,  BlockType::Air,       ToolType::None,    { 70,  40,  90}, ToolTier::Obsidian, true, 28},
 }};
 
 } // namespace

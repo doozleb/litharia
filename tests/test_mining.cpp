@@ -936,3 +936,45 @@ TEST_CASE("a partial chop below the 4-log floor gets no tier bonus, regardless o
 
     CHECK(logCount == 2);
 }
+
+TEST_CASE("the five sword tiers are correctly typed melee items")
+{
+    CHECK(itemInfo(ItemType::WoodSword).isSword);
+    CHECK(itemInfo(ItemType::WoodSword).toolType == ToolType::None);
+    CHECK(itemInfo(ItemType::WoodSword).tier == ToolTier::Wood);
+    CHECK(itemInfo(ItemType::WoodSword).meleeDamage == 8);
+
+    CHECK(itemInfo(ItemType::StoneSword).isSword);
+    CHECK(itemInfo(ItemType::StoneSword).tier == ToolTier::Stone);
+    CHECK(itemInfo(ItemType::StoneSword).meleeDamage == 13);
+
+    CHECK(itemInfo(ItemType::CopperSword).isSword);
+    CHECK(itemInfo(ItemType::CopperSword).tier == ToolTier::Copper);
+    CHECK(itemInfo(ItemType::CopperSword).meleeDamage == 18);
+
+    CHECK(itemInfo(ItemType::IronSword).isSword);
+    CHECK(itemInfo(ItemType::IronSword).tier == ToolTier::Iron);
+    CHECK(itemInfo(ItemType::IronSword).meleeDamage == 23);
+
+    CHECK(itemInfo(ItemType::ObsidianSword).isSword);
+    CHECK(itemInfo(ItemType::ObsidianSword).tier == ToolTier::Obsidian);
+    CHECK(itemInfo(ItemType::ObsidianSword).meleeDamage == 28);
+}
+
+TEST_CASE("non-sword items still report isSword = false and meleeDamage = 0")
+{
+    CHECK_FALSE(itemInfo(ItemType::WoodPickaxe).isSword);
+    CHECK(itemInfo(ItemType::WoodPickaxe).meleeDamage == 0);
+    CHECK_FALSE(itemInfo(ItemType::Stone).isSword);
+    CHECK_FALSE(itemInfo(ItemType::Torch).isSword);
+}
+
+TEST_CASE("sword swing duration decreases with tier, 0.8s at Wood down to 0.6s at Obsidian")
+{
+    CHECK(swordSwingSeconds(ToolTier::Wood) == doctest::Approx(0.8f));
+    CHECK(swordSwingSeconds(ToolTier::Stone) == doctest::Approx(0.75f));
+    CHECK(swordSwingSeconds(ToolTier::Copper) == doctest::Approx(0.7f));
+    CHECK(swordSwingSeconds(ToolTier::Iron) == doctest::Approx(0.65f));
+    CHECK(swordSwingSeconds(ToolTier::Obsidian) == doctest::Approx(0.6f));
+    CHECK(SWORD_SWING_DELAY == doctest::Approx(0.5f));
+}

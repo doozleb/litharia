@@ -51,6 +51,12 @@ enum class ItemType : std::uint8_t
     ItemAcceptor,
     Torch,
 
+    WoodSword,
+    StoneSword,
+    CopperSword,
+    IronSword,
+    ObsidianSword,
+
     Count
 };
 
@@ -72,6 +78,13 @@ struct ItemInfo
 
     // How advanced a tool item is. Meaningless when toolType is None.
     ToolTier tier = ToolTier::Wood;
+
+    // A melee weapon: toolType stays None (it doesn't mine), but it reuses
+    // tier for its swing-duration/damage progression. Selecting one in the
+    // hotbar turns the "mine" input into a swing instead of mining - see
+    // Player::swing. Meaningless when isSword is false.
+    bool isSword = false;
+    int meleeDamage = 0;
 };
 
 const ItemInfo& itemInfo(ItemType type);

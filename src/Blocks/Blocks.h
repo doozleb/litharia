@@ -50,6 +50,26 @@ inline float toolTierSpeedMultiplier(ToolTier tier)
     return TOOL_TIER_SPEED_MULTIPLIER[static_cast<std::size_t>(tier)];
 }
 
+// Sword swing duration, indexed by ToolTier: 0.8s at Wood down to 0.6s at
+// Obsidian, an even 0.05s faster per tier. A fixed delay follows every
+// swing regardless of tier - see SWORD_SWING_DELAY.
+inline constexpr std::array<float, 5> SWORD_SWING_SECONDS = {
+    0.8f,  // Wood
+    0.75f, // Stone
+    0.7f,  // Copper
+    0.65f, // Iron
+    0.6f,  // Obsidian
+};
+
+inline float swordSwingSeconds(ToolTier tier)
+{
+    return SWORD_SWING_SECONDS[static_cast<std::size_t>(tier)];
+}
+
+// The fixed delay after any sword swing finishes, before a new one can
+// start - the same regardless of tier.
+inline constexpr float SWORD_SWING_DELAY = 0.5f;
+
 enum class BlockType : std::uint8_t
 {
     Air,
