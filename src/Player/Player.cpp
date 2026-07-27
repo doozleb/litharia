@@ -19,6 +19,7 @@ constexpr float AIR_CONTROL = 0.45f;       // steering authority while airborne
 
 constexpr float GRAVITY = 1800.0f;           // px/s^2
 constexpr float TERMINAL_VELOCITY = 1100.0f; // px/s
+constexpr float KNOCKBACK_LOCK_SECONDS = 0.25f;
 
 constexpr float JUMP_SPEED = 470.0f; // px/s upward, clears roughly 3.5 tiles
 
@@ -219,19 +220,27 @@ void Player::move(const PlayerInput& input, const World& world, float dt)
     if (input.left != input.right)
         facingDir = input.right ? Direction::Right : Direction::Left;
 
-    const float steer = (input.right ? 1.0f : 0.0f) - (input.left ? 1.0f : 0.0f);
+    knockbackTimer = std::max(0.0f, knockbackTimer - dt);
 
-    if (steer != 0.0f)
+    // While a knockback impulse is still in effect, steering is skipped
+    // entirely so it can't immediately overwrite the impulse - jump,
+    // gravity, and collision still run every tick regardless.
+    if (knockbackTimer <= 0.0f)
     {
-        const float control = grounded ? 1.0f : AIR_CONTROL;
+        const float steer = (input.right ? 1.0f : 0.0f) - (input.left ? 1.0f : 0.0f);
 
-        speed.x += steer * MOVE_ACCELERATION * control * dt;
-        speed.x = std::clamp(speed.x, -MAX_RUN_SPEED, MAX_RUN_SPEED);
-    }
-    else if (grounded)
-    {
-        // Friction only bites on the ground; in the air you keep your momentum.
-        speed.x = applyFriction(speed.x, GROUND_FRICTION * dt);
+        if (steer != 0.0f)
+        {
+            const float control = grounded ? 1.0f : AIR_CONTROL;
+
+            speed.x += steer * MOVE_ACCELERATION * control * dt;
+            speed.x = std::clamp(speed.x, -MAX_RUN_SPEED, MAX_RUN_SPEED);
+        }
+        else if (grounded)
+        {
+            // Friction only bites on the ground; in the air you keep your momentum.
+            speed.x = applyFriction(speed.x, GROUND_FRICTION * dt);
+        }
     }
 
     const bool inFluid = physics::overlapsFluid(body, world);
@@ -440,6 +449,12 @@ void Player::swing(const PlayerInput& input, float dt, ActionResult& result)
 void Player::takeDamage(int amount)
 {
     applyDamage(amount);
+}
+
+void Player::applyKnockback(float vx)
+{
+    speed.x = vx;
+    knockbackTimer = KNOCKBACK_LOCK_SECONDS;
 }
 
 void Player::applyDamage(int amount)

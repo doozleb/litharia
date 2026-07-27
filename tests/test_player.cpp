@@ -100,6 +100,47 @@ TEST_CASE("run speed is capped")
     CHECK(player.velocity().x <= 231.0f);
 }
 
+TEST_CASE("player applyKnockback sets velocity immediately and holds through the lock window")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+
+    player.applyKnockback(-220.0f);
+    CHECK(player.velocity().x == doctest::Approx(-220.0f));
+
+    PlayerInput right;
+    right.right = true;
+
+    // 10 ticks (~0.167s) is still inside the 0.25s lock - steering must not
+    // have reclaimed velocity.x despite holding right.
+    for (int i = 0; i < 10; ++i)
+        player.update(right, world, STEP);
+
+    CHECK(player.velocity().x == doctest::Approx(-220.0f));
+}
+
+TEST_CASE("player steering resumes once the knockback lock has elapsed")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+
+    player.applyKnockback(-220.0f);
+
+    PlayerInput right;
+    right.right = true;
+
+    // 40 ticks (~0.667s) clears the 0.25s lock with room to spare; holding
+    // right should have pulled velocity.x positive again by then.
+    for (int i = 0; i < 40; ++i)
+        player.update(right, world, STEP);
+
+    CHECK(player.velocity().x > 0.0f);
+}
+
 TEST_CASE("jump only works when grounded")
 {
     World world;

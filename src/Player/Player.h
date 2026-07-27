@@ -110,6 +110,11 @@ public:
     // fall/lava damage already uses.
     void takeDamage(int amount);
 
+    // Overrides horizontal velocity and suspends steering input for
+    // KNOCKBACK_LOCK_SECONDS (see Player.cpp), so the impulse isn't
+    // instantly overwritten by the next tick's input handling.
+    void applyKnockback(float vx);
+
     // True while a block is actively being broken.
     bool isMining() const { return mining; }
     sf::Vector2i miningTarget() const { return target; }
@@ -150,6 +155,7 @@ private:
     Direction facingDir = Direction::Right;
     int hp = MAX_HEALTH;
     float lavaTimer = 0.0f;
+    float knockbackTimer = 0.0f;
 
     // Actual health lost so far this tick, accumulated across every
     // applyDamage call (fall, lava). Reset at the top of update() and copied
