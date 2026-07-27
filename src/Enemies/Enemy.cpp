@@ -16,8 +16,8 @@ constexpr float GRAVITY = 1800.0f;           // px/s^2
 constexpr float TERMINAL_VELOCITY = 1100.0f; // px/s
 
 constexpr std::array<EnemyInfo, 2> registry = {{
-    {"Nightstalker", 28.0f, 42.0f, 40, 190.0f, 470.0f, 8, 0.6f},
-    {"Sunroamer",     24.0f, 34.0f, 20, 140.0f, 420.0f, 4, 0.6f},
+    {"Nightstalker", 28.0f, 42.0f, 40, 100.0f, 470.0f, 8, 0.6f},
+    {"Sunroamer",     24.0f, 34.0f, 20, 75.0f, 420.0f, 4, 0.6f},
 }};
 
 } // namespace
