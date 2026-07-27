@@ -284,7 +284,18 @@ ViewBounds Game::currentViewBounds() const
 void Game::spawnEnemiesIfNeeded(float dt)
 {
     enemySpawnTimer += dt;
-    if (enemySpawnTimer < SPAWN_ATTEMPT_INTERVAL)
+
+    // Same "underground" test despawnEnemies already uses: the player's own
+    // column compared against the generator's surface height for it. Caves
+    // get a much shorter attempt interval so they feel denser to explore;
+    // everywhere else keeps the original cadence.
+    const int playerTileX = static_cast<int>(player.center().x / TILE_SIZE);
+    const int playerTileY = static_cast<int>(player.center().y / TILE_SIZE);
+    const bool playerUnderground = playerTileY > generator.surfaceHeight(playerTileX);
+
+    const float interval = playerUnderground ? CAVE_SPAWN_ATTEMPT_INTERVAL : SPAWN_ATTEMPT_INTERVAL;
+
+    if (enemySpawnTimer < interval)
         return;
 
     enemySpawnTimer = 0.0f;
