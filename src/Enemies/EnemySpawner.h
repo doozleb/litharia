@@ -27,12 +27,13 @@ struct EnemySpawn
     sf::Vector2f position;
 };
 
-inline constexpr int MAX_ENEMIES = 10;
+inline constexpr int MAX_ENEMIES = 16;
 inline constexpr int SPAWN_MARGIN_TILES = 3;
 inline constexpr int SPAWN_VERTICAL_SEARCH_TILES = 40;
 inline constexpr float SUNROAMER_SPAWN_CHANCE = 0.08f;
-inline constexpr float SPAWN_ATTEMPT_INTERVAL = 3.0f; // seconds, Game's own spawn timer
-inline constexpr float NIGHT_THRESHOLD = 0.5f;        // daylightFactor() below this counts as night
+inline constexpr float SPAWN_ATTEMPT_INTERVAL = 3.0f;      // seconds, Game's own spawn timer
+inline constexpr float CAVE_SPAWN_ATTEMPT_INTERVAL = 1.0f; // seconds, used while the player is underground
+inline constexpr float NIGHT_THRESHOLD = 0.5f;             // daylightFactor() below this counts as night
 
 // Deterministic given `salt` (vary per call, e.g. an incrementing counter -
 // the same convention TerrainGenerator::randomSurfaceSpot uses). Picks a
