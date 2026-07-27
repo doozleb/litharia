@@ -52,6 +52,11 @@ public:
     bool isDead() const { return hp <= 0; }
     void applyDamage(int amount);
 
+    // Overrides horizontal velocity and suspends chase AI for
+    // KNOCKBACK_LOCK_SECONDS (see Enemy.cpp), so the impulse isn't
+    // instantly overwritten by the next tick's chase logic.
+    void applyKnockback(float vx);
+
     // Accumulates dt while touchingPlayer is true, resets to 0 the instant
     // it's false. Returns the total contact damage to apply this call (0,
     // one interval, or more if dt is unusually large) - Game feeds the
@@ -66,4 +71,5 @@ private:
     bool blockedHorizontally = false;
     int hp;
     float contactTimer = 0.0f;
+    float knockbackTimer = 0.0f;
 };

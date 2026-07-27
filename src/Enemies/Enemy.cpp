@@ -14,6 +14,7 @@ namespace
 // (no shared physics-constants header exists in this codebase yet).
 constexpr float GRAVITY = 1800.0f;           // px/s^2
 constexpr float TERMINAL_VELOCITY = 1100.0f; // px/s
+constexpr float KNOCKBACK_LOCK_SECONDS = 0.25f;
 
 constexpr std::array<EnemyInfo, 2> registry = {{
     {"Nightstalker", 28.0f, 42.0f, 40, 100.0f, 470.0f, 8, 0.6f},
@@ -38,24 +39,32 @@ void Enemy::update(const World& world, sf::Vector2f playerCenter, float dt)
 {
     const EnemyInfo& info = enemyInfo(kind);
 
-    const float dx = playerCenter.x - center().x;
-    if (dx > 1.0f)
-        speed.x = info.moveSpeed;
-    else if (dx < -1.0f)
-        speed.x = -info.moveSpeed;
-    else
-        speed.x = 0.0f;
+    knockbackTimer = std::max(0.0f, knockbackTimer - dt);
 
-    // "Automatically jump if needed": jump whenever grounded and either the
-    // last move was blocked sideways, or the player sits more than a tile
-    // above. No pathfinding beyond this - if a solid ceiling separates the
-    // two, this condition keeps firing every time the enemy lands from its
-    // last hop, so it just keeps jumping into the ceiling's underside
-    // rather than ever routing around it.
-    const bool playerAbove = (playerCenter.y - center().y) < -static_cast<float>(TILE_SIZE);
+    // While a knockback impulse is still in effect, the chase/auto-jump
+    // logic below is skipped entirely so it can't immediately overwrite
+    // the impulse - gravity and collision still run every tick regardless.
+    if (knockbackTimer <= 0.0f)
+    {
+        const float dx = playerCenter.x - center().x;
+        if (dx > 1.0f)
+            speed.x = info.moveSpeed;
+        else if (dx < -1.0f)
+            speed.x = -info.moveSpeed;
+        else
+            speed.x = 0.0f;
 
-    if (grounded && (blockedHorizontally || playerAbove))
-        speed.y = -info.jumpSpeed;
+        // "Automatically jump if needed": jump whenever grounded and either
+        // the last move was blocked sideways, or the player sits more than
+        // a tile above. No pathfinding beyond this - if a solid ceiling
+        // separates the two, this condition keeps firing every time the
+        // enemy lands from its last hop, so it just keeps jumping into the
+        // ceiling's underside rather than ever routing around it.
+        const bool playerAbove = (playerCenter.y - center().y) < -static_cast<float>(TILE_SIZE);
+
+        if (grounded && (blockedHorizontally || playerAbove))
+            speed.y = -info.jumpSpeed;
+    }
 
     speed.y += GRAVITY * dt;
     speed.y = std::min(speed.y, TERMINAL_VELOCITY);
@@ -91,4 +100,10 @@ int Enemy::tickContactDamage(bool touchingPlayer, float dt)
     }
 
     return totalDamage;
+}
+
+void Enemy::applyKnockback(float vx)
+{
+    speed.x = vx;
+    knockbackTimer = KNOCKBACK_LOCK_SECONDS;
 }

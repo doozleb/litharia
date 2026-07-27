@@ -240,3 +240,40 @@ TEST_CASE("applyDamage clamps at 0 and isDead reports it")
     CHECK(enemy.health() == 0);
     CHECK(enemy.isDead());
 }
+
+TEST_CASE("applyKnockback sets velocity immediately and holds through the lock window")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Enemy enemy = standing(EnemyType::Nightstalker, world, 10.0f, 30.0f);
+    const sf::Vector2f playerFarRight{enemy.center().x + 500.0f, enemy.center().y};
+
+    enemy.applyKnockback(-260.0f);
+    CHECK(enemy.velocity().x == doctest::Approx(-260.0f));
+
+    // 10 ticks (~0.167s) is still inside the 0.25s lock - chase must not
+    // have reclaimed velocity.x despite the player being far to the right.
+    for (int i = 0; i < 10; ++i)
+        enemy.update(world, playerFarRight, STEP);
+
+    CHECK(enemy.velocity().x == doctest::Approx(-260.0f));
+}
+
+TEST_CASE("enemy chase resumes once the knockback lock has elapsed")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Enemy enemy = standing(EnemyType::Nightstalker, world, 10.0f, 30.0f);
+    const sf::Vector2f playerFarRight{enemy.center().x + 500.0f, enemy.center().y};
+
+    enemy.applyKnockback(-260.0f);
+
+    // 40 ticks (~0.667s) clears the 0.25s lock with room to spare; chase
+    // should have fully reclaimed velocity.x toward the player by then.
+    for (int i = 0; i < 40; ++i)
+        enemy.update(world, playerFarRight, STEP);
+
+    CHECK(enemy.velocity().x == doctest::Approx(100.0f));
+}
