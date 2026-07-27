@@ -489,6 +489,7 @@ void Player::respawn(sf::Vector2f topLeft)
     grounded = false;
     hp = MAX_HEALTH;
     lavaTimer = 0.0f;
+    knockbackTimer = 0.0f;
     fallStartY = topLeft.y;
 }
 

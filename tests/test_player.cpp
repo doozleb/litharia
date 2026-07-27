@@ -499,6 +499,40 @@ TEST_CASE("respawn restores full health and position, and zeroes velocity")
     CHECK(player.velocity() == sf::Vector2f{0.0f, 0.0f});
 }
 
+TEST_CASE("respawn clears knockback lock so steering works immediately")
+{
+    World world;
+    buildFloor(world, 30);
+
+    Player player = standing(world, 10.0f, 30.0f);
+
+    // Apply knockback, which sets a 0.25s lock
+    player.applyKnockback(-220.0f);
+    CHECK(player.velocity().x == doctest::Approx(-220.0f));
+
+    // Respawn while the knockback lock is still active
+    const sf::Vector2f spawn{15.0f * TILE_SIZE, 30.0f * TILE_SIZE};
+    player.respawn(spawn);
+
+    // After respawn, velocity must be zeroed
+    CHECK(player.velocity() == sf::Vector2f{0.0f, 0.0f});
+
+    // Settle the player on the floor after respawn
+    for (int i = 0; i < 120; ++i)
+        player.update({}, world, STEP);
+
+    REQUIRE(player.isGrounded());
+
+    // And steering must work immediately (not still locked out)
+    PlayerInput right;
+    right.right = true;
+
+    player.update(right, world, STEP);
+
+    // Velocity should be increasing from steering, not held at 0
+    CHECK(player.velocity().x > 0.0f);
+}
+
 TEST_CASE("standing in lava deals 20 damage every half second, three hits kill")
 {
     World world;
