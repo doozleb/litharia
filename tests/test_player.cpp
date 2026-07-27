@@ -506,30 +506,37 @@ TEST_CASE("respawn clears knockback lock so steering works immediately")
 
     Player player = standing(world, 10.0f, 30.0f);
 
-    // Apply knockback, which sets a 0.25s lock
+    // Apply knockback, which sets knockbackTimer = 0.25s (15+ ticks at 60 FPS)
     player.applyKnockback(-220.0f);
     CHECK(player.velocity().x == doctest::Approx(-220.0f));
 
-    // Respawn while the knockback lock is still active
+    // Respawn while the knockback lock is still very much active
     const sf::Vector2f spawn{15.0f * TILE_SIZE, 30.0f * TILE_SIZE};
     player.respawn(spawn);
 
     // After respawn, velocity must be zeroed
     CHECK(player.velocity() == sf::Vector2f{0.0f, 0.0f});
 
-    // Settle the player on the floor after respawn
-    for (int i = 0; i < 120; ++i)
-        player.update({}, world, STEP);
+    // Settle for 2 ticks (well before the 15-tick natural decay of knockbackTimer).
+    // This re-grounds the player after respawn but does not give knockbackTimer
+    // time to decay naturally. With the fix, knockbackTimer = 0.0f after respawn,
+    // so these ticks have no knockback lock active. Without the fix, knockbackTimer
+    // would still be ~0.25f, so steering would be skipped during these ticks.
+    player.update({}, world, STEP);
+    player.update({}, world, STEP);
 
     REQUIRE(player.isGrounded());
 
-    // And steering must work immediately (not still locked out)
+    // Now apply steering. This must work immediately if the fix is present
+    // (knockbackTimer was reset to 0.0f). If the fix is absent, knockbackTimer
+    // would still be ~0.23f (0.25 - 2 ticks of decay), and steering would still
+    // be locked out, leaving velocity at 0.
     PlayerInput right;
     right.right = true;
 
     player.update(right, world, STEP);
 
-    // Velocity should be increasing from steering, not held at 0
+    // One tick of steering at 60 FPS with MOVE_ACCELERATION should increase velocity
     CHECK(player.velocity().x > 0.0f);
 }
 
