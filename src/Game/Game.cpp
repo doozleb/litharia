@@ -49,6 +49,13 @@ constexpr float LAVA_LIGHTING_COOLDOWN_SECONDS = 0.5f;
 // drift out of sync with what it actually hits.
 constexpr float SWORD_REACH_TILES = 2.5f;
 
+// Horizontal-only knockback impulses (px/s), applied on top of whatever
+// velocity the target already had. See Enemy::applyKnockback /
+// Player::applyKnockback for the brief AI/steering lockout that lets the
+// impulse actually survive a tick instead of being instantly overwritten.
+constexpr float ENEMY_KNOCKBACK_SPEED = 260.0f;
+constexpr float PLAYER_KNOCKBACK_SPEED = 220.0f;
+
 sf::Color toColor(BlockColor c)
 {
     return sf::Color(c.r, c.g, c.b);
@@ -194,6 +201,16 @@ void Game::resolveMeleeHit(const ActionResult& result)
             continue;
 
         enemy.applyDamage(result.meleeDamage);
+
+        // Away from the player, along the facing side already established
+        // above - falls back to the player's own facing direction only in
+        // the (essentially impossible, given onFacingSide) case the enemy
+        // sits exactly on the player's center.
+        const float direction = offset.x != 0.0f
+            ? (offset.x > 0.0f ? 1.0f : -1.0f)
+            : (player.facing() == Direction::Right ? 1.0f : -1.0f);
+
+        enemy.applyKnockback(direction * ENEMY_KNOCKBACK_SPEED);
     }
 }
 
@@ -303,6 +320,14 @@ void Game::updateEnemies(float dt)
         {
             player.takeDamage(contactDamage);
             spawnDamagePopup(contactDamage);
+
+            // Away from the enemy that just hit them.
+            const sf::Vector2f offset = player.center() - enemy.center();
+            const float direction = offset.x != 0.0f
+                ? (offset.x > 0.0f ? 1.0f : -1.0f)
+                : (player.facing() == Direction::Right ? 1.0f : -1.0f);
+
+            player.applyKnockback(direction * PLAYER_KNOCKBACK_SPEED);
         }
     }
 
