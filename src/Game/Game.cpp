@@ -203,9 +203,9 @@ void Game::resolveMeleeHit(const ActionResult& result)
         enemy.applyDamage(result.meleeDamage);
 
         // Away from the player, along the facing side already established
-        // above - falls back to the player's own facing direction only in
-        // the (essentially impossible, given onFacingSide) case the enemy
-        // sits exactly on the player's center.
+        // above - falls back to the player's own facing direction when the
+        // enemy is directly above or below the player (offset.x == 0), a
+        // normal reachable state that onFacingSide still admits.
         const float direction = offset.x != 0.0f
             ? (offset.x > 0.0f ? 1.0f : -1.0f)
             : (player.facing() == Direction::Right ? 1.0f : -1.0f);
